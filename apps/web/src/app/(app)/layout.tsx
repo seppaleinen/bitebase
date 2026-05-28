@@ -1,16 +1,38 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { auth } from "@bitebase/api";
 import AppNav from "@/components/app-nav";
 
 export const dynamic = "force-dynamic";
+
+// Playwright E2E bypass: if the test cookie is present, use a mock session so
+// tests never require a real database. Only active when NODE_ENV !== "production".
+const TEST_USER = {
+  id: "playwright-test-user",
+  name: "Test User",
+  email: "test@playwright.dev",
+  emailVerified: true as const,
+  image: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+async function getSession() {
+  if (process.env.NODE_ENV !== "production") {
+    const cookieStore = await cookies();
+    if (cookieStore.get("__playwright_test__")?.value === "1") {
+      return { user: TEST_USER };
+    }
+  }
+  return auth.api.getSession({ headers: await headers() });
+}
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   if (!session?.user) {
     redirect("/login");
   }
