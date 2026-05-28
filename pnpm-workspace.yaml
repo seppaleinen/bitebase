@@ -9,6 +9,7 @@ allowBuilds:
   esbuild: set this to true or false
   msgpackr-extract: set this to true or false
   sharp: set this to true or false
+  unrs-resolver: true
 minimumReleaseAgeExclude:
   - expo-modules-autolinking@56.0.14
   - expo@56.0.6

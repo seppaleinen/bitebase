@@ -155,12 +155,6 @@ function OnboardingChat() {
     }
   }, []);
 
-  useEffect(() => {
-    if (finalizedProfile) {
-      startGeneration(finalizedProfile);
-    }
-  }, [finalizedProfile]);
-
   async function startGeneration(profile: LearningProfile) {
     setIsGenerating(true);
     setGenerationStatus("Starting curriculum generation...");
@@ -214,6 +208,13 @@ function OnboardingChat() {
       setIsGenerating(false);
     }
   }
+
+  useEffect(() => {
+    if (finalizedProfile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      startGeneration(finalizedProfile);
+    }
+  }, [finalizedProfile]);
 
   return (
     <div className="flex h-full flex-col">

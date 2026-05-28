@@ -217,6 +217,7 @@ type BiteBaseFixtures = {
 export const test = base.extend<BiteBaseFixtures>({
   authedPage: async ({ page }, use) => {
     await mockAuth(page);
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     await use(page);
   },
 });
