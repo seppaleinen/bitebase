@@ -1,9 +1,14 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
+  # Only run after CI passes on main — never release a broken build.
+  # The workflow_run trigger fires when the named workflow completes;
+  # the branch filter + conclusion check ensure we only proceed when
+  # all tests are green on the main branch.
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
 
 # Only one release job runs at a time — prevents race conditions on version tags
 concurrency:
@@ -11,9 +16,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # ── Guard: skip if the triggering CI run didn't succeed ───────────────────
+  ci-gate:
+    name: CI passed
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - run: echo "CI is green — proceeding with release"
+
   # ── Bump semantic version ──────────────────────────────────────────────────
   version:
     name: Bump version
+    needs: ci-gate
     runs-on: ubuntu-latest
     permissions:
       contents: write  # needed to push the new git tag
