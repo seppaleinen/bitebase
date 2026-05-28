@@ -15,8 +15,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── base ──────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS base
-RUN corepack enable pnpm && pnpm add -g turbo@^2
+FROM node:22-alpine AS base
+RUN npm install -g pnpm@11.4.0 turbo
 
 # ── pruner ────────────────────────────────────────────────────────────────────
 FROM base AS pruner
@@ -55,7 +55,7 @@ ENV NODE_ENV=production
 RUN pnpm --filter @bitebase/web build
 
 # ── runner ────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
