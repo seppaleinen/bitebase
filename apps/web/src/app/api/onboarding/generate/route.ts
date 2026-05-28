@@ -7,8 +7,8 @@ import {
   buildLessonSystemPrompt,
   curriculumPlanSchema,
   lessonContentSchema,
-  webSearchTool,
-  type LearningProfile,
+  learningProfileSchema,
+  createWebSearchTool,
 } from "@bitebase/ai";
 import { auth } from "@bitebase/api";
 import {
@@ -22,13 +22,55 @@ import {
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+  delayMs = 1000
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts) {
+        await new Promise((res) => setTimeout(res, delayMs * attempt));
+      }
+    }
+  }
+  throw lastError;
+}
+
+function getSearchTool() {
+  if (process.env.SEARXNG_BASE_URL) {
+    return createWebSearchTool({
+      provider: "searxng",
+      baseUrl: process.env.SEARXNG_BASE_URL,
+    });
+  }
+  if (process.env.TAVILY_API_KEY) {
+    return createWebSearchTool({
+      provider: "tavily",
+      apiKey: process.env.TAVILY_API_KEY,
+    });
+  }
+  return null;
+}
+
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers });
   if (!session?.user) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const profile: LearningProfile = await req.json();
+  const bodyJson = await req.json();
+  const profileResult = learningProfileSchema.safeParse(bodyJson);
+  if (!profileResult.success) {
+    return new Response(JSON.stringify({ error: "Invalid profile" }), {
+      status: 400,
+    });
+  }
+  const profile = profileResult.data;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -38,6 +80,8 @@ export async function POST(req: Request) {
           encoder.encode(`data: ${JSON.stringify({ event, data })}\n\n`)
         );
       }
+
+      let curriculumId: string | undefined;
 
       try {
         send("status", { message: "Saving your learning profile..." });
@@ -63,7 +107,7 @@ export async function POST(req: Request) {
           temperature: 0.7,
         });
 
-        const curriculumId = randomUUID();
+        curriculumId = randomUUID();
         await db.insert(curricula).values({
           id: curriculumId,
           userId: session.user.id,
@@ -81,8 +125,7 @@ export async function POST(req: Request) {
           totalSections: curriculumPlan.sections.length,
         });
 
-        const tavilyKey = process.env.TAVILY_API_KEY;
-        const searchTool = tavilyKey ? webSearchTool(tavilyKey) : null;
+        const searchTool = getSearchTool();
 
         let lessonOrder = 0;
         const firstLessonId: string[] = [];
@@ -109,18 +152,21 @@ export async function POST(req: Request) {
               }
             }
 
-            const { object: lessonData } = await generateObject({
-              model: getModel(),
-              schema: lessonContentSchema,
-              system: buildLessonSystemPrompt(
-                profile,
-                section.title,
-                subsection.title,
-                searchContext || `Focus on ${subsection.title} as part of ${section.title} in ${profile.topic}.`
-              ),
-              prompt: `Write a complete lesson about "${subsection.title}" for the section "${section.title}".`,
-              temperature: 0.7,
-            });
+            const { object: lessonData } = await withRetry(() =>
+              generateObject({
+                model: getModel(),
+                schema: lessonContentSchema,
+                system: buildLessonSystemPrompt(
+                  profile,
+                  section.title,
+                  subsection.title,
+                  searchContext ||
+                    `Focus on ${subsection.title} as part of ${section.title} in ${profile.topic}.`
+                ),
+                prompt: `Write a complete lesson about "${subsection.title}" for the section "${section.title}".`,
+                temperature: 0.7,
+              })
+            );
 
             const lessonId = randomUUID();
             await db.insert(lessons).values({
@@ -150,7 +196,6 @@ export async function POST(req: Request) {
           }
         }
 
-        // Unlock first lesson
         if (firstLessonId.length > 0) {
           await db.insert(progress).values({
             id: randomUUID(),
@@ -169,6 +214,20 @@ export async function POST(req: Request) {
 
         send("done", { curriculumId });
       } catch (err) {
+        if (curriculumId) {
+          try {
+            // Delete partial lessons (quizzes cascade via FK)
+            await db
+              .delete(lessons)
+              .where(eq(lessons.curriculumId, curriculumId));
+            await db
+              .update(curricula)
+              .set({ generationStatus: "failed" })
+              .where(eq(curricula.id, curriculumId));
+          } catch {
+            // best-effort cleanup; don't mask the original error
+          }
+        }
         send("error", {
           message: err instanceof Error ? err.message : "Generation failed",
         });

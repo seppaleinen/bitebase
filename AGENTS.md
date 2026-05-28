@@ -43,7 +43,7 @@ Package names follow `@bitebase/<name>` (e.g. `@bitebase/db`, `@bitebase/api`).
 | Database | PostgreSQL + Drizzle ORM | Type-safe queries; Drizzle Kit for migrations |
 | Auth | Better Auth with Drizzle adapter | Session stored in DB; email/password; OAuth-ready |
 | AI | Vercel AI SDK → Ollama (local, OpenAI-compatible) | Model-agnostic; swap model via `OLLAMA_MODEL` env var |
-| Web search | Tavily API | Used during lesson generation to fetch source material |
+| Web search | Tavily API or SearXNG | Used during lesson generation; SearXNG (self-hosted) is preferred when `SEARXNG_BASE_URL` is set, Tavily used when `TAVILY_API_KEY` is set |
 | Styling (web) | Tailwind CSS + `@tailwindcss/typography` | `prose` classes used for markdown lesson rendering |
 | Styling (mobile) | NativeWind | Tailwind classes compiled for React Native |
 | UI components | `class-variance-authority` + `clsx` + `tailwind-merge` | Variant-safe component API |
@@ -62,6 +62,7 @@ BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:3000
 OLLAMA_BASE_URL=http://localhost:11434/v1
 OLLAMA_MODEL=llama3.2
 TAVILY_API_KEY=tvly-...          # optional; web search is skipped if absent
+SEARXNG_BASE_URL=http://localhost:8080  # optional; self-hosted SearXNG (checked before Tavily)
 ```
 
 ---
@@ -104,7 +105,7 @@ pnpm --filter @bitebase/web test:e2e:ui # Playwright with UI mode
 | `packages/api/src/lib/quiz-scoring.ts` | Pure function `scoreQuiz()` extracted from the router — the only complex business logic eligible for unit tests. |
 | `packages/ai/src/schemas/index.ts` | Zod schemas for AI-structured outputs: `learningProfileSchema`, `curriculumPlanSchema`, `quizQuestionSchema`, `lessonContentSchema`. |
 | `packages/ai/src/prompts/index.ts` | System prompts for onboarding, curriculum generation, and lesson generation. |
-| `packages/ai/src/tools/index.ts` | `finalizeProfileTool` (onboarding) and `webSearchTool` (Tavily). |
+| `packages/ai/src/tools/index.ts` | `finalizeProfileTool` (onboarding) and `createWebSearchTool(config)` factory (supports Tavily and SearXNG). |
 | `apps/web/src/app/(app)/layout.tsx` | Server component that checks the session on every authenticated page. Contains the Playwright E2E bypass (see Testing section). |
 | `apps/web/src/app/api/onboarding/chat/route.ts` | Streaming AI chat endpoint for the onboarding flow. |
 | `apps/web/src/app/api/onboarding/generate/route.ts` | SSE endpoint that generates the full curriculum (calls AI for plan + each lesson). |
