@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Example Ingress — adjust for your ingress controller.
+# Tested with nginx-ingress. For Traefik, replace the annotation.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bitebase-web
+  namespace: bitebase
+  annotations:
+    # nginx-ingress
+    kubernetes.io/ingress.class: nginx
+    # TLS certificate via cert-manager (comment out if not using cert-manager)
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Increase timeout for AI streaming responses (curriculum generation can take >60s)
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+spec:
+  tls:
+    - hosts:
+        - bitebase.example.com
+      secretName: bitebase-tls
+  rules:
+    - host: bitebase.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bitebase-web
+                port:
+                  number: 80

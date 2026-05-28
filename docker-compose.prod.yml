@@ -1,0 +1,98 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# BiteBase — full production-like stack
+#
+# Builds the Next.js app from source and runs the complete stack in containers.
+# Good for smoke-testing the production build locally, staging environments,
+# and CI pipelines.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up --build
+#   docker compose -f docker-compose.prod.yml down -v   # teardown + wipe volumes
+#
+# Required environment (set in .env or export before running):
+#   BETTER_AUTH_SECRET   32-char hex string (openssl rand -hex 32)
+#
+# Optional:
+#   TAVILY_API_KEY       Enables web search during lesson generation
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bitebase
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bitebase"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Ollama (local LLM) ────────────────────────────────────────────────────────
+  # On first start: docker compose -f docker-compose.prod.yml exec ollama ollama pull llama3.2
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    # Expose only internally — the web app reaches it via the compose network
+    expose:
+      - "11434"
+
+  # ── DB migrations ─────────────────────────────────────────────────────────────
+  # Runs `drizzle-kit push` once against the live DB, then exits.
+  # The web service waits for this to complete before starting.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    command: >
+      sh -c "cd /app && pnpm --filter @bitebase/db db:push"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/bitebase
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Next.js web app ───────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/bitebase
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-http://localhost:3000}
+      OLLAMA_BASE_URL: http://ollama:11434/v1
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  postgres_data:
+  ollama_data:

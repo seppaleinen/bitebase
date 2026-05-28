@@ -18,71 +18,90 @@ An interactive micro-learning tutor that swaps doomscrolling for bite-sized grow
 
 ## Getting started
 
-### Prerequisites
+Choose the setup that matches your workflow.
+
+---
+
+### Option A — Docker (recommended, zero local dependencies)
+
+Starts Postgres + Ollama in containers and runs the app natively.
+
+```bash
+# 1. Start infrastructure
+docker compose up -d
+
+# 2. Install JS deps and sync the schema
+pnpm install
+pnpm db:push
+
+# 3. Pull an AI model (first time only — ~2 GB download)
+docker compose exec ollama ollama pull llama3.2
+
+# 4. Copy env and start the app
+cp apps/web/.env.example apps/web/.env.local
+pnpm dev
+```
+
+`apps/web/.env.local` already has the right defaults for the Docker services. Open [http://localhost:3000](http://localhost:3000).
+
+---
+
+### Option B — Native (everything runs on your machine)
+
+#### Prerequisites
 
 - Node.js 20+
 - pnpm (`npm install -g pnpm`)
-- PostgreSQL running locally (or via Docker)
-- [Ollama](https://ollama.ai) running with a model pulled (e.g. `ollama pull llama3.2`)
+- PostgreSQL 14+ running locally
+- [Ollama](https://ollama.ai) installed and running
 
-### 1. Clone and install
+#### Steps
 
 ```bash
+# 1. Clone and install
 git clone <repo>
 cd bitebase
 pnpm install
-```
 
-### 2. Configure environment
-
-```bash
+# 2. Configure environment
 cp apps/web/.env.example apps/web/.env.local
 ```
 
 Edit `apps/web/.env.local`:
 
 ```env
-# PostgreSQL connection string
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/bitebase
 
-# Better Auth (generate with: openssl rand -hex 32)
+# Generate with: openssl rand -hex 32
 BETTER_AUTH_SECRET=your-32-char-secret-here
 BETTER_AUTH_URL=http://localhost:3000
 BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:3000
 
-# Ollama (local AI — must be running)
 OLLAMA_BASE_URL=http://localhost:11434/v1
 OLLAMA_MODEL=llama3.2
 
-# Tavily (optional — enables web search for lesson content)
+# Optional — enables web search during lesson generation
 TAVILY_API_KEY=tvly-your-key-here
 ```
 
-### 3. Set up the database
-
-Create the database and run migrations:
-
 ```bash
+# 3. Create database and sync schema
 createdb bitebase
 pnpm db:push
-```
 
-### 4. Start Ollama
-
-```bash
+# 4. Pull a model and start Ollama
+ollama pull llama3.2
 ollama serve
-ollama pull llama3.2   # or any OpenAI-compatible model
-```
 
-### 5. Start the web app
-
-```bash
+# 5. Start the web app
 pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### 6. Start the mobile app (optional)
+---
+
+### Mobile app (optional)
 
 ```bash
 cp apps/mobile/.env.example apps/mobile/.env.local
@@ -91,7 +110,23 @@ cp apps/mobile/.env.example apps/mobile/.env.local
 pnpm --filter @bitebase/mobile start
 ```
 
-Then scan the QR code with Expo Go.
+Scan the QR code with Expo Go.
+
+---
+
+### Full Docker stack (production-like)
+
+Builds and runs everything in containers — useful for staging or smoke-testing the production build:
+
+```bash
+export BETTER_AUTH_SECRET=$(openssl rand -hex 32)
+docker compose -f docker-compose.prod.yml up --build
+
+# First time — pull the model
+docker compose -f docker-compose.prod.yml exec ollama ollama pull llama3.2
+```
+
+Open [http://localhost:3000](http://localhost:3000).
 
 ## Project structure
 

@@ -1,0 +1,86 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Ollama — in-cluster LLM server
+#
+# For GPU nodes add a nodeSelector + resources.limits.nvidia.com/gpu: "1"
+# and ensure the NVIDIA device plugin is installed on the cluster.
+#
+# Alternatively, point OLLAMA_BASE_URL in the ConfigMap at an external
+# OpenAI-compatible endpoint (OpenAI, Anthropic via a proxy, etc.) and
+# remove this Deployment entirely.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: bitebase
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+              name: http
+          volumeMounts:
+            - name: ollama-models
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "4Gi"
+            limits:
+              cpu: "4000m"
+              memory: "16Gi"
+            # Uncomment for GPU support:
+            # limits:
+            #   nvidia.com/gpu: "1"
+          livenessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            failureThreshold: 3
+
+      volumes:
+        - name: ollama-models
+          persistentVolumeClaim:
+            claimName: ollama-models-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models-pvc
+  namespace: bitebase
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi   # llama3.2 ~2GB; adjust up for larger models
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: bitebase
+spec:
+  selector:
+    app: ollama
+  ports:
+    - protocol: TCP
+      port: 11434
+      targetPort: 11434
+  type: ClusterIP

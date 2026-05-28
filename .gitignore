@@ -1,36 +1,104 @@
-# Dependencies
-node_modules
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
 .pnp
 .pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
 
-# Build outputs
-.next
-dist
-out
-build
-.expo
+# ── Build outputs ─────────────────────────────────────────────────────────────
+.next/
+dist/
+build/
+out/
 
-# Environment
+# Next.js cache (large, fully reproducible)
+.next/cache/
+
+# Expo / React Native
+.expo/
+android/
+ios/
+
+# Turbo cache
+.turbo/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# ── Environment & secrets ─────────────────────────────────────────────────────
 .env
 .env.local
 .env.*.local
+.env.production
 
-# Turbo
-.turbo
+# ── Package manager ───────────────────────────────────────────────────────────
+# pnpm
+pnpm-debug.log*
 
-# Misc
-.DS_Store
-*.pem
+# npm / yarn logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 
-# Drizzle
+# ── Database ──────────────────────────────────────────────────────────────────
+# Drizzle generated migration files (we use db:push in dev; add migrations/ to
+# source control if you switch to versioned migrations in production)
 drizzle/
 
-# TypeScript
-*.tsbuildinfo
+# ── Testing ───────────────────────────────────────────────────────────────────
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
 
-# Editor
-.vscode
-.idea
+# Coverage
+coverage/
+.nyc_output/
+
+# Vitest
+.vitest-cache/
+
+# ── OS & editor ───────────────────────────────────────────────────────────────
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Editors
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+
+# ── Certificates & keys ───────────────────────────────────────────────────────
+*.pem
+*.key
+*.cert
+*.p12
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+# Vercel
+.vercel/
+
+# SWC / Next.js telemetry
+.swc/
+
+# Sentry
+.sentryclirc

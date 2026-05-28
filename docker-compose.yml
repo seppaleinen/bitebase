@@ -1,0 +1,60 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# BiteBase — local development infrastructure
+#
+# This file starts ONLY the backing services (Postgres + Ollama).
+# Run the Next.js app natively alongside them with `pnpm dev`.
+#
+# Usage:
+#   docker compose up -d          # start infra in the background
+#   docker compose down           # stop and remove containers
+#   docker compose down -v        # also wipe postgres data volume
+#
+# After `docker compose up -d`:
+#   pnpm db:push                  # sync schema to the local DB
+#   pnpm dev                      # start the Next.js dev server
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bitebase
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bitebase"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Ollama (local LLM) ────────────────────────────────────────────────────────
+  # After first start, pull a model:
+  #   docker compose exec ollama ollama pull llama3.2
+  #
+  # GPU support (NVIDIA): uncomment the `deploy` block below and ensure the
+  # NVIDIA Container Toolkit is installed on your machine.
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+volumes:
+  postgres_data:
+  ollama_data:

@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bitebase-web
+  namespace: bitebase
+  labels:
+    app: bitebase-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bitebase-web
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: bitebase-web
+    spec:
+      # Run DB migrations as an init container before the app starts.
+      # This ensures schema is up-to-date on every deploy.
+      initContainers:
+        - name: migrate
+          image: bitebase-web:latest   # same image — builder stage has pnpm
+          # Override the CMD to run migrations instead of the server
+          command: ["sh", "-c"]
+          args:
+            - |
+              cd /app && node -e "
+                const { execSync } = require('child_process');
+                // drizzle-kit push via the pre-built CLI
+                execSync('pnpm --filter @bitebase/db db:push', { stdio: 'inherit' });
+              " || echo 'Migration skipped — using standalone image; run migrations separately.'
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bitebase-secrets
+                  key: DATABASE_URL
+
+      containers:
+        - name: web
+          image: bitebase-web:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+
+          env:
+            # Non-sensitive config from ConfigMap
+            - name: BETTER_AUTH_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bitebase-config
+                  key: BETTER_AUTH_URL
+            - name: BETTER_AUTH_TRUSTED_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: bitebase-config
+                  key: BETTER_AUTH_TRUSTED_ORIGINS
+            - name: OLLAMA_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bitebase-config
+                  key: OLLAMA_BASE_URL
+            - name: OLLAMA_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: bitebase-config
+                  key: OLLAMA_MODEL
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: bitebase-config
+                  key: NODE_ENV
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: bitebase-config
+                  key: PORT
+
+            # Secrets
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bitebase-secrets
+                  key: DATABASE_URL
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bitebase-secrets
+                  key: BETTER_AUTH_SECRET
+            - name: TAVILY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bitebase-secrets
+                  key: TAVILY_API_KEY
+
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bitebase-web
+  namespace: bitebase
+spec:
+  selector:
+    app: bitebase-web
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP

@@ -1,0 +1,37 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies (rebuilt inside Docker)
+node_modules
+**/node_modules
+
+# Build outputs
+.next
+**/dist
+**/.turbo
+
+# Dev environment
+.env*
+**/.env*
+
+# Test artifacts
+**/test-results
+**/playwright-report
+**/.nyc_output
+**/coverage
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.cursor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Docs (not needed at runtime)
+*.md
+!README.md
