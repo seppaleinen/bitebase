@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc";
+import { scoreQuiz } from "../lib/quiz-scoring";
 import {
   db,
   curricula,
@@ -121,12 +122,11 @@ export const curriculumRouter = router({
         .where(eq(quizzes.lessonId, input.lessonId));
       if (!quiz) throw new TRPCError({ code: "NOT_FOUND" });
 
-      const total = quiz.questions.length;
-      const correct = quiz.questions.filter(
-        (q) => input.answers[q.id] === q.correctAnswer
-      ).length;
-      const score = Math.round((correct / total) * 100);
-      const passed = score >= quiz.passingScore;
+      const { score, passed, correct, total, feedback } = scoreQuiz(
+        quiz.questions,
+        input.answers,
+        quiz.passingScore
+      );
 
       const [existing] = await db
         .select()
@@ -168,18 +168,7 @@ export const curriculumRouter = router({
         await unlockNextLesson(ctx.session.user.id, input.lessonId);
       }
 
-      return {
-        score,
-        passed,
-        correct,
-        total,
-        feedback: quiz.questions.map((q) => ({
-          questionId: q.id,
-          correct: input.answers[q.id] === q.correctAnswer,
-          correctAnswer: q.correctAnswer,
-          explanation: q.explanation,
-        })),
-      };
+      return { score, passed, correct, total, feedback };
     }),
 
   markLessonStarted: protectedProcedure
@@ -210,6 +199,42 @@ export const curriculumRouter = router({
           .set({ lastAccessedAt: new Date() })
           .where(eq(progress.id, existing.id));
       }
+    }),
+
+  getNextLesson: protectedProcedure
+    .input(z.object({ lessonId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const [currentLesson] = await db
+        .select()
+        .from(lessons)
+        .where(eq(lessons.id, input.lessonId));
+      if (!currentLesson) return null;
+
+      const [curriculum] = await db
+        .select()
+        .from(curricula)
+        .where(
+          and(
+            eq(curricula.id, currentLesson.curriculumId),
+            eq(curricula.userId, ctx.session.user.id)
+          )
+        );
+      if (!curriculum) return null;
+
+      const allLessons = await db
+        .select()
+        .from(lessons)
+        .where(eq(lessons.curriculumId, currentLesson.curriculumId));
+
+      const next = allLessons.find((l) => l.order === currentLesson.order + 1) ?? null;
+      return next
+        ? {
+            id: next.id,
+            title: next.title,
+            curriculumId: next.curriculumId,
+            order: next.order,
+          }
+        : null;
     }),
 
   getProfile: protectedProcedure

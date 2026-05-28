@@ -28,6 +28,11 @@ export default function LessonPage({
     lessonId: id,
   });
 
+  const { data: curriculum } = trpcReact.curriculum.get.useQuery(
+    { id: data?.lesson.curriculumId ?? "" },
+    { enabled: !!data?.lesson.curriculumId }
+  );
+
   const markStarted = trpcReact.curriculum.markLessonStarted.useMutation();
 
   useEffect(() => {
@@ -145,6 +150,9 @@ export default function LessonPage({
             <QuizSection
               lessonId={id}
               quiz={quiz}
+              lessonTitle={lesson.title}
+              curriculumId={lesson.curriculumId}
+              curriculumTitle={curriculum?.title}
               onComplete={() => {
                 utils.curriculum.getLesson.invalidate({ lessonId: id });
               }}
