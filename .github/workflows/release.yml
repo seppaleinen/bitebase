@@ -39,13 +39,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: patch
-          major_string_token: "BREAKING CHANGE"
-          minor_string_token: "feat:"
-          patch_string_token: "fix:"
-          # Commits that should NOT trigger a release at all:
-          # add more prefixes separated by commas (e.g. "chore:,docs:")
-          # Leave empty to always release on push to main.
-          # none_string_token: ""
+          custom_release_rules: "feat:minor,fix:patch,BREAKING CHANGE:major"
           tag_prefix: "v"
           release_branches: main
 
