@@ -1,0 +1,182 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# BiteBase Helm values
+#
+# Override per environment:
+#   helm install bitebase oci://ghcr.io/<org>/bitebase \
+#     --version 1.0.0 \
+#     -f values-prod.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Web app image ─────────────────────────────────────────────────────────────
+image:
+  repository: ghcr.io/your-org/bitebase  # CHANGE: set your GHCR image path
+  tag: ""                                  # defaults to .Chart.appVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# ── Replicas & scaling ────────────────────────────────────────────────────────
+replicaCount: 2
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# ── Service account ───────────────────────────────────────────────────────────
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# ── Non-sensitive runtime config ──────────────────────────────────────────────
+config:
+  betterAuthUrl: "https://bitebase.example.com"
+  betterAuthTrustedOrigins: "https://bitebase.example.com"
+  ollamaBaseUrl: "http://ollama:11434/v1"
+  ollamaModel: "llama3.2"
+  nodeEnv: "production"
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+# Option A (recommended): reference a pre-existing secret created by your
+# secret management tool (External Secrets Operator, Sealed Secrets, Vault…)
+#
+#   existingSecret: bitebase-secrets
+#
+# Option B: let the chart create a Secret from these values (NOT for production —
+# values will be stored in Helm release history in plain text)
+#
+#   existingSecret: ""
+#   secrets:
+#     databaseUrl: "postgresql://..."
+#     betterAuthSecret: "..."
+#     tavilyApiKey: ""
+
+existingSecret: ""       # name of a pre-existing Secret; takes precedence
+secrets:
+  databaseUrl: ""
+  betterAuthSecret: ""
+  tavilyApiKey: ""
+
+# ── Database ──────────────────────────────────────────────────────────────────
+# Set a pre-existing DATABASE_URL via secrets/existingSecret above,
+# OR enable the bundled PostgreSQL subchart below for dev/staging.
+
+# Bundled PostgreSQL (bitnami/postgresql subchart)
+postgresql:
+  enabled: false
+  auth:
+    database: bitebase
+    username: bitebase
+    password: ""          # generate: openssl rand -hex 16
+    postgresPassword: ""
+  primary:
+    persistence:
+      size: 10Gi
+
+# ── Migrations ────────────────────────────────────────────────────────────────
+# Runs drizzle-kit push as a pre-install/pre-upgrade Helm hook.
+# Requires a migration-capable image (the builder stage of the Dockerfile).
+# Build it with: docker build --target builder -t your-org/bitebase-migrate .
+migrations:
+  enabled: true
+  image:
+    repository: ""        # falls back to main image.repository if empty
+    tag: ""               # falls back to main image.tag if empty
+    pullPolicy: IfNotPresent
+  # Command that runs the migration. Adjust if you switch to versioned migrations.
+  command:
+    - sh
+    - -c
+    - "cd /app && node -e \"require('child_process').execSync('pnpm --filter @bitebase/db db:push', {stdio:'inherit'})\""
+
+# ── Service ───────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+# ── Ingress ───────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: nginx
+  hostname: bitebase.example.com  # CHANGE
+  tls: true
+  certManager:
+    enabled: true
+    clusterIssuer: letsencrypt-prod
+  annotations:
+    # Increase timeouts for AI streaming responses (curriculum generation ≥60s)
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+
+# ── Resources ─────────────────────────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# ── Health probes ─────────────────────────────────────────────────────────────
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: 3000
+  initialDelaySeconds: 15
+  periodSeconds: 30
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/health
+    port: 3000
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 3
+
+# ── Pod settings ──────────────────────────────────────────────────────────────
+podAnnotations: {}
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  fsGroup: 1001
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false  # Next.js writes to .next at runtime
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# ── Ollama (optional in-cluster LLM) ─────────────────────────────────────────
+# For production, prefer pointing ollamaBaseUrl at a managed external endpoint.
+ollama:
+  enabled: false
+  image:
+    repository: ollama/ollama
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    port: 11434
+  persistence:
+    size: 20Gi      # llama3.2 ~2 GB; increase for larger models
+  resources:
+    requests:
+      cpu: 500m
+      memory: 4Gi
+    limits:
+      cpu: "4"
+      memory: 16Gi
+  # GPU support — uncomment and ensure NVIDIA device plugin is installed:
+  # gpu:
+  #   enabled: true
+  #   count: 1

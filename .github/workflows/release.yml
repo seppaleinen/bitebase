@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+# Only one release job runs at a time — prevents race conditions on version tags
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # ── Bump semantic version ──────────────────────────────────────────────────
+  version:
+    name: Bump version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed to push the new git tag
+
+    outputs:
+      new_tag: ${{ steps.tag.outputs.new_tag }}
+      previous_tag: ${{ steps.tag.outputs.previous_tag }}
+      changelog: ${{ steps.tag.outputs.changelog }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so the tag action can read all commits
+
+      # Reads conventional commit messages and decides the version bump:
+      #   feat: …          → minor (1.x.0)
+      #   fix: …           → patch (1.0.x)
+      #   BREAKING CHANGE  → major (x.0.0)
+      #   chore|docs|…     → patch (default fallback)
+      - name: Bump version and push tag
+        id: tag
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+          major_string_token: "BREAKING CHANGE"
+          minor_string_token: "feat:"
+          patch_string_token: "fix:"
+          # Commits that should NOT trigger a release at all:
+          # add more prefixes separated by commas (e.g. "chore:,docs:")
+          # Leave empty to always release on push to main.
+          # none_string_token: ""
+          tag_prefix: "v"
+          release_branches: main
+
+  # ── Build & push Docker image ──────────────────────────────────────────────
+  docker:
+    name: Build & push Docker image
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # needed to push to GHCR
+
+    env:
+      REGISTRY: ghcr.io
+      # ghcr.io/<owner>/<repo-name>  —  GitHub lowercases this automatically
+      IMAGE_NAME: ${{ github.repository }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Set up QEMU for multi-platform builds (arm64 for Apple Silicon / Graviton)
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Produces tags:
+      #   ghcr.io/<owner>/<repo>:latest
+      #   ghcr.io/<owner>/<repo>:v1.2.3
+      #   ghcr.io/<owner>/<repo>:1.2.3
+      #   ghcr.io/<owner>/<repo>:<git-sha-short>
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ needs.version.outputs.new_tag }}
+            type=semver,pattern={{version}},value=${{ needs.version.outputs.new_tag }}
+            type=sha,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Cache layers between runs using the registry itself
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+      - name: Image digest
+        run: echo "Pushed ${{ steps.meta.outputs.tags }}"
+
+  # ── Create GitHub Release with auto-generated changelog ───────────────────
+  github-release:
+    name: Create GitHub Release
+    needs: [version, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Create release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ needs.version.outputs.new_tag }}
+          name: ${{ needs.version.outputs.new_tag }}
+          body: ${{ needs.version.outputs.changelog }}
+          # Don't mark as pre-release since we push from main
+          prerelease: false

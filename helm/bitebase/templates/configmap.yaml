@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "bitebase.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "bitebase.labels" . | nindent 4 }}
+data:
+  BETTER_AUTH_URL: {{ .Values.config.betterAuthUrl | quote }}
+  BETTER_AUTH_TRUSTED_ORIGINS: {{ .Values.config.betterAuthTrustedOrigins | quote }}
+  {{- if .Values.ollama.enabled }}
+  OLLAMA_BASE_URL: {{ printf "http://%s-ollama:%d/v1" .Release.Name (.Values.ollama.service.port | int) | quote }}
+  {{- else }}
+  OLLAMA_BASE_URL: {{ .Values.config.ollamaBaseUrl | quote }}
+  {{- end }}
+  OLLAMA_MODEL: {{ .Values.config.ollamaModel | quote }}
+  NODE_ENV: {{ .Values.config.nodeEnv | quote }}
+  PORT: "3000"

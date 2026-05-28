@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  # Cancel in-flight runs for the same branch, except on main
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # ── Unit & integration tests (Vitest) ─────────────────────────────────────
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4   # reads packageManager from package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Type-check
+        run: pnpm type-check
+
+      - name: Unit & integration tests
+        run: pnpm test
+
+  # ── E2E tests (Playwright / Chromium) ────────────────────────────────────
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    env:
+      # The E2E tests mock tRPC and AI via page.route() and use the
+      # __playwright_test__ cookie to bypass auth, so no real DB or Ollama
+      # is needed. These values just need to be syntactically valid so the
+      # Next.js dev server can start without crashing.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bitebase_test
+      BETTER_AUTH_SECRET: ci-test-secret-that-is-32-chars-xx
+      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_TRUSTED_ORIGINS: http://localhost:3000
+      OLLAMA_BASE_URL: http://localhost:11434/v1
+      OLLAMA_MODEL: llama3.2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @bitebase/web exec playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7

@@ -1,0 +1,88 @@
+{{- if .Values.ollama.enabled -}}
+# ── Ollama in-cluster LLM ─────────────────────────────────────────────────────
+# For production, prefer pointing config.ollamaBaseUrl at a managed external
+# endpoint (OpenAI, Anthropic via a proxy, etc.) and setting ollama.enabled=false.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ollama
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "bitebase.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "bitebase.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ollama
+  template:
+    metadata:
+      labels:
+        {{- include "bitebase.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ollama
+    spec:
+      containers:
+        - name: ollama
+          image: "{{ .Values.ollama.image.repository }}:{{ .Values.ollama.image.tag }}"
+          imagePullPolicy: {{ .Values.ollama.image.pullPolicy }}
+          ports:
+            - containerPort: 11434
+              name: http
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+          {{- with .Values.ollama.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if and .Values.ollama.gpu .Values.ollama.gpu.enabled }}
+          # GPU resources — requires NVIDIA device plugin
+          # Uncomment and adjust:
+          # resources:
+          #   limits:
+          #     nvidia.com/gpu: {{ .Values.ollama.gpu.count | default 1 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 60
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-ollama-models
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-ollama-models
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "bitebase.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.ollama.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-ollama
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "bitebase.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+spec:
+  selector:
+    {{- include "bitebase.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+  ports:
+    - port: {{ .Values.ollama.service.port }}
+      targetPort: 11434
+      name: http
+  type: ClusterIP
+{{- end }}
