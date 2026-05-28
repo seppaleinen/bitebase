@@ -106,7 +106,7 @@ export default function OnboardingScreen() {
     }
   }
 
-  const displayMessages = messages.filter((m) => m.role !== "tool");
+  const displayMessages = messages.filter((m) => (m.role as string) !== "tool");
 
   return (
     <SafeAreaView className="flex-1 bg-white">
