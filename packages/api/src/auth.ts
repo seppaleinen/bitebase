@@ -5,7 +5,7 @@ import { db, users, sessions, accounts, verifications } from "@bitebase/db";
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
-    schema: { users, sessions, accounts, verifications },
+    schema: { user: users, session: sessions, account: accounts, verification: verifications },
   }),
   emailAndPassword: {
     enabled: true,
