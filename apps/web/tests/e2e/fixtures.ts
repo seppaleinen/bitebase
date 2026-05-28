@@ -78,10 +78,11 @@ type TRPCMockData = {
   quiz?: object | null;
   progress?: object | null;
   quizResult?: object | null;
+  nextLesson?: object | null;
 };
 
 function resolveData(procedurePath: string, data: TRPCMockData): unknown {
-  const { curricula = [], lessons = [], lesson = null, quiz = null, progress = null, quizResult = null } = data;
+  const { curricula = [], lessons = [], lesson = null, quiz = null, progress = null, quizResult = null, nextLesson = null } = data;
   if (procedurePath === "curriculum.list") return curricula;
   if (procedurePath === "curriculum.get") return curricula[0] ?? null;
   if (procedurePath === "curriculum.getLessons") return lessons;
@@ -89,6 +90,7 @@ function resolveData(procedurePath: string, data: TRPCMockData): unknown {
   if (procedurePath === "curriculum.submitQuiz") return quizResult;
   if (procedurePath === "curriculum.markLessonStarted") return null;
   if (procedurePath === "curriculum.getProfile") return null;
+  if (procedurePath === "curriculum.getNextLesson") return nextLesson ?? null;
   return null;
 }
 

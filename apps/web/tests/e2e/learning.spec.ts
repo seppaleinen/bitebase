@@ -129,6 +129,7 @@ test.describe("Dashboard", () => {
 test.describe("Onboarding chat", () => {
   test("renders the initial welcome message", async ({ page }) => {
     await setTestSession(page);
+    await mockTRPC(page, { curricula: [] });
     await mockAI(page);
     await page.goto("/onboarding");
 
@@ -139,6 +140,7 @@ test.describe("Onboarding chat", () => {
 
   test("message input and send button are visible", async ({ page }) => {
     await setTestSession(page);
+    await mockTRPC(page, { curricula: [] });
     await mockAI(page);
     await page.goto("/onboarding");
 
@@ -153,6 +155,7 @@ test.describe("Lesson page", () => {
   async function setupLesson(page: Parameters<typeof mockTRPC>[0]) {
     await setTestSession(page);
     await mockTRPC(page, {
+      curricula: [mockCurriculum],
       lesson: mockLesson,
       quiz: mockQuiz,
       progress: mockProgress,
@@ -211,6 +214,7 @@ test.describe("Quiz engine", () => {
   async function setupQuiz(page: Parameters<typeof mockTRPC>[0], quizResult?: object) {
     await setTestSession(page);
     await mockTRPC(page, {
+      curricula: [mockCurriculum],
       lesson: mockLesson,
       quiz: mockQuiz,
       progress: mockProgress,
@@ -311,7 +315,7 @@ test.describe("Quiz engine", () => {
 
     await expect(page.getByText(/not quite there yet/i)).toBeVisible();
     await expect(page.getByText(/33%/)).toBeVisible();
-    await expect(page.getByRole("button", { name: /retake quiz/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /try again/i })).toBeVisible();
   });
 
   test("'Review answers' reveals per-question feedback", async ({ page }) => {
