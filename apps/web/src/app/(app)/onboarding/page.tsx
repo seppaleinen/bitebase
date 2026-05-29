@@ -135,9 +135,9 @@ function OnboardingChat() {
         },
       ],
       onFinish(message) {
-        // The model embeds a PROFILE:{...} line when it has all 4 required fields.
+        // The model embeds a PROFILE: {...} line when it has all 4 required fields.
         // Parse it out and trigger generation — no tool calling needed.
-        const match = message.content.match(/PROFILE:(\{.*\})/);
+        const match = message.content.match(/PROFILE:\s*(\{[\s\S]*?\})\s*$/m);
         if (match) {
           try {
             const profile = JSON.parse(match[1]) as LearningProfile;
@@ -257,7 +257,7 @@ function OnboardingChat() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if ((m.role as any) === "tool") return null;
             // Strip the PROFILE:{...} marker line before display
-            const displayContent = m.content?.replace(/\nPROFILE:\{.*\}$/, "").replace(/^PROFILE:\{.*\}$/, "").trim();
+            const displayContent = m.content?.replace(/\n?PROFILE:\s*\{[\s\S]*?\}\s*$/m, "").trim();
             // Skip messages with no visible text
             if (!displayContent) return null;
             const isAssistant = m.role === "assistant";
