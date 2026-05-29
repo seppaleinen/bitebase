@@ -3,6 +3,7 @@ import {
   learningProfileSchema,
   curriculumPlanSchema,
   quizQuestionSchema,
+  lessonContentSchema,
 } from "../src/schemas/index";
 
 // ─── learningProfileSchema ────────────────────────────────────────────────────
@@ -95,10 +96,16 @@ describe("curriculumPlanSchema", () => {
     expect(() => curriculumPlanSchema.parse(valid)).not.toThrow();
   });
 
-  it("rejects fewer than 3 sections", () => {
+  it("accepts a plan with only 1 section", () => {
     expect(() =>
       curriculumPlanSchema.parse({ ...valid, sections: [makeSection("s1", 0)] })
-    ).toThrow();
+    ).not.toThrow();
+  });
+
+  it("accepts a plan with 2 sections", () => {
+    expect(() =>
+      curriculumPlanSchema.parse({ ...valid, sections: [makeSection("s1", 0), makeSection("s2", 1)] })
+    ).not.toThrow();
   });
 
   it("rejects more than 8 sections", () => {
@@ -113,6 +120,47 @@ describe("curriculumPlanSchema", () => {
       makeSection(`s${i}`, i)
     );
     expect(() => curriculumPlanSchema.parse({ ...valid, sections })).not.toThrow();
+  });
+
+  it("coerces totalEstimatedMinutes from a string number", () => {
+    const result = curriculumPlanSchema.parse({ ...valid, totalEstimatedMinutes: "120" });
+    expect(result.totalEstimatedMinutes).toBe(120);
+  });
+
+  it("falls back to 60 when totalEstimatedMinutes is unparseable", () => {
+    const result = curriculumPlanSchema.parse({ ...valid, totalEstimatedMinutes: "120 minutes" });
+    expect(result.totalEstimatedMinutes).toBe(60);
+  });
+
+  it("coerces section estimatedMinutes from a string", () => {
+    const sectionWithStringMinutes = { ...makeSection("s1", 0), estimatedMinutes: "30" };
+    const result = curriculumPlanSchema.parse({ ...valid, sections: [sectionWithStringMinutes] });
+    expect(result.sections[0].estimatedMinutes).toBe(30);
+  });
+
+  it("falls back section estimatedMinutes to 10 when unparseable", () => {
+    const sectionWithBadMinutes = { ...makeSection("s1", 0), estimatedMinutes: "about 30 min" };
+    const result = curriculumPlanSchema.parse({ ...valid, sections: [sectionWithBadMinutes] });
+    expect(result.sections[0].estimatedMinutes).toBe(10);
+  });
+
+  it("falls back section id to 'section-0' when missing", () => {
+    const { id: _, ...sectionWithoutId } = makeSection("s1", 0);
+    const result = curriculumPlanSchema.parse({ ...valid, sections: [sectionWithoutId] });
+    expect(result.sections[0].id).toBe("section-0");
+  });
+
+  it("coerces section order from a string", () => {
+    const sectionWithStringOrder = { ...makeSection("s1", 0), order: "2" };
+    const result = curriculumPlanSchema.parse({ ...valid, sections: [sectionWithStringOrder] });
+    expect(result.sections[0].order).toBe(2);
+  });
+
+  it("falls back subsection id to 'sub-0' when missing", () => {
+    const section = makeSection("s1", 0);
+    const { id: _, ...subWithoutId } = section.subsections[0];
+    const result = curriculumPlanSchema.parse({ ...valid, sections: [{ ...section, subsections: [subWithoutId] }] });
+    expect(result.sections[0].subsections[0].id).toBe("sub-0");
   });
 });
 
@@ -168,5 +216,70 @@ describe("quizQuestionSchema", () => {
   it("rejects a missing explanation", () => {
     const { explanation: _, ...noExplanation } = mcQuestion;
     expect(() => quizQuestionSchema.parse(noExplanation)).toThrow();
+  });
+});
+
+// ─── lessonContentSchema ──────────────────────────────────────────────────────
+
+describe("lessonContentSchema", () => {
+  const makeQuestion = (id: string) => ({
+    id,
+    type: "multiple_choice" as const,
+    question: `Question ${id}?`,
+    options: ["A", "B", "C", "D"],
+    correctAnswer: "A",
+    explanation: "Because A.",
+  });
+
+  const valid = {
+    content: "# Lesson\n\nSome content here.",
+    estimatedMinutes: 15,
+    sources: [],
+    quiz: {
+      questions: [makeQuestion("q1"), makeQuestion("q2"), makeQuestion("q3")],
+      passingScore: 70,
+    },
+  };
+
+  it("accepts a valid lesson", () => {
+    expect(() => lessonContentSchema.parse(valid)).not.toThrow();
+  });
+
+  it("accepts a quiz with only 1 question", () => {
+    expect(() =>
+      lessonContentSchema.parse({ ...valid, quiz: { ...valid.quiz, questions: [makeQuestion("q1")] } })
+    ).not.toThrow();
+  });
+
+  it("accepts a quiz with 2 questions", () => {
+    expect(() =>
+      lessonContentSchema.parse({ ...valid, quiz: { ...valid.quiz, questions: [makeQuestion("q1"), makeQuestion("q2")] } })
+    ).not.toThrow();
+  });
+
+  it("coerces estimatedMinutes from a string", () => {
+    const result = lessonContentSchema.parse({ ...valid, estimatedMinutes: "10" });
+    expect(result.estimatedMinutes).toBe(10);
+  });
+
+  it("falls back estimatedMinutes to 10 when unparseable", () => {
+    const result = lessonContentSchema.parse({ ...valid, estimatedMinutes: "about 10 min" });
+    expect(result.estimatedMinutes).toBe(10);
+  });
+
+  it("coerces passingScore from a string", () => {
+    const result = lessonContentSchema.parse({ ...valid, quiz: { ...valid.quiz, passingScore: "80" } });
+    expect(result.quiz.passingScore).toBe(80);
+  });
+
+  it("falls back passingScore to 70 when unparseable", () => {
+    const result = lessonContentSchema.parse({ ...valid, quiz: { ...valid.quiz, passingScore: "seventy" } });
+    expect(result.quiz.passingScore).toBe(70);
+  });
+
+  it("defaults passingScore to 70 when omitted", () => {
+    const { passingScore: _, ...quizWithoutScore } = valid.quiz;
+    const result = lessonContentSchema.parse({ ...valid, quiz: quizWithoutScore });
+    expect(result.quiz.passingScore).toBe(70);
   });
 });

@@ -22,18 +22,18 @@ export const learningProfileSchema = z.object({
 export type LearningProfile = z.infer<typeof learningProfileSchema>;
 
 export const subsectionSchema = z.object({
-  id: z.string().describe("Short unique slug, e.g. 'sub-1-a', 'sub-2-b'"),
+  id: z.string().catch("sub-0").describe("Short unique slug, e.g. 'sub-1-a', 'sub-2-b'"),
   title: z.string(),
   description: z.string(),
-  order: z.number().int().describe("0-based position index"),
+  order: z.coerce.number().int().catch(0).describe("0-based position index"),
 });
 
 export const sectionSchema = z.object({
-  id: z.string().describe("Short unique slug, e.g. 'section-1', 'section-2'"),
+  id: z.string().catch("section-0").describe("Short unique slug, e.g. 'section-1', 'section-2'"),
   title: z.string(),
   description: z.string(),
-  estimatedMinutes: z.number().int().min(5),
-  order: z.number().int().describe("0-based position index"),
+  estimatedMinutes: z.coerce.number().int().min(1).catch(10),
+  order: z.coerce.number().int().catch(0).describe("0-based position index"),
   subsections: z.array(subsectionSchema).min(1).max(6),
 });
 
@@ -43,11 +43,12 @@ export const curriculumPlanSchema = z.object({
     .string()
     .describe("Brief overview of what the user will learn"),
   totalEstimatedMinutes: z
-    .number()
+    .coerce.number()
+    .catch(60)
     .describe("Total estimated learning time in minutes"),
   sections: z
     .array(sectionSchema)
-    .min(3)
+    .min(1)
     .max(8)
     .describe("Main sections of the curriculum"),
 });
@@ -88,7 +89,7 @@ export const lessonContentSchema = z.object({
     .describe(
       "Rich markdown lesson content with clear headings, examples, and code snippets where relevant"
     ),
-  estimatedMinutes: z.number().int().min(1).describe("Estimated reading time in minutes"),
+  estimatedMinutes: z.coerce.number().int().min(1).catch(10).describe("Estimated reading time in minutes"),
   // .catch([]) lets generation succeed even if model omits or mis-formats sources
   sources: z
     .array(
@@ -100,12 +101,13 @@ export const lessonContentSchema = z.object({
     .catch([])
     .describe("Reference sources used — can be an empty array if none"),
   quiz: z.object({
-    questions: z.array(quizQuestionSchema).min(3).max(6),
+    questions: z.array(quizQuestionSchema).min(1).max(6),
     passingScore: z
-      .number()
+      .coerce.number()
       .min(50)
       .max(100)
       .default(70)
+      .catch(70)
       .describe("Minimum percentage score (50-100) required to pass, default 70"),
   }),
 });
