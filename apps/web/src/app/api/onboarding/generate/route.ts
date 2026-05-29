@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
-import { generateObject, generateText } from "ai";
+import { generateObject, generateText, NoObjectGeneratedError } from "ai";
+import type { z } from "zod";
 import {
   getModel,
   buildCurriculumSystemPrompt,
@@ -9,6 +10,8 @@ import {
   lessonContentSchema,
   learningProfileSchema,
   createWebSearchTool,
+  type CurriculumPlan,
+  type LessonContent,
 } from "@bitebase/ai";
 import { auth } from "@bitebase/api";
 import {
@@ -22,23 +25,75 @@ import {
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxAttempts = 3,
-  delayMs = 1000
+/** Extract a JSON object from model text that may be wrapped in markdown code fences. */
+function extractJson(text: string): unknown {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  const raw = fenced ? fenced[1] : text.trim();
+  // Strip leading/trailing non-JSON characters (e.g. "Here is the JSON:" prefix)
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end === -1) throw new Error("No JSON object found in response");
+  return JSON.parse(raw.slice(start, end + 1));
+}
+
+interface GenerateJsonParams {
+  model: Parameters<typeof generateText>[0]["model"];
+  system: string;
+  prompt: string;
+  mode?: "json" | "tool" | "auto";
+  temperature?: number;
+}
+
+/**
+ * Wraps `generateObject` with retry logic.
+ * On `NoObjectGeneratedError`, logs the raw model text and attempts to parse
+ * and validate it manually before giving up — a "repair" pass that handles
+ * cases where the model produced valid JSON that just barely missed the schema.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function generateJsonObject<T>(
+  params: GenerateJsonParams,
+  schema: z.ZodType<T, z.ZodTypeDef, any>,
+  maxAttempts = 3
 ): Promise<T> {
   let lastError: unknown;
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return await fn();
+      const { object } = await generateObject({ ...params, schema });
+      return object as T;
     } catch (err) {
       lastError = err;
-      console.error(`[generate] attempt ${attempt}/${maxAttempts} failed:`, err instanceof Error ? err.message : err);
+
+      if (NoObjectGeneratedError.isInstance(err)) {
+        const rawText = err.text ?? "";
+        console.error(`[generate] attempt ${attempt}/${maxAttempts} schema mismatch.`);
+        console.error(`[generate] finishReason: ${err.finishReason}`);
+        console.error(`[generate] cause: ${err.cause instanceof Error ? err.cause.message : err.cause}`);
+        console.error(`[generate] raw text (first 800 chars): ${rawText.slice(0, 800)}`);
+
+        // Repair pass: try parsing the raw text ourselves
+        try {
+          const parsed = extractJson(rawText);
+          const result = schema.safeParse(parsed);
+          if (result.success) {
+            console.log(`[generate] repair pass succeeded on attempt ${attempt}`);
+            return result.data;
+          }
+          console.error(`[generate] repair pass Zod errors:`, JSON.stringify(result.error.format()).slice(0, 600));
+        } catch (parseErr) {
+          console.error(`[generate] repair pass parse failed:`, parseErr instanceof Error ? parseErr.message : parseErr);
+        }
+      } else {
+        console.error(`[generate] attempt ${attempt}/${maxAttempts} failed:`, err instanceof Error ? err.message : err);
+      }
+
       if (attempt < maxAttempts) {
-        await new Promise((res) => setTimeout(res, delayMs * attempt));
+        await new Promise((res) => setTimeout(res, 1000 * attempt));
       }
     }
   }
+
   throw lastError;
 }
 
@@ -104,14 +159,16 @@ export async function POST(req: Request) {
 
         send("status", { message: "Designing your curriculum..." });
 
-        const { object: curriculumPlan } = await generateObject({
-          model: getModel(),
-          schema: curriculumPlanSchema,
-          mode: "json",
-          system: buildCurriculumSystemPrompt(profile),
-          prompt: `Create a personalized curriculum for learning ${profile.topic} for a ${profile.experienceLevel} learner.`,
-          temperature: 0.7,
-        });
+        const curriculumPlan = await generateJsonObject<CurriculumPlan>(
+          {
+            model: getModel(),
+            mode: "json",
+            system: buildCurriculumSystemPrompt(profile),
+            prompt: `Create a personalized curriculum for learning ${profile.topic} for a ${profile.experienceLevel} learner.`,
+            temperature: 0.7,
+          },
+          curriculumPlanSchema
+        );
 
         curriculumId = randomUUID();
         await db.insert(curricula).values({
@@ -158,10 +215,9 @@ export async function POST(req: Request) {
               }
             }
 
-            const { object: lessonData } = await withRetry(() =>
-              generateObject({
+            const lessonData = await generateJsonObject<LessonContent>(
+              {
                 model: getModel(),
-                schema: lessonContentSchema,
                 mode: "json",
                 system: buildLessonSystemPrompt(
                   profile,
@@ -172,7 +228,8 @@ export async function POST(req: Request) {
                 ),
                 prompt: `Write a complete lesson about "${subsection.title}" for the section "${section.title}".`,
                 temperature: 0.7,
-              })
+              },
+              lessonContentSchema
             );
 
             const lessonId = randomUUID();
