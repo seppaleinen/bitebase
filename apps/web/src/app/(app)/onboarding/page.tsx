@@ -171,6 +171,13 @@ function OnboardingChat() {
         body: JSON.stringify(profile),
       });
 
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        setGenerationStatus(`Error: ${response.status} — ${text.slice(0, 120) || "generation failed"}`);
+        setIsGenerating(false);
+        return;
+      }
+
       const reader = response.body?.getReader();
       if (!reader) return;
 
@@ -207,8 +214,12 @@ function OnboardingChat() {
 
       if (curriculumId) {
         router.push(`/dashboard?new=${curriculumId}`);
+      } else {
+        setGenerationStatus("Generation completed but no curriculum ID was returned. Please try again.");
+        setIsGenerating(false);
       }
-    } catch {
+    } catch (err) {
+      console.error("[onboarding] generation fetch error:", err);
       setGenerationStatus("Something went wrong. Please try again.");
       setIsGenerating(false);
     }

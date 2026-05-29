@@ -130,7 +130,8 @@ function CurriculumCard({
   const progressPct =
     totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
-  const isGenerating = curriculum.generationStatus !== "complete";
+  const isGenerating = curriculum.generationStatus === "generating";
+  const isFailed = curriculum.generationStatus === "failed";
 
   return (
     <Link
@@ -147,7 +148,12 @@ function CurriculumCard({
             Generating
           </span>
         )}
-        {!isGenerating && progressPct === 100 && (
+        {isFailed && (
+          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
+            Generation failed
+          </span>
+        )}
+        {!isGenerating && !isFailed && progressPct === 100 && (
           <Trophy className="h-4 w-4 text-amber-500" />
         )}
       </div>
