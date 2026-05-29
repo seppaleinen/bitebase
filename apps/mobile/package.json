@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "test:build": "expo export --platform android --output-dir /tmp/.bitebase-mobile-export && rm -rf /tmp/.bitebase-mobile-export"
   },
   "dependencies": {
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@playwright/test": "^1.60.0",
     "@types/node": "^22.15.21",
     "@types/react": "~19.1.10",
     "@types/react-native": "^0.73.0",

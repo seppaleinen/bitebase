@@ -303,6 +303,7 @@ export default function OnboardingScreen() {
                 onPress={() => handleSubmit()}
                 disabled={isLoading || !input.trim()}
                 className="h-10 w-10 items-center justify-center rounded-xl bg-violet-600 disabled:opacity-60"
+                accessibilityLabel="Send message"
                 {...keyboardHandler(() => handleSubmit())}
               >
                 <Send color="white" size={16} />
