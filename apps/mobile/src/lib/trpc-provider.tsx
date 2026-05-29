@@ -12,6 +12,8 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
       links: [
         httpBatchStreamLink({
           url: `${process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000"}/api/trpc`,
+          fetch: (url, options) =>
+            fetch(url, { ...options, credentials: "include" }),
         }),
       ],
     })

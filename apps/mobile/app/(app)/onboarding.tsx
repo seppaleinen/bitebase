@@ -26,6 +26,8 @@ export default function OnboardingScreen() {
 
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: `${API_BASE}/api/onboarding/chat`,
+    fetch: (url, options) =>
+      fetch(url, { ...options, credentials: "include" }),
     initialMessages: [
       {
         id: "welcome",
