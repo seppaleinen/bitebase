@@ -68,21 +68,23 @@ Write a comprehensive, engaging lesson in Markdown that:
 - Is well-structured with clear headings
 - Ends with a brief summary of key takeaways
 
-Then create 3-5 quiz questions that test understanding of the key concepts in this lesson.
+Then create 3-5 quiz questions that test understanding of the key concepts.
 
-IMPORTANT — JSON field requirements:
-- estimatedMinutes: integer (e.g. 10)
-- sources: array of {title, url} objects — use empty array [] if none
-- quiz.passingScore: integer between 50 and 100 (use 70 if unsure)
-- Each quiz question must have: id (e.g. "q1"), type ("multiple_choice" or "fill_in_blank"), question, correctAnswer, explanation
-- multiple_choice questions must also have: options — an array of exactly 4 answer strings
-- correctAnswer must be the exact text of one of the options (not an index number)
+IMPORTANT — Respond using EXACTLY this format with the separator lines as shown (do not change the separator text):
 
-CRITICAL JSON FORMAT RULES:
-- Return ONLY a raw JSON object — do NOT wrap in \`\`\`json\`\`\` code fences
-- Do NOT return a JSON Schema ({"type":"object","properties":{...}}) — return actual data
-- The root object must have these exact keys: content, estimatedMinutes, sources, quiz
-- The "content" field must be a single JSON string — escape all newlines as \\n inside it
-- Example structure (fill in real content):
-  {"content":"# Title\\n\\nLesson text here...","estimatedMinutes":15,"sources":[],"quiz":{"questions":[...],"passingScore":70}}`;
+===CONTENT===
+<write the full markdown lesson here>
+===MINUTES===
+<estimated reading time as a plain integer, e.g. 15>
+===SOURCES===
+<JSON array of sources used, e.g. [{"title":"Example","url":"https://example.com"}], or [] if none>
+===QUIZ===
+<quiz as a single JSON object with this exact structure:
+{"questions":[{"id":"q1","type":"multiple_choice","question":"...","options":["A","B","C","D"],"correctAnswer":"A","explanation":"..."},{"id":"q2","type":"fill_in_blank","question":"...","correctAnswer":"...","explanation":"..."}],"passingScore":70}>
+
+Rules for the quiz JSON:
+- Each question must have: id, type, question, correctAnswer, explanation
+- multiple_choice questions must also have: options (array of 4 strings)
+- correctAnswer must be the exact text of one of the options for multiple_choice
+- Do not wrap the quiz JSON in code fences`;
 }

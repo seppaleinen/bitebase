@@ -7,11 +7,9 @@ import {
   buildCurriculumSystemPrompt,
   buildLessonSystemPrompt,
   curriculumPlanSchema,
-  lessonContentSchema,
   learningProfileSchema,
   createWebSearchTool,
   type CurriculumPlan,
-  type LessonContent,
 } from "@bitebase/ai";
 import { auth } from "@bitebase/api";
 import {
@@ -21,6 +19,7 @@ import {
   lessons,
   quizzes,
   progress,
+  type QuizQuestion,
 } from "@bitebase/db";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -43,6 +42,67 @@ function fixJsonControlChars(text: string): string {
     result += char;
   }
   return result;
+}
+
+/** Parse a lesson response in separator format into structured data. */
+function parseLessonResponse(text: string): {
+  content: string;
+  estimatedMinutes: number;
+  sources: { title: string; url: string }[];
+  quiz: { questions: QuizQuestion[]; passingScore: number };
+} {
+  const section = (name: string) => {
+    const re = new RegExp(`===\\s*${name}\\s*===\\s*([\\s\\S]*?)(?====|$)`, "i");
+    return text.match(re)?.[1]?.trim() ?? "";
+  };
+
+  const content = section("CONTENT");
+  const minutesRaw = section("MINUTES");
+  const sourcesRaw = section("SOURCES");
+  const quizRaw = section("QUIZ");
+
+  const estimatedMinutes = Math.max(1, parseInt(minutesRaw) || 10);
+
+  let sources: { title: string; url: string }[] = [];
+  try {
+    const parsed = JSON.parse(sourcesRaw || "[]");
+    if (Array.isArray(parsed)) sources = parsed;
+  } catch {
+    // ignore malformed sources
+  }
+
+  let quiz: { questions: QuizQuestion[]; passingScore: number } = { questions: [], passingScore: 70 };
+  try {
+    const quizJson = quizRaw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
+    const parsed = JSON.parse(fixJsonControlChars(quizJson));
+    if (parsed?.questions) {
+      quiz = {
+        questions: parsed.questions as QuizQuestion[],
+        passingScore: parseInt(parsed.passingScore) || 70,
+      };
+    }
+  } catch {
+    // ignore malformed quiz — lesson can still be saved without quiz questions
+  }
+
+  if (!content) throw new Error("No ===CONTENT=== section found in lesson response");
+
+  return { content, estimatedMinutes, sources, quiz };
+}
+
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts: number, delayMs: number): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts) {
+        await new Promise((res) => setTimeout(res, delayMs * attempt));
+      }
+    }
+  }
+  throw lastError;
 }
 
 /** Extract and parse a JSON object from model text that may be wrapped in markdown
@@ -257,10 +317,9 @@ export async function POST(req: Request) {
               }
             }
 
-            const lessonData = await generateJsonObject<LessonContent>(
-              {
+            const lessonData = await withRetry(async () => {
+              const { text } = await generateText({
                 model: getModel(),
-                mode: "json",
                 system: buildLessonSystemPrompt(
                   profile,
                   section.title,
@@ -268,11 +327,13 @@ export async function POST(req: Request) {
                   searchContext ||
                     `Focus on ${subsection.title} as part of ${section.title} in ${profile.topic}.`
                 ),
-                prompt: `Write a complete lesson about "${subsection.title}" for the section "${section.title}".`,
+                prompt: `Write the complete lesson about "${subsection.title}" for the section "${section.title}".`,
                 temperature: 0.7,
-              },
-              lessonContentSchema
-            );
+              });
+              const parsed = parseLessonResponse(text);
+              if (!parsed.content) throw new Error("Empty lesson content");
+              return parsed;
+            }, 3, 1000);
 
             const lessonId = randomUUID();
             await db.insert(lessons).values({
