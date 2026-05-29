@@ -132,15 +132,22 @@ describe("quizQuestionSchema", () => {
     expect(() => quizQuestionSchema.parse(mcQuestion)).not.toThrow();
   });
 
-  it("rejects multiple choice options that are not exactly 4", () => {
+  it("accepts multiple choice options with 2-6 items", () => {
+    // Relaxed from strict 4 so minor model over/under-generation doesn't fail the whole schema
     expect(() =>
       quizQuestionSchema.parse({ ...mcQuestion, options: ["A", "B", "C"] })
+    ).not.toThrow();
+    expect(() =>
+      quizQuestionSchema.parse({ ...mcQuestion, options: ["A", "B", "C", "D", "E"] })
+    ).not.toThrow();
+  });
+
+  it("rejects multiple choice options with fewer than 2 or more than 6 items", () => {
+    expect(() =>
+      quizQuestionSchema.parse({ ...mcQuestion, options: ["A"] })
     ).toThrow();
     expect(() =>
-      quizQuestionSchema.parse({
-        ...mcQuestion,
-        options: ["A", "B", "C", "D", "E"],
-      })
+      quizQuestionSchema.parse({ ...mcQuestion, options: ["A", "B", "C", "D", "E", "F", "G"] })
     ).toThrow();
   });
 

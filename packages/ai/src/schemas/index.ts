@@ -22,19 +22,19 @@ export const learningProfileSchema = z.object({
 export type LearningProfile = z.infer<typeof learningProfileSchema>;
 
 export const subsectionSchema = z.object({
-  id: z.string(),
+  id: z.string().describe("Short unique slug, e.g. 'sub-1-a', 'sub-2-b'"),
   title: z.string(),
   description: z.string(),
-  order: z.number(),
+  order: z.number().int().describe("0-based position index"),
 });
 
 export const sectionSchema = z.object({
-  id: z.string(),
+  id: z.string().describe("Short unique slug, e.g. 'section-1', 'section-2'"),
   title: z.string(),
   description: z.string(),
-  estimatedMinutes: z.number(),
-  order: z.number(),
-  subsections: z.array(subsectionSchema),
+  estimatedMinutes: z.number().int().min(5),
+  order: z.number().int().describe("0-based position index"),
+  subsections: z.array(subsectionSchema).min(1).max(6),
 });
 
 export const curriculumPlanSchema = z.object({
@@ -54,30 +54,42 @@ export const curriculumPlanSchema = z.object({
 
 export type CurriculumPlan = z.infer<typeof curriculumPlanSchema>;
 
+// Normalise type strings the model might output (e.g. "multiple choice", "Multiple_Choice")
+const quizTypeSchema = z.preprocess(
+  (val) =>
+    typeof val === "string"
+      ? val.toLowerCase().replace(/[\s-]+/g, "_")
+      : val,
+  z.enum(["multiple_choice", "fill_in_blank"])
+);
+
 export const quizQuestionSchema = z.object({
-  id: z.string(),
-  type: z.enum(["multiple_choice", "fill_in_blank"]),
+  id: z.string().describe("Short unique ID, e.g. 'q1', 'q2', 'q3'"),
+  type: quizTypeSchema.describe("'multiple_choice' or 'fill_in_blank'"),
   question: z.string(),
+  // Allow 2-6 options so minor over/under-generation doesn't fail the whole schema
   options: z
     .array(z.string())
-    .length(4)
+    .min(2)
+    .max(6)
     .optional()
-    .describe("4 options for multiple choice questions"),
+    .describe("Answer choices for multiple_choice questions — provide exactly 4"),
   correctAnswer: z
     .string()
-    .describe("The correct answer (or index 0-3 for multiple choice)"),
+    .describe("Exact text of the correct answer (must match one of the options for multiple_choice)"),
   explanation: z
     .string()
-    .describe("Why this is the correct answer"),
+    .describe("Brief explanation of why this answer is correct"),
 });
 
 export const lessonContentSchema = z.object({
   content: z
     .string()
     .describe(
-      "Rich markdown content for the lesson, including examples, code snippets if relevant, and clear explanations"
+      "Rich markdown lesson content with clear headings, examples, and code snippets where relevant"
     ),
-  estimatedMinutes: z.number().describe("Estimated reading time in minutes"),
+  estimatedMinutes: z.number().int().min(1).describe("Estimated reading time in minutes"),
+  // .catch([]) lets generation succeed even if model omits or mis-formats sources
   sources: z
     .array(
       z.object({
@@ -85,7 +97,8 @@ export const lessonContentSchema = z.object({
         url: z.string(),
       })
     )
-    .describe("Sources used to create this lesson"),
+    .catch([])
+    .describe("Reference sources used — can be an empty array if none"),
   quiz: z.object({
     questions: z.array(quizQuestionSchema).min(3).max(6),
     passingScore: z
@@ -93,7 +106,7 @@ export const lessonContentSchema = z.object({
       .min(50)
       .max(100)
       .default(70)
-      .describe("Minimum score (0-100) to pass the quiz"),
+      .describe("Minimum percentage score (50-100) required to pass, default 70"),
   }),
 });
 
