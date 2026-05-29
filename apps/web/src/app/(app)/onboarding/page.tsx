@@ -231,31 +231,35 @@ function OnboardingChat() {
 
     // Fast path: model emitted a PROFILE:{...} marker
     const match = lastAssistant.content.match(/PROFILE:\s*(\{[^]*?\})/);
+    let detected: LearningProfile | null = null;
     if (match) {
       try {
         const p = JSON.parse(match[1]) as LearningProfile;
         const mins = Number(p.availableMinutesPerDay);
         if (p.topic && p.experienceLevel && p.goals && mins >= 5) {
-          setFinalizedProfile({ ...p, availableMinutesPerDay: mins });
-          return;
+          detected = { ...p, availableMinutesPerDay: mins };
         }
       } catch { /* fall through to heuristic */ }
     }
 
     // Heuristic path: scan conversation history for all 4 fields.
     // Only surface the card when the AI's last message signals completion.
-    const aiSignalsReady =
-      /profile ready|all.*?information|ready to (build|create|generate)|let('s| us) (build|create|generate)|i('ve| have) (all|everything)/i.test(
-        lastAssistant.content
-      );
-    if (aiSignalsReady) {
-      const chatMessages = messages.map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      }));
-      const profile = extractProfileValues(chatMessages);
-      if (profile) setFinalizedProfile(profile);
+    if (!detected) {
+      const aiSignalsReady =
+        /profile ready|all.*?information|ready to (build|create|generate)|let('s| us) (build|create|generate)|i('ve| have) (all|everything)/i.test(
+          lastAssistant.content
+        );
+      if (aiSignalsReady) {
+        const chatMessages = messages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
+        detected = extractProfileValues(chatMessages);
+      }
     }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (detected) setFinalizedProfile(detected);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, isLoading]);
 

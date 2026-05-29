@@ -382,7 +382,7 @@ export async function POST(req: Request) {
                 throw new Error(`Lesson content too short (${parsed.content?.trim().length ?? 0} chars)`);
               return parsed;
             }, 3, 1000, `lesson "${meta.subsection.title}"`);
-          } catch (lessonErr) {
+          } catch {
             // A single lesson failing should not abort the entire curriculum.
             // Save a placeholder so the card is still clickable and the user knows what happened.
             console.error(`[generate] lesson "${meta.subsection.title}" failed after all retries — saving placeholder`);
