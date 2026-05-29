@@ -17,8 +17,24 @@ export async function POST(req: Request) {
     system: ONBOARDING_SYSTEM_PROMPT,
     messages,
     tools: onboardingTools,
-    maxSteps: 10,
+    maxSteps: 5,
     temperature: 0.7,
+    onError({ error }) {
+      console.error("[onboarding/chat] streamText error:", error);
+    },
+    onStepFinish({ stepType, toolCalls, toolResults, finishReason, usage }) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[onboarding/chat] step:", {
+          stepType,
+          finishReason,
+          toolCalls: toolCalls.map((t) => t.toolName),
+          usage,
+        });
+        if (toolResults.length > 0) {
+          console.log("[onboarding/chat] toolResults:", JSON.stringify(toolResults, null, 2));
+        }
+      }
+    },
   });
 
   return result.toDataStreamResponse();

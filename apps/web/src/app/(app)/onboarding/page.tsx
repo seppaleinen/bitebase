@@ -249,6 +249,8 @@ function OnboardingChat() {
           {messages.map((m) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if ((m.role as any) === "tool") return null;
+            // Skip assistant messages with no visible text (pure tool-call steps)
+            if (m.role === "assistant" && !m.content?.trim()) return null;
             const isAssistant = m.role === "assistant";
 
             return (
