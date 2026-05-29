@@ -9,8 +9,17 @@ const finalizeProfileParamsSchema = z.object({
   topic: z.string().default(""),
   experienceLevel: z.string().default(""),
   goals: z.string().default(""),
-  availableMinutesPerDay: z.number().default(0),
-  additionalContext: z.string().optional(),
+  // coerce handles models that output "10" as a string instead of 10
+  availableMinutesPerDay: z.coerce.number().default(0),
+  // optional; clear the value if the model outputs schema noise like "{'type':'string'}"
+  additionalContext: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v && (v.startsWith("{") || v.startsWith("[") || v === "null" || v === "undefined")
+        ? undefined
+        : v
+    ),
 });
 
 export const finalizeProfileTool = tool({
