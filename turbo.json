@@ -42,6 +42,11 @@
 
     "db:generate": { "cache": false },
     "db:migrate": { "cache": false },
-    "db:push": { "cache": false }
+    "db:push": { "cache": false },
+
+    "test:build": {
+      "inputs": ["app/**", "src/**", "package.json"],
+      "cache": false
+    }
   }
 }
