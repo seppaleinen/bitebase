@@ -144,9 +144,9 @@ function OnboardingChat() {
   const initialMessage = promptParam ? decodeURIComponent(promptParam) : null;
 
   const welcomeContent = refineProfile
-    ? `Welcome back! Here's your previous learning profile:\n- Topic: ${refineProfile.topic}\n- Level: ${refineProfile.experienceLevel}\n- Goal: ${refineProfile.goals}\n- Daily time: ${refineProfile.availableMinutesPerDay} minutes\n\nWhat would you like to change? (e.g. "I want to focus more on conversation", "I have 30 minutes a day now", "I'm actually intermediate level")`
+    ? `Welcome back! Here's your previous learning profile:\n- Topic: ${refineProfile.topic}\n- Level: ${refineProfile.experienceLevel}\n- Goal: ${refineProfile.goals}\n\nWhat would you like to change? (e.g. "I want to focus more on conversation", "I'm actually intermediate level")`
     : initialMessage
-    ? `Great choice! Let me help you build a curriculum around "${initialMessage}". I have a couple of quick questions to personalise it — what's your current level (beginner, intermediate, or advanced), what's your main goal, and how many minutes a day can you dedicate?`
+    ? `Great choice! Let me help you build a curriculum around "${initialMessage}". I have a couple of quick questions to personalise it — what's your current level (beginner, intermediate, or advanced), and what's your main goal?`
     : "Hi there! I'm BiteBase, your personal learning assistant. I'm here to help you create a curriculum tailored just for you.\n\nWhat topic or skill have you been wanting to learn? It could be anything — programming, cooking, history, music theory, a new language... the world is yours! 🌍";
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, append } =
@@ -173,7 +173,6 @@ function OnboardingChat() {
       .toLowerCase();
 
     const alreadyHasLevel = /\b(beginner|intermediate|advanced)\b/.test(allUserText);
-    const alreadyHasMinutes = /\d+\s*(minutes?|mins?|hours?|hrs?)/.test(allUserText);
 
     const aiText = lastAssistantMessage.content.toLowerCase();
     const aiRaw = lastAssistantMessage.content; // preserve case for option extraction
@@ -181,10 +180,6 @@ function OnboardingChat() {
     // Level chips — only when not yet answered
     if (!alreadyHasLevel && /experience|your level|what level|how (advanced|experienced)/.test(aiText))
       return ["Beginner", "Intermediate", "Advanced"];
-
-    // Time chips — only when not yet answered
-    if (!alreadyHasMinutes && /minute|how (much|many|long)|time (per|each|a) day|dedicate|commit/.test(aiText))
-      return ["5 minutes", "15 minutes", "30 minutes", "1 hour"];
 
     // Generic: if the message contains a "?" try to extract "X or Y (or Z)" options
     // from the model's own phrasing, then fall back to a "No preference" chip.
@@ -220,42 +215,48 @@ function OnboardingChat() {
     return [];
   })();
 
-  // Detect when all 4 profile fields have been collected.
-  // Runs after every message update so it catches both the PROFILE marker path
-  // and the heuristic path — no dependency on onFinish timing.
+  // Detect when all 3 profile fields have been collected.
+  // Runs after every message update so it catches the tool-call path,
+  // the PROFILE text-marker path, and the heuristic fallback.
   useEffect(() => {
     if (finalizedProfile || isLoading) return;
 
     const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
     if (!lastAssistant) return;
 
-    // Fast path: model emitted a PROFILE:{...} marker
-    const match = lastAssistant.content.match(/PROFILE:\s*(\{[^]*?\})/);
     let detected: LearningProfile | null = null;
-    if (match) {
-      try {
-        const p = JSON.parse(match[1]) as LearningProfile;
-        const mins = Number(p.availableMinutesPerDay);
-        if (p.topic && p.experienceLevel && p.goals && mins >= 5) {
-          detected = { ...p, availableMinutesPerDay: mins };
-        }
-      } catch { /* fall through to heuristic */ }
+
+    // Primary path: finalizeProfile tool was called and succeeded.
+    // The Vercel AI SDK surfaces tool results in toolInvocations on the assistant message.
+    const toolInvocations = (lastAssistant as unknown as { toolInvocations?: Array<{ toolName: string; state: string; result?: { success: boolean; profile?: LearningProfile } }> }).toolInvocations;
+    const toolResult = toolInvocations?.find(
+      (t) => t.toolName === "finalizeProfile" && t.state === "result" && t.result?.success
+    );
+    if (toolResult?.result?.profile) {
+      const p = toolResult.result.profile;
+      if (p.topic && p.experienceLevel && p.goals) detected = p;
     }
 
-    // Heuristic path: scan conversation history for all 4 fields.
-    // Only surface the card when the AI's last message signals completion.
+    // Secondary path: model emitted a PROFILE:{...} text marker.
     if (!detected) {
-      const aiSignalsReady =
-        /profile ready|all.*?information|ready to (build|create|generate)|let('s| us) (build|create|generate)|i('ve| have) (all|everything)/i.test(
-          lastAssistant.content
-        );
-      if (aiSignalsReady) {
-        const chatMessages = messages.map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        }));
-        detected = extractProfileValues(chatMessages);
+      const match = lastAssistant.content.match(/PROFILE:\s*(\{[^]*?\})/);
+      if (match) {
+        try {
+          const p = JSON.parse(match[1]) as LearningProfile;
+          if (p.topic && p.experienceLevel && p.goals) detected = p;
+        } catch { /* fall through to heuristic */ }
       }
+    }
+
+    // Heuristic fallback: scan conversation history for all 3 fields.
+    // No longer gated on "AI signals readiness" — if we have all 3 extractable
+    // values and the AI has responded at least once, surface the card.
+    if (!detected) {
+      const chatMessages = messages.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
+      detected = extractProfileValues(chatMessages);
     }
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -544,8 +545,6 @@ function OnboardingChat() {
             <span className="capitalize">{finalizedProfile.experienceLevel}</span>
             <span className="font-medium">Goal</span>
             <span>{finalizedProfile.goals}</span>
-            <span className="font-medium">Daily time</span>
-            <span>{finalizedProfile.availableMinutesPerDay} min</span>
           </div>
           <div className="flex gap-2">
             <button

@@ -13,7 +13,6 @@ describe("learningProfileSchema", () => {
     topic: "TypeScript",
     experienceLevel: "beginner" as const,
     goals: "Build production-ready apps",
-    availableMinutesPerDay: 30,
   };
 
   it("accepts a complete valid profile", () => {
@@ -32,24 +31,6 @@ describe("learningProfileSchema", () => {
     expect(() =>
       learningProfileSchema.parse({ ...valid, experienceLevel: "expert" })
     ).toThrow();
-  });
-
-  it("enforces availableMinutesPerDay minimum of 5", () => {
-    expect(() =>
-      learningProfileSchema.parse({ ...valid, availableMinutesPerDay: 4 })
-    ).toThrow();
-    expect(() =>
-      learningProfileSchema.parse({ ...valid, availableMinutesPerDay: 5 })
-    ).not.toThrow();
-  });
-
-  it("enforces availableMinutesPerDay maximum of 240", () => {
-    expect(() =>
-      learningProfileSchema.parse({ ...valid, availableMinutesPerDay: 241 })
-    ).toThrow();
-    expect(() =>
-      learningProfileSchema.parse({ ...valid, availableMinutesPerDay: 240 })
-    ).not.toThrow();
   });
 
   it("allows additionalContext to be omitted", () => {

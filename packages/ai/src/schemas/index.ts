@@ -8,11 +8,6 @@ export const learningProfileSchema = z.object({
   goals: z
     .string()
     .describe("What the user hopes to achieve by learning this topic"),
-  availableMinutesPerDay: z
-    .number()
-    .min(5)
-    .max(240)
-    .describe("How many minutes per day the user can dedicate to learning"),
   additionalContext: z
     .string()
     .optional()

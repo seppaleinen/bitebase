@@ -138,7 +138,6 @@ const mockProfile = {
   topic: "TypeScript",
   experienceLevel: "beginner" as const,
   goals: "Build production apps",
-  availableMinutesPerDay: 30,
   additionalContext: "Focus on practical examples",
   createdAt: new Date(),
 };
@@ -427,7 +426,6 @@ describe("curriculum.retryAndGetProfile", () => {
     expect(result.topic).toBe(mockProfile.topic);
     expect(result.experienceLevel).toBe(mockProfile.experienceLevel);
     expect(result.goals).toBe(mockProfile.goals);
-    expect(result.availableMinutesPerDay).toBe(mockProfile.availableMinutesPerDay);
     expect(result.additionalContext).toBe(mockProfile.additionalContext);
 
     // At least one delete was issued (lessons or curricula cleanup)

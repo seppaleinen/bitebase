@@ -6,7 +6,9 @@ Everything an agent needs to understand the project, make changes safely, and av
 
 ## What this project is
 
-BiteBase is an interactive micro-learning app. The user tells it what they want to learn, the AI asks follow-up questions (experience level, goals, daily time), then generates a personalized curriculum with markdown lessons and quizzes. Lessons are unlocked in order; each one requires passing the previous quiz (≥ 70%).
+BiteBase is an interactive micro-learning app. The user tells it what they want to learn, the AI asks a few follow-up questions (experience level, goals), then generates a personalized curriculum with markdown lessons and quizzes. Lessons are unlocked in order; each one requires passing the previous quiz (≥ 70%).
+
+**Design philosophy**: the app is intentionally exploratory. Users learn for as long as they are interested — there is no time commitment or daily minutes concept. Do not add anything that asks how many minutes per day a user has available.
 
 The app runs on the web (Next.js) and mobile (Expo). Both share backend logic via a monorepo.
 
@@ -18,7 +20,7 @@ The app runs on the web (Next.js) and mobile (Expo). Both share backend logic vi
 bitebase/
 ├── apps/
 │   ├── web/          Next.js 15 (App Router)
-│   └── mobile/       Expo SDK 56 (React Native + Expo Router)
+│   └── mobile/       Expo SDK 54 (React Native + Expo Router v6)
 ├── packages/
 │   ├── ai/           Vercel AI SDK config, Zod schemas, prompts, tools
 │   ├── api/          tRPC v11 router + Better Auth config
@@ -38,14 +40,14 @@ Package names follow `@bitebase/<name>` (e.g. `@bitebase/db`, `@bitebase/api`).
 |---|---|---|
 | Monorepo | Turborepo + pnpm workspaces | Standard for this shape of project; task caching is already configured |
 | Web framework | Next.js 15, App Router | Server components, Server Actions, streaming all used |
-| Mobile | Expo SDK 56, Expo Router | File-based routing, OTA updates, shares React with web |
+| Mobile | Expo SDK 54, Expo Router v6 | SDK 54 matches the Expo Go version on Play Store; file-based routing, OTA updates |
 | API layer | tRPC v11 with `httpBatchStreamLink` | End-to-end type safety shared across web and mobile |
 | Database | PostgreSQL + Drizzle ORM | Type-safe queries; Drizzle Kit for migrations |
 | Auth | Better Auth with Drizzle adapter | Session stored in DB; email/password; OAuth-ready |
 | AI | Vercel AI SDK → Ollama (local, OpenAI-compatible) | Model-agnostic; swap model via `OLLAMA_MODEL` env var |
 | Web search | Tavily API or SearXNG | Used during lesson generation; SearXNG (self-hosted) is preferred when `SEARXNG_BASE_URL` is set, Tavily used when `TAVILY_API_KEY` is set |
 | Styling (web) | Tailwind CSS + `@tailwindcss/typography` | `prose` classes used for markdown lesson rendering |
-| Styling (mobile) | NativeWind | Tailwind classes compiled for React Native |
+| Styling (mobile) | NativeWind v4 | Tailwind classes compiled for React Native via `react-native-css-interop` |
 | UI components | `class-variance-authority` + `clsx` + `tailwind-merge` | Variant-safe component API |
 
 ---
@@ -61,8 +63,14 @@ BETTER_AUTH_URL=http://localhost:3000
 BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:3000
 OLLAMA_BASE_URL=http://localhost:11434/v1
 OLLAMA_MODEL=llama3.2
-TAVILY_API_KEY=tvly-...          # optional; web search is skipped if absent
-SEARXNG_BASE_URL=http://localhost:8080  # optional; self-hosted SearXNG (checked before Tavily)
+TAVILY_API_KEY=tvly-...               # optional; web search is skipped if absent
+SEARXNG_BASE_URL=http://localhost:8080 # optional; self-hosted SearXNG (checked before Tavily)
+LESSON_GENERATION_CONCURRENCY=3        # max lessons generated in parallel (default 3)
+```
+
+For the **mobile app**, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env.local`:
+```env
+EXPO_PUBLIC_API_URL=http://<your-local-IP>:3000
 ```
 
 ---
@@ -87,8 +95,13 @@ pnpm db:migrate                 # run pending migrations
 pnpm test                       # run all Vitest suites (unit + integration)
 pnpm --filter @bitebase/api test        # api package only
 pnpm --filter @bitebase/ai test         # ai package only
+pnpm --filter @bitebase/web test        # web unit tests
 pnpm --filter @bitebase/web test:e2e    # Playwright E2E (needs dev server)
 pnpm --filter @bitebase/web test:e2e:ui # Playwright with UI mode
+
+# Mobile
+pnpm --filter @bitebase/mobile start   # start Expo dev server (scan QR with Expo Go)
+pnpm --filter @bitebase/mobile web     # run mobile app in browser (no Expo Go needed)
 ```
 
 ---
@@ -106,9 +119,10 @@ pnpm --filter @bitebase/web test:e2e:ui # Playwright with UI mode
 | `packages/ai/src/schemas/index.ts` | Zod schemas for AI-structured outputs: `learningProfileSchema`, `curriculumPlanSchema`, `quizQuestionSchema`, `lessonContentSchema`. |
 | `packages/ai/src/prompts/index.ts` | System prompts for onboarding, curriculum generation, and lesson generation. |
 | `packages/ai/src/tools/index.ts` | `finalizeProfileTool` (onboarding) and `createWebSearchTool(config)` factory (supports Tavily and SearXNG). |
+| `apps/web/src/lib/onboarding-state.ts` | Server + client utilities for extracting profile fields from conversation history. Read this before touching anything onboarding-related. |
 | `apps/web/src/app/(app)/layout.tsx` | Server component that checks the session on every authenticated page. Contains the Playwright E2E bypass (see Testing section). |
 | `apps/web/src/app/api/onboarding/chat/route.ts` | Streaming AI chat endpoint for the onboarding flow. |
-| `apps/web/src/app/api/onboarding/generate/route.ts` | SSE endpoint that generates the full curriculum (calls AI for plan + each lesson). |
+| `apps/web/src/app/api/onboarding/generate/route.ts` | SSE endpoint that generates the full curriculum (parallel lesson generation via `runConcurrent`). |
 
 ---
 
@@ -116,7 +130,7 @@ pnpm --filter @bitebase/web test:e2e:ui # Playwright with UI mode
 
 ```
 users                  — managed by Better Auth
-learning_profiles      — topic, experienceLevel, goals, availableMinutesPerDay
+learning_profiles      — topic, experienceLevel, goals
 curricula              — title, description, sections (JSONB), generationStatus
 lessons                — content (markdown), sources (JSONB), order, estimatedMinutes
 quizzes                — questions (JSONB: QuizQuestion[]), passingScore (default 70)
@@ -161,16 +175,35 @@ The tRPC client in the web app uses `httpBatchStreamLink` (POST to `/api/trpc`).
 
 ## AI / onboarding flow
 
+The onboarding collects **3 fields only**: `topic`, `experienceLevel`, `goals`. There is no daily time commitment — the app is exploratory.
+
 1. User chats at `/onboarding` → `POST /api/onboarding/chat` (streaming via Vercel AI SDK `streamText`)
-2. When enough info is gathered the AI calls the `finalizeProfile` tool → client receives the profile
-3. Client POSTs to `POST /api/onboarding/generate` → SSE stream:
-   - `status` events with progress messages
+2. The chat route injects a `Current state — Already collected: ...` summary into the system prompt on every turn (via `extractCollectedFields` in `apps/web/src/lib/onboarding-state.ts`). This prevents the AI from re-asking for values already provided.
+3. Profile completion is detected client-side via a layered approach (see **Profile detection** below).
+4. Client POSTs to `POST /api/onboarding/generate` → SSE stream:
+   - `lesson_list` event — full list of lessons so the UI can render a progress overview
+   - `lesson_started` / `lesson_completed` events — per-lesson progress
    - `curriculum_created` event with `curriculumId` and `totalSections`
-   - One lesson generated per subsection (AI writes markdown + quiz)
    - `done` event with final `curriculumId`
-4. Client redirects to `/dashboard?new=<curriculumId>`
+5. Client redirects to `/dashboard?new=<curriculumId>`
+
+Lesson generation runs in parallel (controlled by `LESSON_GENERATION_CONCURRENCY`). Each lesson is generated with a `curriculumOutline` for cross-lesson coherence. Generation uses `withRetry` with temperature escalation (0.7 → 1.0) across 3 attempts. If all retries fail, a placeholder lesson is saved rather than aborting the whole curriculum.
 
 To swap the AI model: set `OLLAMA_MODEL` in `.env.local`. Any OpenAI-compatible endpoint works — just point `OLLAMA_BASE_URL` at it.
+
+### Profile detection
+
+Client-side detection in `apps/web/src/app/(app)/onboarding/page.tsx` runs a layered check after every message:
+
+1. **Tool result** (primary) — checks `toolInvocations` on the last assistant message for a successful `finalizeProfile` call. This fires when the local model calls the tool correctly.
+2. **PROFILE: text marker** (secondary) — looks for `PROFILE:{...}` in the last assistant message text. The system prompt instructs the AI to emit this when done.
+3. **Heuristic** (fallback) — runs `extractProfileValues()` from `onboarding-state.ts` against the full conversation. This fires as soon as all 3 fields are extractable from what the user wrote, without relying on the AI to say anything special.
+
+The heuristic is intentionally aggressive — local models (Llama 3.2) often ignore prompt instructions to emit markers. **Do not remove the heuristic fallback.**
+
+### Topic extraction — important pitfall
+
+`extractProfileValues` and `extractCollectedFields` must extract the topic from **user messages only**, not assistant messages. The AI's first message says "I'm BiteBase, your personal learning **assistant**…", which causes naive regexes to match "assistant" as the topic. The `extractTopic()` helper in `onboarding-state.ts` implements this correctly — do not revert to searching assistant text.
 
 ---
 
@@ -191,6 +224,41 @@ Do not edit `packages/db/src/schema/users.ts` manually — Better Auth owns that
 - All routes under `apps/web/src/app/(app)/` require a session. The layout at `(app)/layout.tsx` redirects to `/login` if no session is found.
 - All API routes and the `(app)/layout.tsx` export `export const dynamic = "force-dynamic"` to prevent Next.js from trying to statically generate pages that hit the database.
 - The DB client is lazy-initialized so importing it at build time never throws even if `DATABASE_URL` is absent.
+
+---
+
+## Mobile app
+
+The mobile app targets **Expo SDK 54** (React Native 0.81.5, Expo Router v6), which matches the Expo Go version available on the Play Store. Do not upgrade to SDK 55+ without confirming Expo Go compatibility.
+
+### Running the mobile app
+
+```bash
+pnpm --filter @bitebase/mobile start   # Expo dev server — scan QR with Expo Go
+pnpm --filter @bitebase/mobile web     # Run in browser (no Expo Go needed)
+```
+
+The mobile app connects to the web backend via `EXPO_PUBLIC_API_URL`. Set this in `apps/mobile/.env.local` to your machine's local IP (not `localhost`).
+
+### NativeWind v4 setup
+
+NativeWind v4 uses `react-native-css-interop` for the JSX transform. Metro does not resolve transitive dependencies by default, so:
+
+1. `react-native-css-interop` must be listed as a **direct** dependency in `apps/mobile/package.json` (so pnpm creates a symlink Metro can find).
+2. `apps/mobile/metro.config.js` must use `withNativeWind` from `nativewind/metro`:
+
+```js
+const { getDefaultConfig } = require("expo/metro-config");
+const { withNativeWind } = require("nativewind/metro");
+const config = getDefaultConfig(__dirname);
+module.exports = withNativeWind(config, { input: "./global.css" });
+```
+
+If you see `Unable to resolve "react-native-css-interop/jsx-runtime"`, check both of the above.
+
+### pnpm supply chain policy
+
+`pnpm-workspace.yaml` has `minimumReleaseAge: 0` to disable pnpm's package age policy. This is needed because Expo SDK packages are frequently published and the policy blocks them during clean installs. Do not remove this setting.
 
 ---
 
@@ -228,7 +296,7 @@ Key files:
 - `packages/api/tests/quiz-scoring.test.ts` — `scoreQuiz()` pure function
 - `packages/ai/tests/schemas.test.ts` — Zod schema validation
 - `packages/ai/tests/parse-lesson.test.ts` — `parseLessonResponse()` parser
-- `apps/web/src/lib/onboarding-state.test.ts` — `extractCollectedFields()` (chat state extractor)
+- `apps/web/src/lib/onboarding-state.test.ts` — `extractCollectedFields()` and `extractProfileValues()`
 
 Run: `pnpm --filter @bitebase/api test`, `pnpm --filter @bitebase/ai test`, `pnpm --filter @bitebase/web test`
 
@@ -263,7 +331,7 @@ SKIP_WEB_SERVER=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm --filter @biteb
 
 Test files:
 - `tests/e2e/auth.spec.ts` — register form, login form, bad credentials error, landing page CTAs
-- `tests/e2e/learning.spec.ts` — dashboard empty/populated, onboarding chat, lesson page, full quiz flow (pass, fail, review answers), chip de-duplication (level chips disappear once level is answered)
+- `tests/e2e/learning.spec.ts` — dashboard empty/populated, onboarding chat, lesson page, full quiz flow (pass, fail, review answers)
 
 ---
 
@@ -275,11 +343,17 @@ Test files:
 
 **Do not remove `.js` extensions from internal package imports in the UI package** — TypeScript resolves `.tsx` files without extensions, but adding `.js` was previously broken due to Next.js bundler behavior. The current codebase deliberately omits `.js` extensions in all cross-file imports within packages.
 
-**`@types/react` version** — pinned via `pnpm-workspace.yaml` overrides to `^19.1.4` to avoid conflicts with `react-markdown` and Expo's React 19 requirement.
+**`@types/react` version** — pinned via `pnpm-workspace.yaml` overrides to `~19.1.10` to avoid conflicts with `react-markdown` and Expo's React 19 requirement.
 
 **Better Auth message roles** — the Vercel AI SDK `useChat` hook doesn't expose `"tool"` in its `UIMessage["role"]` type. Suppress the TypeScript error with `(m.role as any) === "tool"` in the onboarding page; do not try to "fix" this with a type definition change as the SDK type is intentionally narrow.
 
 **Drizzle `where` clauses** — always use `eq()`, `and()`, etc. from `drizzle-orm`. Never use arrow-function predicates (`where((c) => c.id === x)` is wrong).
+
+**Local AI model reliability** — the app is designed for small local Ollama models (e.g. `llama3.2`). These models do not reliably follow all prompt instructions. Do not assume the model will emit any specific text marker or call any tool on cue. Always build client-side fallback detection. See the **Profile detection** section for the established pattern.
+
+**Docker build and root tsconfig** — `apps/web/tsconfig.json` extends the root `tsconfig.json`, but `turbo prune` does not include root-level configs in its output. The `Dockerfile` explicitly copies `tsconfig.json` from the pruner stage into the builder stage. If you restructure the build, keep this copy or the build will fail with `TS5083: Cannot read file '/app/tsconfig.json'`.
+
+**Do not add time-commitment fields** — `availableMinutesPerDay` was deliberately removed from `learningProfiles`, the onboarding prompt, the `finalizeProfileTool`, and all UI. The app is exploratory; do not reintroduce any concept of daily time limits or session duration.
 
 ---
 
@@ -328,7 +402,7 @@ The `Dockerfile` is a four-stage build:
 |---|---|
 | `pruner` | `turbo prune @bitebase/web --docker` — trims the monorepo to only the web app's dependency tree |
 | `installer` | Installs deps from the pruned lockfile — this layer is cached as long as `pnpm-lock.yaml` + `package.json` files haven't changed |
-| `builder` | Builds the Next.js app (`output: "standalone"`) |
+| `builder` | Builds the Next.js app (`output: "standalone"`). Explicitly copies root `tsconfig.json` from the pruner stage — `turbo prune` does not include it but `apps/web/tsconfig.json` extends it. |
 | `runner` | Minimal Alpine image (~200 MB) containing only the standalone output, static assets, and public directory |
 
 Next.js `output: "standalone"` is set in `apps/web/next.config.ts`. It produces a `apps/web/.next/standalone/` directory that includes its own `node_modules` — no pnpm or full workspace needed at runtime.
@@ -365,3 +439,4 @@ Key design decisions:
 6. **New AI schema?** Add Zod validation tests in `packages/ai/tests/schemas.test.ts`.
 7. **New Next.js API route?** Add `export const dynamic = "force-dynamic"` at the top.
 8. **Fixing a bug?** Write the failing test first, then fix the code (TDD). See the Testing strategy section for which layer to test at.
+9. **Changing onboarding fields?** Update `packages/ai/src/schemas/index.ts`, `packages/ai/src/prompts/index.ts`, `packages/ai/src/tools/index.ts`, `apps/web/src/lib/onboarding-state.ts`, and the onboarding page — all five must stay in sync.

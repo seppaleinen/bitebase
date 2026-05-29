@@ -30,7 +30,6 @@ export const learningProfiles = pgTable("learning_profiles", {
   topic: text("topic").notNull(),
   experienceLevel: experienceLevelEnum("experience_level").notNull(),
   goals: text("goals").notNull(),
-  availableMinutesPerDay: integer("available_minutes_per_day").notNull().default(15),
   additionalContext: text("additional_context"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

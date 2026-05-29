@@ -365,7 +365,6 @@ export const curriculumRouter = router({
         topic: profile.topic,
         experienceLevel: profile.experienceLevel,
         goals: profile.goals,
-        availableMinutesPerDay: profile.availableMinutesPerDay,
         additionalContext: profile.additionalContext ?? "",
       };
     }),

@@ -5,7 +5,6 @@ const profile = {
   topic: "TypeScript",
   experienceLevel: "beginner" as const,
   goals: "Build production-ready apps",
-  availableMinutesPerDay: 30,
 };
 
 const outline = [

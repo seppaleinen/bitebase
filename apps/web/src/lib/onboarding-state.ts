@@ -7,7 +7,28 @@ export interface ExtractedProfile {
   topic: string;
   experienceLevel: "beginner" | "intermediate" | "advanced";
   goals: string;
-  availableMinutesPerDay: number;
+}
+
+/** Extract the topic from user messages only (never from assistant text). */
+function extractTopic(userMessages: string[]): string {
+  for (const msg of userMessages) {
+    // "learn X", "study X", "teach me X", "teach me about X", "interested in X"
+    const m = msg.match(
+      /(?:learn|study|teach(?:\s+me)?(?:\s+about)?|interested\s+in)\s+(?:about\s+)?([a-z][\w\s]{1,50}?)(?:\s+as\s+a|\s+as\s+an|\s+at\s+|\s+from\s+|\s+for\s+|\s+level|[,!.?]|-|$)/i
+    );
+    if (m?.[1]) {
+      const t = m[1].trim().replace(/\s+/g, " ").toLowerCase();
+      if (t.length >= 2 && !["me", "it", "more", "this", "that"].includes(t)) {
+        return t;
+      }
+    }
+  }
+  // Fallback: if the first user message is short, treat it as the topic
+  if (userMessages.length > 0) {
+    const first = userMessages[0].replace(/^[-*•]\s*/, "").trim().toLowerCase();
+    if (first.split(/\s+/).length <= 5) return first;
+  }
+  return "";
 }
 
 /**
@@ -16,62 +37,36 @@ export interface ExtractedProfile {
  */
 export function extractProfileValues(messages: ChatMessage[]): ExtractedProfile | null {
   const userMessages = messages.filter((m) => m.role === "user").map((m) => m.content);
-  const assistantText = messages
-    .filter((m) => m.role === "assistant")
-    .map((m) => m.content)
-    .join("\n")
-    .toLowerCase();
 
-  // topic
-  const topicMatch = assistantText.match(
-    /learn(?:ing)?\s+([\w\s]+?)(?:\s+as\s+a|\s+from|\s+for|[,!.])/
-  );
-  const topic = topicMatch?.[1]?.trim() ?? "";
+  const topic = extractTopic(userMessages);
 
-  // experienceLevel — last occurrence wins
+  // experienceLevel — last occurrence in user messages wins
   let experienceLevel: ExtractedProfile["experienceLevel"] | null = null;
   for (const msg of userMessages) {
     const m = msg.toLowerCase().match(/\b(beginner|intermediate|advanced)\b/);
     if (m) experienceLevel = m[1] as ExtractedProfile["experienceLevel"];
   }
 
-  // goals — last qualifying user message wins
+  // goals — last qualifying user message (≥2 words, not just a level word) wins
   let goals: string | null = null;
   for (const msg of userMessages) {
     const c = msg.trim();
     if (
       c.split(/\s+/).length >= 2 &&
-      !/^\s*\d+\s*(minutes?|mins?|hours?|hrs?)\s*$/i.test(c) &&
       !/^\s*(beginner|intermediate|advanced)\s*$/i.test(c)
     ) {
       goals = c;
     }
   }
 
-  // availableMinutesPerDay — last numeric time mention wins
-  let availableMinutesPerDay: number | null = null;
-  for (const msg of userMessages) {
-    const m = msg.toLowerCase().match(/(\d+)\s*(?:minutes?|mins?|hours?|hrs?)/);
-    if (m) {
-      const raw = parseInt(m[1], 10);
-      availableMinutesPerDay = /hours?|hrs?/.test(msg.toLowerCase()) ? raw * 60 : raw;
-    }
-  }
-
-  if (
-    topic &&
-    experienceLevel &&
-    goals &&
-    availableMinutesPerDay !== null &&
-    availableMinutesPerDay >= 5
-  ) {
-    return { topic, experienceLevel, goals, availableMinutesPerDay };
+  if (topic && experienceLevel && goals) {
+    return { topic, experienceLevel, goals };
   }
   return null;
 }
 
 /**
- * Scan conversation history and extract whichever of the 4 profile fields have
+ * Scan conversation history and extract whichever of the 3 profile fields have
  * already been mentioned by the user (simple heuristics, not LLM). Injecting
  * this summary into every system prompt prevents the model from re-asking for
  * values it visibly received earlier in the thread.
@@ -91,12 +86,12 @@ export function extractCollectedFields(messages: ChatMessage[]): string {
   const missing: string[] = [];
 
   // For every field we scan messages in chronological order and take the LAST
-  // match so that a correction ("actually 15 minutes") overrides the earlier value.
+  // match so that a correction overrides the earlier value.
 
-  // topic — present if the assistant acknowledged a topic
-  const topicMatch = assistantText.match(/learn(?:ing)?\s+([\w\s]+?)(?:\s+as\s+a|\s+from|\s+for|[,!.])/);
-  if (topicMatch) {
-    collected.push(`topic="${topicMatch[1].trim()}"`);
+  // topic — extract from user messages only (prevents false matches on "learning assistant")
+  const topic = extractTopic(userMessages);
+  if (topic) {
+    collected.push(`topic="${topic}"`);
   } else {
     missing.push("topic");
   }
@@ -113,13 +108,12 @@ export function extractCollectedFields(messages: ChatMessage[]): string {
     missing.push("experienceLevel (beginner/intermediate/advanced)");
   }
 
-  // goals — last user message that isn't purely a level or time answer
+  // goals — last user message that isn't purely a level answer
   let goals: string | null = null;
   for (const msg of userMessages) {
     const c = msg.trim();
     if (
       c.split(/\s+/).length >= 2 &&
-      !/^\s*\d+\s*(minutes?|mins?|hours?|hrs?)\s*$/i.test(c) &&
       !/^\s*(beginner|intermediate|advanced)\s*$/i.test(c)
     ) {
       goals = c;
@@ -131,24 +125,9 @@ export function extractCollectedFields(messages: ChatMessage[]): string {
     missing.push("goals");
   }
 
-  // availableMinutesPerDay — last numeric time mention wins
-  let availableMinutesPerDay: number | null = null;
-  for (const msg of userMessages) {
-    const m = msg.toLowerCase().match(/(\d+)\s*(?:minutes?|mins?|hours?|hrs?)/);
-    if (m) {
-      const raw = parseInt(m[1], 10);
-      availableMinutesPerDay = /hours?|hrs?/.test(msg.toLowerCase()) ? raw * 60 : raw;
-    }
-  }
-  if (availableMinutesPerDay !== null) {
-    collected.push(`availableMinutesPerDay=${availableMinutesPerDay}`);
-  } else {
-    missing.push("availableMinutesPerDay");
-  }
-
   const parts: string[] = [];
   if (collected.length > 0) parts.push(`Already collected: ${collected.join(", ")}.`);
   if (missing.length > 0) parts.push(`Still need: ${missing.join(", ")}.`);
-  if (missing.length === 0) parts.push("You have all 4 values — emit the PROFILE line now.");
+  if (missing.length === 0) parts.push("You have all 3 values — emit the PROFILE line now.");
   return parts.join(" ");
 }

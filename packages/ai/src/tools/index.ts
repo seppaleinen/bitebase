@@ -9,8 +9,6 @@ const finalizeProfileParamsSchema = z.object({
   topic: z.string().default(""),
   experienceLevel: z.string().default(""),
   goals: z.string().default(""),
-  // coerce handles models that output "10" as a string instead of 10
-  availableMinutesPerDay: z.coerce.number().default(0),
   // optional; clear the value if the model outputs schema noise like "{'type':'string'}"
   additionalContext: z
     .string()
@@ -24,7 +22,7 @@ const finalizeProfileParamsSchema = z.object({
 
 export const finalizeProfileTool = tool({
   description:
-    "Call this ONLY when you have confirmed all four required values from the user: topic, experienceLevel (beginner/intermediate/advanced), goals (non-empty), and availableMinutesPerDay (a positive number ≥ 5). Do not call with empty strings or zero.",
+    "Call this ONLY when you have confirmed all three required values from the user: topic, experienceLevel (beginner/intermediate/advanced), and goals (non-empty). Do not call with empty strings.",
   parameters: finalizeProfileParamsSchema,
   execute: async (raw) => {
     const missing: string[] = [];
@@ -32,8 +30,6 @@ export const finalizeProfileTool = tool({
     if (!["beginner", "intermediate", "advanced"].includes(raw.experienceLevel))
       missing.push("experienceLevel (must be beginner, intermediate, or advanced)");
     if (!raw.goals.trim()) missing.push("goals");
-    if (!raw.availableMinutesPerDay || raw.availableMinutesPerDay < 5)
-      missing.push("availableMinutesPerDay (must be a number ≥ 5)");
 
     if (missing.length > 0) {
       return {
