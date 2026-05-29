@@ -4,8 +4,21 @@ import { streamText } from "ai";
 import { getModel, ONBOARDING_SYSTEM_PROMPT } from "@bitebase/ai";
 import { auth } from "@bitebase/api";
 
+const TEST_COOKIE = "__playwright_test__=1";
+
+function getTestSession() {
+  return { user: { id: "playwright-test-user", name: "Test User", email: "test@example.com" } };
+}
+
 export async function POST(req: Request) {
-  const session = await auth.api.getSession({ headers: req.headers });
+  const isTest =
+    process.env.NODE_ENV !== "production" &&
+    req.headers.get("cookie")?.includes(TEST_COOKIE);
+
+  const session = isTest
+    ? getTestSession()
+    : await auth.api.getSession({ headers: req.headers });
+
   if (!session?.user) {
     return new Response("Unauthorized", { status: 401 });
   }
