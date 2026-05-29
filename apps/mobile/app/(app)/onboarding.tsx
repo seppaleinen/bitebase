@@ -198,6 +198,7 @@ export default function OnboardingScreen() {
                     }`}
                   >
                     <Text
+                      testID={`msg-${m.id}`}
                       className={`text-sm leading-relaxed ${
                         isAssistant ? "text-gray-700" : "text-white"
                       }`}
@@ -217,26 +218,26 @@ export default function OnboardingScreen() {
           )}
 
           {finalizedProfile && !isGenerating && (
-            <View className="mx-4 mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <View testID="profile-card" className="mx-4 mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
               <Text className="mb-3 text-sm font-semibold text-emerald-800">
                 Ready to generate your curriculum
               </Text>
               <View className="mb-4 gap-1">
                 <View className="flex-row">
                   <Text className="w-20 text-xs font-medium text-emerald-700">Topic</Text>
-                  <Text className="flex-1 text-xs capitalize text-emerald-700">
+                  <Text testID="profile-topic" className="flex-1 text-xs capitalize text-emerald-700">
                     {finalizedProfile.topic}
                   </Text>
                 </View>
                 <View className="flex-row">
                   <Text className="w-20 text-xs font-medium text-emerald-700">Level</Text>
-                  <Text className="flex-1 text-xs capitalize text-emerald-700">
+                  <Text testID="profile-level" className="flex-1 text-xs capitalize text-emerald-700">
                     {finalizedProfile.experienceLevel}
                   </Text>
                 </View>
                 <View className="flex-row">
                   <Text className="w-20 text-xs font-medium text-emerald-700">Goal</Text>
-                  <Text className="flex-1 text-xs text-emerald-700">
+                  <Text testID="profile-goals" className="flex-1 text-xs text-emerald-700">
                     {finalizedProfile.goals}
                   </Text>
                 </View>
@@ -245,6 +246,7 @@ export default function OnboardingScreen() {
                 <TouchableOpacity
                   onPress={() => setFinalizedProfile(null)}
                   className="flex-1 rounded-xl border border-emerald-300 py-2.5"
+                  testID="edit-answers"
                   {...keyboardHandler(() => setFinalizedProfile(null))}
                 >
                   <Text className="text-center text-xs font-medium text-emerald-700">
@@ -254,6 +256,7 @@ export default function OnboardingScreen() {
                 <TouchableOpacity
                   onPress={() => void generateCurriculum(finalizedProfile)}
                   className="flex-1 rounded-xl bg-emerald-600 py-2.5"
+                  testID="build-curriculum"
                   {...keyboardHandler(() => void generateCurriculum(finalizedProfile))}
                 >
                   <Text className="text-center text-xs font-medium text-white">
@@ -303,6 +306,7 @@ export default function OnboardingScreen() {
                 onPress={() => handleSubmit()}
                 disabled={isLoading || !input.trim()}
                 className="h-10 w-10 items-center justify-center rounded-xl bg-violet-600 disabled:opacity-60"
+                testID="send-btn"
                 accessibilityLabel="Send message"
                 {...keyboardHandler(() => handleSubmit())}
               >

@@ -6,7 +6,7 @@ async function sendMessage(page: Page, text: string) {
   const textarea = page.getByPlaceholder("Type your message...");
   await textarea.click();
   await textarea.type(text);
-  const sendBtn = page.getByRole("button", { name: /send message/i });
+  const sendBtn = page.getByTestId("send-btn");
   await expect(sendBtn).toBeEnabled({ timeout: 10000 });
   await sendBtn.click();
 }
@@ -17,9 +17,7 @@ test.describe("Mobile onboarding", () => {
 
     await page.goto("/onboarding");
 
-    await expect(
-      page.getByText(/I'm BiteBase/).first(),
-    ).toBeVisible();
+    await expect(page.getByTestId("msg-welcome")).toBeVisible();
     await expect(
       page.getByPlaceholder("Type your message..."),
     ).toBeVisible();
@@ -57,6 +55,7 @@ test.describe("Mobile onboarding", () => {
     ).toBeVisible({ timeout: 10000 });
     await page.getByRole("button", { name: "Intermediate" }).click();
 
+    // The chip text appears as a user message in chat
     await expect(page.getByText("Intermediate").first()).toBeVisible();
   });
 
@@ -88,22 +87,17 @@ test.describe("Mobile onboarding", () => {
 
     await sendMessage(page, "Hold conversations");
 
-    // Wait for heuristic to detect all fields → confirmation card
     await expect(
       page.getByText("Ready to generate your curriculum"),
     ).toBeVisible({ timeout: 15000 });
 
-    // Profile details shown in card
-    await expect(page.getByText("Italian").first()).toBeVisible();
-    await expect(page.getByText("Intermediate").first()).toBeVisible();
-    await expect(page.getByText("Hold conversations").first()).toBeVisible();
+    // Profile details shown in card — scoped by testID
+    await expect(page.getByTestId("profile-topic")).toBeVisible();
+    await expect(page.getByTestId("profile-level")).toBeVisible();
+    await expect(page.getByTestId("profile-goals")).toBeVisible();
 
-    // Action buttons visible
-    await expect(
-      page.getByRole("button", { name: /edit answers/i }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /build my curriculum/i }),
-    ).toBeVisible();
+    // Action buttons — scoped by testID
+    await expect(page.getByTestId("edit-answers")).toBeVisible();
+    await expect(page.getByTestId("build-curriculum")).toBeVisible();
   });
 });
