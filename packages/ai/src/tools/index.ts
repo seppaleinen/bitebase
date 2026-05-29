@@ -2,11 +2,41 @@ import { tool } from "ai";
 import { z } from "zod";
 import { learningProfileSchema } from "../schemas/index";
 
+// Loose parameter schema — accepts whatever the model provides without hard-failing.
+// Completeness is validated inside execute() so we can return a helpful error
+// message the model can actually act on, rather than throwing an AI_TypeValidationError.
+const finalizeProfileParamsSchema = z.object({
+  topic: z.string().default(""),
+  experienceLevel: z.string().default(""),
+  goals: z.string().default(""),
+  availableMinutesPerDay: z.number().default(0),
+  additionalContext: z.string().optional(),
+});
+
 export const finalizeProfileTool = tool({
   description:
-    "Call this when you have gathered all the necessary information about the user's learning preferences. This finalizes the onboarding process and triggers curriculum generation.",
-  parameters: learningProfileSchema,
-  execute: async (profile) => {
+    "Call this ONLY when you have confirmed all four required values from the user: topic, experienceLevel (beginner/intermediate/advanced), goals (non-empty), and availableMinutesPerDay (a positive number ≥ 5). Do not call with empty strings or zero.",
+  parameters: finalizeProfileParamsSchema,
+  execute: async (raw) => {
+    const missing: string[] = [];
+    if (!raw.topic.trim()) missing.push("topic");
+    if (!["beginner", "intermediate", "advanced"].includes(raw.experienceLevel))
+      missing.push("experienceLevel (must be beginner, intermediate, or advanced)");
+    if (!raw.goals.trim()) missing.push("goals");
+    if (!raw.availableMinutesPerDay || raw.availableMinutesPerDay < 5)
+      missing.push("availableMinutesPerDay (must be a number ≥ 5)");
+
+    if (missing.length > 0) {
+      return {
+        success: false,
+        error: `Still missing required information: ${missing.join(", ")}. Please ask the user for these before calling this tool again.`,
+      };
+    }
+
+    const profile = learningProfileSchema.parse({
+      ...raw,
+      experienceLevel: raw.experienceLevel as "beginner" | "intermediate" | "advanced",
+    });
     return { success: true, profile };
   },
 });
