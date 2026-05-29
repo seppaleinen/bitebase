@@ -9,6 +9,7 @@ import {
   curriculumPlanSchema,
   learningProfileSchema,
   createWebSearchTool,
+  parseLessonResponse,
   type CurriculumPlan,
 } from "@bitebase/ai";
 import { auth } from "@bitebase/api";
@@ -19,10 +20,25 @@ import {
   lessons,
   quizzes,
   progress,
-  type QuizQuestion,
 } from "@bitebase/db";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
+
+/** Call `fn` up to `maxAttempts` times, waiting `delayMs * attempt` between retries. */
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts: number, delayMs: number): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts) {
+        await new Promise((res) => setTimeout(res, delayMs * attempt));
+      }
+    }
+  }
+  throw lastError;
+}
 
 /** Fix unescaped control characters (newlines, tabs) inside JSON string values. */
 function fixJsonControlChars(text: string): string {
@@ -42,67 +58,6 @@ function fixJsonControlChars(text: string): string {
     result += char;
   }
   return result;
-}
-
-/** Parse a lesson response in separator format into structured data. */
-function parseLessonResponse(text: string): {
-  content: string;
-  estimatedMinutes: number;
-  sources: { title: string; url: string }[];
-  quiz: { questions: QuizQuestion[]; passingScore: number };
-} {
-  const section = (name: string) => {
-    const re = new RegExp(`===\\s*${name}\\s*===\\s*([\\s\\S]*?)(?====|$)`, "i");
-    return text.match(re)?.[1]?.trim() ?? "";
-  };
-
-  const content = section("CONTENT");
-  const minutesRaw = section("MINUTES");
-  const sourcesRaw = section("SOURCES");
-  const quizRaw = section("QUIZ");
-
-  const estimatedMinutes = Math.max(1, parseInt(minutesRaw) || 10);
-
-  let sources: { title: string; url: string }[] = [];
-  try {
-    const parsed = JSON.parse(sourcesRaw || "[]");
-    if (Array.isArray(parsed)) sources = parsed;
-  } catch {
-    // ignore malformed sources
-  }
-
-  let quiz: { questions: QuizQuestion[]; passingScore: number } = { questions: [], passingScore: 70 };
-  try {
-    const quizJson = quizRaw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
-    const parsed = JSON.parse(fixJsonControlChars(quizJson));
-    if (parsed?.questions) {
-      quiz = {
-        questions: parsed.questions as QuizQuestion[],
-        passingScore: parseInt(parsed.passingScore) || 70,
-      };
-    }
-  } catch {
-    // ignore malformed quiz — lesson can still be saved without quiz questions
-  }
-
-  if (!content) throw new Error("No ===CONTENT=== section found in lesson response");
-
-  return { content, estimatedMinutes, sources, quiz };
-}
-
-async function withRetry<T>(fn: () => Promise<T>, maxAttempts: number, delayMs: number): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      lastError = err;
-      if (attempt < maxAttempts) {
-        await new Promise((res) => setTimeout(res, delayMs * attempt));
-      }
-    }
-  }
-  throw lastError;
 }
 
 /** Extract and parse a JSON object from model text that may be wrapped in markdown
@@ -152,10 +107,9 @@ interface GenerateJsonParams {
  * and validate it manually before giving up — a "repair" pass that handles
  * cases where the model produced valid JSON that just barely missed the schema.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function generateJsonObject<T>(
   params: GenerateJsonParams,
-  schema: z.ZodType<T, z.ZodTypeDef, any>,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   maxAttempts = 3
 ): Promise<T> {
   let lastError: unknown;
@@ -179,7 +133,7 @@ async function generateJsonObject<T>(
           const parsed = extractJson(rawText);
           const result = schema.safeParse(parsed);
           if (result.success) {
-            console.log(`[generate] repair pass succeeded on attempt ${attempt}`);
+            console.warn(`[generate] repair pass succeeded on attempt ${attempt}`);
             return result.data;
           }
           console.error(`[generate] repair pass Zod errors:`, JSON.stringify(result.error.format()).slice(0, 600));
@@ -215,12 +169,30 @@ function getSearchTool() {
   return null;
 }
 
+/**
+ * POST /api/onboarding/generate
+ *
+ * Accepts a validated LearningProfile JSON body and responds with an SSE stream.
+ * Events: `status` (progress message), `curriculum_created` (id + title),
+ * `done` (final curriculumId), `error` (message string).
+ *
+ * Saves profile → generates curriculum plan → generates each lesson in order →
+ * seeds the first lesson's progress row → marks the curriculum complete.
+ */
 export async function POST(req: Request) {
   const TEST_COOKIE = "__playwright_test__=1";
   const isTest = process.env.NODE_ENV !== "production" && req.headers.get("cookie")?.includes(TEST_COOKIE);
-  const session = isTest
-    ? { user: { id: "playwright-test-user", name: "Test User", email: "test@example.com" } }
-    : await auth.api.getSession({ headers: req.headers });
+  type MinimalSession = { user: { id: string; name: string; email: string } };
+  let session: MinimalSession | null = null;
+  try {
+    const raw = isTest
+      ? { user: { id: "playwright-test-user", name: "Test User", email: "test@example.com" } }
+      : await auth.api.getSession({ headers: req.headers });
+    session = raw as MinimalSession | null;
+  } catch (err) {
+    console.error("[generate] session error:", err instanceof Error ? err.message : err);
+    return new Response("Service unavailable", { status: 503 });
+  }
   if (!session?.user) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -293,7 +265,7 @@ export async function POST(req: Request) {
         const searchTool = getSearchTool();
 
         let lessonOrder = 0;
-        const firstLessonId: string[] = [];
+        let firstLessonId: string | undefined;
 
         for (const section of curriculumPlan.sections) {
           for (const subsection of section.subsections) {
@@ -356,18 +328,18 @@ export async function POST(req: Request) {
             });
 
             if (lessonOrder === 0) {
-              firstLessonId.push(lessonId);
+              firstLessonId = lessonId;
             }
 
             lessonOrder++;
           }
         }
 
-        if (firstLessonId.length > 0) {
+        if (firstLessonId) {
           await db.insert(progress).values({
             id: randomUUID(),
             userId: session.user.id,
-            lessonId: firstLessonId[0],
+            lessonId: firstLessonId,
             status: "available",
             quizAttempts: 0,
             lastAccessedAt: new Date(),

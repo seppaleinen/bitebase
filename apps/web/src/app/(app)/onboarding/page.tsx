@@ -15,7 +15,9 @@ import {
   Plus,
   Clock,
 } from "lucide-react";
+import type { inferRouterOutputs } from "@trpc/server";
 import type { LearningProfile } from "@bitebase/ai";
+import type { AppRouter } from "@bitebase/api";
 import { trpcReact } from "@/lib/trpc/provider";
 
 type GenerationStatus = {
@@ -28,24 +30,17 @@ type GenerationStatus = {
   };
 };
 
-// ── Returning-user gate ───────────────────────────────────────────────────────
+// ?? Returning-user gate ???????????????????????????????????????????????????????
 
-function ReturningUserGate({ onStartNew }: { onStartNew: () => void }) {
-  const { data: curricula, isLoading } = trpcReact.curriculum.list.useQuery();
+type CurriculumRow = inferRouterOutputs<AppRouter>["curriculum"]["list"][number];
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
-      </div>
-    );
-  }
-
-  // No existing curricula — skip the gate immediately
-  if (!curricula || curricula.length === 0) {
-    return null;
-  }
-
+function ReturningUserGate({
+  curricula,
+  onStartNew,
+}: {
+  curricula: CurriculumRow[];
+  onStartNew: () => void;
+}) {
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-md space-y-6">
@@ -106,7 +101,7 @@ function ReturningUserGate({ onStartNew }: { onStartNew: () => void }) {
   );
 }
 
-// ── Chat interface ────────────────────────────────────────────────────────────
+// ?? Chat interface ????????????????????????????????????????????????????????????
 
 function OnboardingChat() {
   const router = useRouter();
@@ -114,6 +109,7 @@ function OnboardingChat() {
   const promptParam = searchParams.get("prompt");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [generationStatus, setGenerationStatus] = useState<string | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [finalizedProfile, setFinalizedProfile] =
     useState<LearningProfile | null>(null);
@@ -128,13 +124,13 @@ function OnboardingChat() {
           id: "welcome",
           role: "assistant",
           content: initialMessage
-            ? `Great choice! Let me help you build a curriculum around "${initialMessage}". I have a couple of quick questions to personalise it — what's your current level (beginner, intermediate, or advanced), what's your main goal, and how many minutes a day can you dedicate?`
-            : "Hi there! I'm BiteBase, your personal learning assistant. I'm here to help you create a curriculum tailored just for you.\n\nWhat topic or skill have you been wanting to learn? It could be anything — programming, cooking, history, music theory, a new language... the world is yours! 🌟",
+            ? `Great choice! Let me help you build a curriculum around "${initialMessage}". I have a couple of quick questions to personalise it ? what's your current level (beginner, intermediate, or advanced), what's your main goal, and how many minutes a day can you dedicate?`
+            : "Hi there! I'm BiteBase, your personal learning assistant. I'm here to help you create a curriculum tailored just for you.\n\nWhat topic or skill have you been wanting to learn? It could be anything ? programming, cooking, history, music theory, a new language... the world is yours! ??",
         },
       ],
       onFinish(message) {
         // The model embeds a PROFILE: {...} line when it has all 4 required fields.
-        // Parse it out and trigger generation — no tool calling needed.
+        // Parse it out and trigger generation ? no tool calling needed.
         const match = message.content.match(/PROFILE:\s*(\{[\s\S]*?\})\s*$/m);
         if (match) {
           try {
@@ -143,25 +139,37 @@ function OnboardingChat() {
               setFinalizedProfile(profile);
             }
           } catch {
-            // malformed JSON — ignore, let conversation continue
+            // malformed JSON ? ignore, let conversation continue
           }
         }
       },
     });
 
+  // Parse SUGGESTIONS from the last assistant message
+  const lastAssistantMessage = [...messages].reverse().find((m) => m.role === "assistant");
+  const suggestions: string[] = (() => {
+    if (!lastAssistantMessage || isLoading) return [];
+    const match = lastAssistantMessage.content.match(/SUGGESTIONS:\s*(\[[^\]]*\])/);
+    if (!match) return [];
+    try { return JSON.parse(match[1]) as string[]; } catch { return []; }
+  })();
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // If a prompt was pre-filled, send the first user message automatically
+  // If a prompt was pre-filled, send the first user message automatically.
+  // Intentionally runs once on mount — append and promptParam are stable.
   useEffect(() => {
     if (promptParam && messages.length === 1) {
-      void append({ role: "user", content: decodeURIComponent(promptParam) });
+      void append({ role: "user", content: promptParam });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function startGeneration(profile: LearningProfile) {
     setIsGenerating(true);
+    setGenerationError(null);
     setGenerationStatus("Starting curriculum generation...");
 
     try {
@@ -173,7 +181,11 @@ function OnboardingChat() {
 
       if (!response.ok) {
         const text = await response.text().catch(() => "");
-        setGenerationStatus(`Error: ${response.status} — ${text.slice(0, 120) || "generation failed"}`);
+        const msg = response.status === 503
+          ? "The server is temporarily overloaded. Please wait a moment and try again."
+          : `Generation failed (${response.status}). Please try again.`;
+        setGenerationError(msg);
+        console.error("[generation] server error:", response.status, text);
         setIsGenerating(false);
         return;
       }
@@ -215,22 +227,34 @@ function OnboardingChat() {
       if (curriculumId) {
         router.push(`/dashboard?new=${curriculumId}`);
       } else {
-        setGenerationStatus("Generation completed but no curriculum ID was returned. Please try again.");
+        setGenerationError("Generation completed but no curriculum was created. Please try again.");
         setIsGenerating(false);
       }
     } catch (err) {
       console.error("[onboarding] generation fetch error:", err);
-      setGenerationStatus("Something went wrong. Please try again.");
+      setGenerationError("Something went wrong connecting to the server. Please try again.");
       setIsGenerating(false);
     }
   }
 
+  // Auto-generate: when navigated from dashboard "Try again", skip chat and
+  // immediately start generation using the stored profile.
+  // Runs once on mount — startGeneration is defined in the same scope.
   useEffect(() => {
-    if (finalizedProfile) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      startGeneration(finalizedProfile);
+    if (searchParams.get("autoGenerate") !== "1") return;
+    const stored = sessionStorage.getItem("bitebase_retry_profile");
+    if (!stored) return;
+    sessionStorage.removeItem("bitebase_retry_profile");
+    try {
+      const profile = JSON.parse(stored) as LearningProfile;
+      if (profile.topic && profile.experienceLevel) {
+        setTimeout(() => startGeneration(profile), 0);
+      }
+    } catch {
+      // malformed — fall back to normal chat
     }
-  }, [finalizedProfile]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -265,8 +289,13 @@ function OnboardingChat() {
           {messages.map((m) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if ((m.role as any) === "tool") return null;
-            // Strip the PROFILE:{...} marker line before display
-            const displayContent = m.content?.replace(/\n?PROFILE:\s*\{[\s\S]*?\}\s*$/m, "").trim();
+            // Strip PROFILE and SUGGESTIONS markers before display.
+            // Use [^\]}]* (no nesting) + global flag to handle any ordering.
+            const displayContent = m.content
+              ?.replace(/SUGGESTIONS:\s*\[[^\]]*\]/g, "")
+              .replace(/PROFILE:\s*\{[^}]*\}/g, "")
+              .replace(/\n{3,}/g, "\n\n")
+              .trim();
             // Skip messages with no visible text
             if (!displayContent) return null;
             const isAssistant = m.role === "assistant";
@@ -292,7 +321,7 @@ function OnboardingChat() {
                   {isAssistant && finalizedProfile && m === messages[messages.length - 1] && (
                     <div className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
                       <CheckCircle className="h-3.5 w-3.5" />
-                      Profile captured! Generating your curriculum...
+                      Profile ready ? see below to confirm
                     </div>
                   )}
                 </div>
@@ -321,50 +350,78 @@ function OnboardingChat() {
         </div>
       </div>
 
+      {/* Error banner */}
+      {generationError && !isGenerating && (
+        <div className="mx-6 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {generationError}
+        </div>
+      )}
+
       {/* Input */}
       {!isGenerating && (
-        <div className="border-t border-gray-100 bg-white px-6 py-4">
-          <form
-            onSubmit={handleSubmit}
-            className="mx-auto flex max-w-2xl items-center gap-3"
-          >
-            <input
-              value={input}
-              onChange={handleInputChange}
-              placeholder="Type your message..."
-              disabled={isLoading}
-              className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition-all focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100 disabled:opacity-60"
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm hover:bg-violet-700 disabled:opacity-60"
+        <div className="border-t border-gray-100 bg-white px-6 pb-4 pt-3">
+          <div className="mx-auto max-w-2xl space-y-3">
+            {/* Quick-reply chips */}
+            {suggestions.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      void append({ role: "user", content: s });
+                    }}
+                    className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition-colors hover:border-violet-400 hover:bg-violet-100"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <form
+              onSubmit={handleSubmit}
+              className="flex items-center gap-3"
             >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </button>
-          </form>
+              <input
+                value={input}
+                onChange={handleInputChange}
+                placeholder="Type your message..."
+                disabled={isLoading}
+                className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition-all focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100 disabled:opacity-60"
+              />
+              <button
+                type="submit"
+                disabled={isLoading || !input.trim()}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm hover:bg-violet-700 disabled:opacity-60"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-// ── Page root ─────────────────────────────────────────────────────────────────
+// ?? Page root ?????????????????????????????????????????????????????????????????
 
 export default function OnboardingPage() {
   const searchParams = useSearchParams();
   const promptParam = searchParams.get("prompt");
 
-  // If a ?prompt= is present (from post-lesson suggestions) skip the gate and
-  // go straight into the chat — the user already knows what they want.
-  const [showChat, setShowChat] = useState(!!promptParam);
+  const autoGenerate = searchParams.get("autoGenerate") === "1";
 
-  // ReturningUserGate internally returns null when there are no existing
-  // curricula, so the first-time user just sees the chat immediately.
+  // Skip the gate if a prompt or autoGenerate flag is present.
+  const [showChat, setShowChat] = useState(!!promptParam || autoGenerate);
+
+  // GateOrChat fetches curricula and short-circuits to the chat when there are
+  // no active curricula, so first-time users see the chat immediately.
   return (
     <div className="flex h-screen flex-col bg-gradient-to-br from-violet-50 via-white to-indigo-50">
       {/* Header */}
@@ -380,7 +437,7 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* Body — gate or chat */}
+      {/* Body ? gate or chat */}
       <div className="flex-1 overflow-hidden">
         <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-violet-400" /></div>}>
           {showChat ? (
@@ -394,7 +451,8 @@ export default function OnboardingPage() {
   );
 }
 
-// Thin wrapper so the gate can short-circuit to the chat when no curricula exist
+// Fetches curricula once and either short-circuits to the chat (no active curricula)
+// or renders ReturningUserGate with the data already in hand ? no second query.
 function GateOrChat({ onStartNew }: { onStartNew: () => void }) {
   const { data: curricula, isLoading } = trpcReact.curriculum.list.useQuery();
 
@@ -406,11 +464,11 @@ function GateOrChat({ onStartNew }: { onStartNew: () => void }) {
     );
   }
 
-  // Only count non-failed curricula — failed ones shouldn't block access to the chat
+  // Failed curricula shouldn't block access to the chat.
   const activeCurricula = curricula?.filter((c) => c.generationStatus !== "failed") ?? [];
   if (activeCurricula.length === 0) {
     return <OnboardingChat />;
   }
 
-  return <ReturningUserGate onStartNew={onStartNew} />;
+  return <ReturningUserGate curricula={activeCurricula} onStartNew={onStartNew} />;
 }

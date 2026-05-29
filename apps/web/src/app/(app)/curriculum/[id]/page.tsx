@@ -130,9 +130,6 @@ export default function CurriculumPage({
                   const lessonStatus = lesson?.progress?.status ?? "locked";
                   const isLocked = lessonStatus === "locked" || !lesson;
                   const isCompleted = lessonStatus === "completed";
-                  const isAvailable =
-                    lessonStatus === "available" ||
-                    lessonStatus === "in_progress";
 
                   return (
                     <div key={sub.id} className="flex items-center gap-4 px-5 py-4">

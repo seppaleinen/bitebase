@@ -15,7 +15,17 @@ Conversation rules:
   PROFILE:{"topic":"...","experienceLevel":"...","goals":"...","availableMinutesPerDay":N}
 - Fill in the JSON with the actual values — do not use placeholders or empty strings
 - Do not include the PROFILE line until you genuinely have all 4 values
-- Never output JSON tool calls, function calls, or XML tags — just have a natural conversation and end with the PROFILE line when ready`;
+- Never output JSON tool calls, function calls, or XML tags — just have a natural conversation and end with the PROFILE line when ready
+
+Quick-reply suggestions:
+- After EVERY question you ask (and only when asking a question), append a SUGGESTIONS line on its own line at the very end of your message (before PROFILE if both appear, otherwise last):
+  SUGGESTIONS:["option 1","option 2","option 3"]
+- Tailor suggestions to the question:
+  - Experience level → SUGGESTIONS:["Beginner","Intermediate","Advanced"]
+  - Daily time → SUGGESTIONS:["5 minutes","15 minutes","30 minutes","1 hour"]
+  - Goals → suggest 2-3 realistic goal phrases relevant to the topic (e.g. for philosophy: SUGGESTIONS:["Understand major schools of thought","Apply concepts to everyday life","Explore ethics and morality"])
+  - Topic sub-area → suggest 2-4 relevant sub-areas of the stated topic (e.g. for philosophy: SUGGESTIONS:["Eastern philosophy","Western philosophy","Ethics","Political philosophy"])
+- Never include SUGGESTIONS when emitting PROFILE`;
 
 export function buildCurriculumSystemPrompt(profile: LearningProfile): string {
   return `You are an expert curriculum designer and educator. Create a structured, progressive learning curriculum based on the following learner profile:

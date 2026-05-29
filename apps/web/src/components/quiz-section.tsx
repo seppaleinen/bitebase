@@ -51,7 +51,6 @@ function WhatsNextScreen({
   result,
   lessonId,
   lessonTitle,
-  curriculumId,
   curriculumTitle,
   questions,
   onRetake,
@@ -59,7 +58,6 @@ function WhatsNextScreen({
   result: QuizResult;
   lessonId: string;
   lessonTitle: string;
-  curriculumId: string;
   curriculumTitle?: string;
   questions: QuizQuestion[];
   onRetake: () => void;
@@ -320,7 +318,6 @@ export default function QuizSection({
   lessonId,
   quiz,
   lessonTitle,
-  curriculumId,
   curriculumTitle,
   onComplete,
 }: QuizSectionProps) {
@@ -334,6 +331,14 @@ export default function QuizSection({
       if (data.passed) onComplete?.();
     },
   });
+
+  if (!quiz.questions.length) {
+    return (
+      <div className="p-6 text-center text-sm text-gray-500">
+        No quiz questions available for this lesson.
+      </div>
+    );
+  }
 
   const currentQuestion = quiz.questions[currentQ];
   const isLastQuestion = currentQ === quiz.questions.length - 1;
@@ -364,7 +369,6 @@ export default function QuizSection({
         result={result}
         lessonId={lessonId}
         lessonTitle={lessonTitle}
-        curriculumId={curriculumId}
         curriculumTitle={curriculumTitle}
         questions={quiz.questions}
         onRetake={handleReset}

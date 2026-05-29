@@ -60,10 +60,13 @@ describe("scoreQuiz", () => {
       expect(result.correct).toBe(0);
     });
 
-    it("returns 0 when the question list is empty", () => {
+    it("returns 100% and passed=true when the question list is empty", () => {
       const result = scoreQuiz([], {}, PASSING_SCORE);
-      expect(result.score).toBe(0);
+      expect(result.score).toBe(100);
+      expect(result.passed).toBe(true);
       expect(result.total).toBe(0);
+      expect(result.correct).toBe(0);
+      expect(result.feedback).toHaveLength(0);
     });
   });
 
@@ -135,6 +138,54 @@ describe("scoreQuiz", () => {
     it("returns one feedback item per question", () => {
       const result = scoreQuiz(questions, {}, PASSING_SCORE);
       expect(result.feedback).toHaveLength(questions.length);
+    });
+  });
+
+  describe("case-insensitive comparison (regression)", () => {
+    it("accepts a lowercase answer when correctAnswer is capitalised", () => {
+      const q = makeQuestion("q1", "Tao");
+      const result = scoreQuiz([q], { q1: "tao" }, PASSING_SCORE);
+      expect(result.feedback[0].correct).toBe(true);
+      expect(result.score).toBe(100);
+      expect(result.passed).toBe(true);
+    });
+
+    it("accepts an uppercase answer when correctAnswer is lowercase", () => {
+      const q = makeQuestion("q1", "python");
+      const result = scoreQuiz([q], { q1: "PYTHON" }, PASSING_SCORE);
+      expect(result.feedback[0].correct).toBe(true);
+    });
+
+    it("accepts a mixed-case answer when correctAnswer is mixed-case", () => {
+      const q = makeQuestion("q1", "JavaScript");
+      const result = scoreQuiz([q], { q1: "javascript" }, PASSING_SCORE);
+      expect(result.feedback[0].correct).toBe(true);
+    });
+
+    it("still marks genuinely wrong answers as incorrect regardless of case", () => {
+      const q = makeQuestion("q1", "Python");
+      const result = scoreQuiz([q], { q1: "Ruby" }, PASSING_SCORE);
+      expect(result.feedback[0].correct).toBe(false);
+    });
+  });
+
+  describe("whitespace trimming (regression)", () => {
+    it("trims leading/trailing spaces from the submitted answer", () => {
+      const q = makeQuestion("q1", "A");
+      const result = scoreQuiz([q], { q1: "  A  " }, PASSING_SCORE);
+      expect(result.feedback[0].correct).toBe(true);
+    });
+
+    it("trims leading/trailing spaces from the correctAnswer", () => {
+      const q = makeQuestion("q1", "  B  ");
+      const result = scoreQuiz([q], { q1: "B" }, PASSING_SCORE);
+      expect(result.feedback[0].correct).toBe(true);
+    });
+
+    it("trims both sides and is case-insensitive at the same time", () => {
+      const q = makeQuestion("q1", "  Tao  ");
+      const result = scoreQuiz([q], { q1: "  tao  " }, PASSING_SCORE);
+      expect(result.feedback[0].correct).toBe(true);
     });
   });
 });

@@ -15,9 +15,13 @@ export async function POST(req: Request) {
     process.env.NODE_ENV !== "production" &&
     req.headers.get("cookie")?.includes(TEST_COOKIE);
 
-  const session = isTest
-    ? getTestSession()
-    : await auth.api.getSession({ headers: req.headers });
+  let session: Awaited<ReturnType<typeof auth.api.getSession>> | ReturnType<typeof getTestSession> | null = null;
+  try {
+    session = isTest ? getTestSession() : await auth.api.getSession({ headers: req.headers });
+  } catch (err) {
+    console.error("[onboarding/chat] session error:", err instanceof Error ? err.message : err);
+    return new Response("Service unavailable", { status: 503 });
+  }
 
   if (!session?.user) {
     return new Response("Unauthorized", { status: 401 });

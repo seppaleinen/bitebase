@@ -32,7 +32,12 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getSession();
+  let session: Awaited<ReturnType<typeof getSession>> | null = null;
+  try {
+    session = await getSession();
+  } catch (err) {
+    console.error("[layout] session check failed:", err instanceof Error ? err.message : err);
+  }
   if (!session?.user) {
     redirect("/login");
   }

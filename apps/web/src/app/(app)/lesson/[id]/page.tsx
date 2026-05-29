@@ -8,6 +8,7 @@ import {
   ExternalLink,
   ChevronRight,
   Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -24,7 +25,7 @@ export default function LessonPage({
   const utils = trpcReact.useUtils();
   const [showQuiz, setShowQuiz] = useState(false);
 
-  const { data, isLoading } = trpcReact.curriculum.getLesson.useQuery({
+  const { data, isLoading, isError } = trpcReact.curriculum.getLesson.useQuery({
     lessonId: id,
   });
 
@@ -35,11 +36,23 @@ export default function LessonPage({
 
   const markStarted = trpcReact.curriculum.markLessonStarted.useMutation();
 
+  const completeNoQuiz = trpcReact.curriculum.markLessonCompleted.useMutation({
+    onSuccess: () => {
+      void utils.curriculum.getLesson.invalidate({ lessonId: id });
+      void utils.curriculum.getNextLesson.invalidate({ lessonId: id });
+    },
+  });
+
+  const { data: nextLesson } = trpcReact.curriculum.getNextLesson.useQuery({ lessonId: id });
+
+  const lessonId = data?.lesson?.id;
+  const progressStatus = data?.progress?.status;
   useEffect(() => {
-    if (data?.lesson && data.progress?.status === "available") {
+    if (lessonId && progressStatus === "available") {
       markStarted.mutate({ lessonId: id });
     }
-  }, [data?.lesson?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonId, progressStatus]);
 
   if (isLoading) {
     return (
@@ -49,10 +62,26 @@ export default function LessonPage({
     );
   }
 
-  if (!data) return null;
+  if (isError || !data) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Back to dashboard
+        </Link>
+        <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+          <p className="text-sm text-gray-500">This lesson could not be loaded.</p>
+        </div>
+      </div>
+    );
+  }
 
   const { lesson, quiz, progress } = data;
   const isCompleted = progress?.status === "completed";
+  const hasQuizQuestions = (quiz?.questions?.length ?? 0) > 0;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -116,8 +145,49 @@ export default function LessonPage({
         </div>
       )}
 
+      {/* No-quiz completion flow — shown when quiz is missing or has no questions */}
+      {!hasQuizQuestions && (
+        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          {isCompleted ? (
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                <p className="text-sm font-medium text-emerald-800">Lesson completed!</p>
+              </div>
+              {nextLesson && (
+                <Link
+                  href={`/lesson/${nextLesson.id}`}
+                  className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2 text-sm font-semibold text-white hover:bg-violet-700"
+                >
+                  Next lesson
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="text-center">
+              <p className="mb-4 text-sm text-gray-500">
+                No quiz for this lesson. Mark it complete to unlock the next one.
+              </p>
+              <button
+                onClick={() => completeNoQuiz.mutate({ lessonId: id })}
+                disabled={completeNoQuiz.isPending}
+                className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
+              >
+                {completeNoQuiz.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                Mark as complete
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Quiz section */}
-      {quiz && (
+      {quiz && quiz.questions.length > 0 && (
         <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
           {!showQuiz ? (
             <div className="p-6 text-center">

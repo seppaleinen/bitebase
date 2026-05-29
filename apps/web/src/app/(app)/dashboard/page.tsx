@@ -124,10 +124,13 @@ function CurriculumCard({
   const router = useRouter();
   const utils = trpcReact.useUtils();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const deleteMutation = trpcReact.curriculum.delete.useMutation({
     onSuccess: () => utils.curriculum.list.invalidate(),
   });
+
+  const retryMutation = trpcReact.curriculum.retryAndGetProfile.useMutation();
 
   const { data: lessonsData } = trpcReact.curriculum.getLessons.useQuery({
     curriculumId: curriculum.id,
@@ -153,10 +156,17 @@ function CurriculumCard({
     }
   }
 
-  function handleRetry(e: React.MouseEvent) {
+  async function handleRetry(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    router.push("/onboarding");
+    setIsRetrying(true);
+    try {
+      const profile = await retryMutation.mutateAsync({ id: curriculum.id });
+      sessionStorage.setItem("bitebase_retry_profile", JSON.stringify(profile));
+      router.push("/onboarding?autoGenerate=1");
+    } catch {
+      setIsRetrying(false);
+    }
   }
 
   const cardContent = (
@@ -209,10 +219,11 @@ function CurriculumCard({
           </button>
           <button
             onClick={handleRetry}
-            disabled={isDeleting}
-            className="flex-1 rounded-lg bg-violet-600 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition-colors disabled:opacity-50"
+            disabled={isDeleting || isRetrying}
+            className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-violet-600 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition-colors disabled:opacity-50"
           >
-            Try again
+            {isRetrying && <Loader2 className="h-3 w-3 animate-spin" />}
+            {isRetrying ? "Starting..." : "Try again"}
           </button>
         </div>
       ) : (

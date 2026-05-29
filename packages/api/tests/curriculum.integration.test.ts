@@ -23,12 +23,18 @@ const { mockDb } = vi.hoisted(() => {
     where: vi.fn().mockResolvedValue(undefined),
   });
 
+  const chainDelete = () => ({
+    where: vi.fn().mockResolvedValue(undefined),
+  });
+
   const mockDb = {
     select: vi.fn().mockReturnValue(chainSelect([])),
     insert: vi.fn().mockReturnValue(chainWrite()),
     update: vi.fn().mockReturnValue(chainWrite()),
+    delete: vi.fn().mockReturnValue(chainDelete()),
     _chainSelect: chainSelect,
     _chainWrite: chainWrite,
+    _chainDelete: chainDelete,
   };
 
   return { mockDb };
@@ -56,8 +62,10 @@ import type { QuizQuestion } from "@bitebase/db";
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const MOCK_USER_ID = "user-1";
+const OTHER_USER_ID = "user-2";
 const MOCK_LESSON_ID = "lesson-1";
 const MOCK_CURRICULUM_ID = "curriculum-1";
+const MOCK_PROFILE_ID = "prof-1";
 
 const mockQuizQuestions: QuizQuestion[] = [
   {
@@ -110,12 +118,28 @@ const mockLesson = {
 const mockCurriculum = {
   id: MOCK_CURRICULUM_ID,
   userId: MOCK_USER_ID,
-  profileId: "prof-1",
+  profileId: MOCK_PROFILE_ID,
   title: "Learn TS",
   description: "desc",
   totalEstimatedMinutes: 60,
   sections: [],
   generationStatus: "complete",
+  createdAt: new Date(),
+};
+
+const mockFailedCurriculum = {
+  ...mockCurriculum,
+  generationStatus: "failed",
+};
+
+const mockProfile = {
+  id: MOCK_PROFILE_ID,
+  userId: MOCK_USER_ID,
+  topic: "TypeScript",
+  experienceLevel: "beginner" as const,
+  goals: "Build production apps",
+  availableMinutesPerDay: 30,
+  additionalContext: "Focus on practical examples",
   createdAt: new Date(),
 };
 
@@ -350,6 +374,190 @@ describe("curriculum.submitQuiz", () => {
     const caller = appRouter.createCaller(authedCtx() as never);
     await expect(
       caller.curriculum.submitQuiz({ lessonId: "no-quiz", answers: {} })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+// ── curriculum.retryAndGetProfile ─────────────────────────────────────────────
+
+describe("curriculum.retryAndGetProfile", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makeSelectSequence(responses: unknown[][]) {
+    let call = 0;
+    return () => ({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockImplementation(() => {
+        const result = responses[call] ?? [];
+        call++;
+        return Promise.resolve(result);
+      }),
+    });
+  }
+
+  function makeDelete() {
+    return { where: vi.fn().mockResolvedValue(undefined) };
+  }
+
+  it("throws NOT_FOUND when the curriculum belongs to another user", async () => {
+    // Ownership check: curriculum found for OTHER user, so this user's query returns []
+    mockDb.select.mockImplementation(makeSelectSequence([[]]));
+
+    const caller = appRouter.createCaller({
+      session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+      req: {} as Request,
+    } as never);
+
+    await expect(
+      caller.curriculum.retryAndGetProfile({ id: MOCK_CURRICULUM_ID })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("returns profile fields and triggers curriculum cleanup when called for a valid failed curriculum", async () => {
+    // Sequence: [curriculum], [profile]
+    mockDb.select.mockImplementation(
+      makeSelectSequence([[mockFailedCurriculum], [mockProfile]])
+    );
+    const del = makeDelete();
+    mockDb.delete.mockReturnValue(del);
+
+    const caller = appRouter.createCaller(authedCtx() as never);
+    const result = await caller.curriculum.retryAndGetProfile({ id: MOCK_CURRICULUM_ID });
+
+    expect(result.topic).toBe(mockProfile.topic);
+    expect(result.experienceLevel).toBe(mockProfile.experienceLevel);
+    expect(result.goals).toBe(mockProfile.goals);
+    expect(result.availableMinutesPerDay).toBe(mockProfile.availableMinutesPerDay);
+    expect(result.additionalContext).toBe(mockProfile.additionalContext);
+
+    // At least one delete was issued (lessons or curricula cleanup)
+    expect(mockDb.delete).toHaveBeenCalled();
+    expect(del.where).toHaveBeenCalled();
+  });
+
+  it("throws NOT_FOUND when the profile record is missing", async () => {
+    // Curriculum found but profile select returns empty
+    mockDb.select.mockImplementation(
+      makeSelectSequence([[mockFailedCurriculum], []])
+    );
+    const del = makeDelete();
+    mockDb.delete.mockReturnValue(del);
+
+    const caller = appRouter.createCaller(authedCtx() as never);
+    await expect(
+      caller.curriculum.retryAndGetProfile({ id: MOCK_CURRICULUM_ID })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+// ── curriculum.markLessonCompleted ────────────────────────────────────────────
+
+describe("curriculum.markLessonCompleted", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makeSelectSequence(responses: unknown[][]) {
+    let call = 0;
+    return () => ({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockImplementation(() => {
+        const result = responses[call] ?? [];
+        call++;
+        return Promise.resolve(result);
+      }),
+    });
+  }
+
+  function makeWrite() {
+    return {
+      values: vi.fn().mockResolvedValue(undefined),
+      set: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue(undefined),
+    };
+  }
+
+  it("marks a lesson as completed with quizScore=100 and quizPassed=true when no prior progress", async () => {
+    // Sequence: [lesson], [curriculum (ownership)], [no existing progress],
+    //           unlockNextLesson: [completed lesson], [all lessons in curriculum], [no next progress]
+    mockDb.select.mockImplementation(
+      makeSelectSequence([
+        [mockLesson],
+        [mockCurriculum],
+        [],
+        [mockLesson],
+        [mockLesson],
+        [],
+      ])
+    );
+    const write = makeWrite();
+    mockDb.insert.mockReturnValue(write);
+    mockDb.update.mockReturnValue(write);
+
+    const caller = appRouter.createCaller(authedCtx() as never);
+    await caller.curriculum.markLessonCompleted({ lessonId: MOCK_LESSON_ID });
+
+    // Progress row should have been inserted (no existing row)
+    expect(mockDb.insert).toHaveBeenCalled();
+    const insertedValues = write.values.mock.calls[0][0] as Record<string, unknown>;
+    expect(insertedValues.status).toBe("completed");
+    expect(insertedValues.quizScore).toBe(100);
+    expect(insertedValues.quizPassed).toBe(true);
+  });
+
+  it("updates the existing progress row when one already exists", async () => {
+    const existingProgress = {
+      id: "prog-1",
+      userId: MOCK_USER_ID,
+      lessonId: MOCK_LESSON_ID,
+      status: "in_progress",
+      quizScore: null,
+      quizPassed: null,
+      quizAttempts: 0,
+      completedAt: null,
+      lastAccessedAt: new Date(),
+    };
+
+    mockDb.select.mockImplementation(
+      makeSelectSequence([
+        [mockLesson],
+        [mockCurriculum],
+        [existingProgress],
+        [mockLesson],
+        [mockLesson],
+        [],
+      ])
+    );
+    const write = makeWrite();
+    mockDb.insert.mockReturnValue(write);
+    mockDb.update.mockReturnValue(write);
+
+    const caller = appRouter.createCaller(authedCtx() as never);
+    await caller.curriculum.markLessonCompleted({ lessonId: MOCK_LESSON_ID });
+
+    expect(mockDb.update).toHaveBeenCalled();
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
+  it("throws NOT_FOUND when the curriculum belongs to another user", async () => {
+    // lesson found, but curriculum ownership check fails
+    mockDb.select.mockImplementation(
+      makeSelectSequence([
+        [mockLesson],
+        [], // curriculum ownership check → not found
+      ])
+    );
+
+    const caller = appRouter.createCaller(authedCtx() as never);
+    await expect(
+      caller.curriculum.markLessonCompleted({ lessonId: MOCK_LESSON_ID })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("throws NOT_FOUND when the lesson does not exist", async () => {
+    mockDb.select.mockImplementation(makeSelectSequence([[]]));
+
+    const caller = appRouter.createCaller(authedCtx() as never);
+    await expect(
+      caller.curriculum.markLessonCompleted({ lessonId: "ghost-lesson" })
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });

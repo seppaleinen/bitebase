@@ -11,22 +11,16 @@
     "test:all": "turbo test test:e2e",
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
-    "db:push": "turbo db:push"
+    "db:push": "turbo db:push",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
   },
   "packageManager": "pnpm@11.4.0",
   "engines": {
     "node": ">=22.13"
-  },
-  "pnpm": {
-    "overrides": {
-      "react": "^19.1.0",
-      "@types/react": "^19.1.4",
-      "react-dom": "^19.1.0",
-      "@types/react-dom": "^19.1.3"
-    }
   }
 }

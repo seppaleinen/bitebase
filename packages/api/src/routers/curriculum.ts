@@ -171,6 +171,64 @@ export const curriculumRouter = router({
       return { score, passed, correct, total, feedback };
     }),
 
+  markLessonCompleted: protectedProcedure
+    .input(z.object({ lessonId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const [lesson] = await db
+        .select()
+        .from(lessons)
+        .where(eq(lessons.id, input.lessonId));
+      if (!lesson) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const [curriculum] = await db
+        .select()
+        .from(curricula)
+        .where(
+          and(
+            eq(curricula.id, lesson.curriculumId),
+            eq(curricula.userId, ctx.session.user.id)
+          )
+        );
+      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const [existing] = await db
+        .select()
+        .from(progress)
+        .where(
+          and(
+            eq(progress.lessonId, input.lessonId),
+            eq(progress.userId, ctx.session.user.id)
+          )
+        );
+
+      if (!existing) {
+        await db.insert(progress).values({
+          id: randomUUID(),
+          userId: ctx.session.user.id,
+          lessonId: input.lessonId,
+          status: "completed",
+          quizScore: 100,
+          quizPassed: true,
+          quizAttempts: 0,
+          completedAt: new Date(),
+          lastAccessedAt: new Date(),
+        });
+      } else {
+        await db
+          .update(progress)
+          .set({
+            status: "completed",
+            quizScore: 100,
+            quizPassed: true,
+            completedAt: new Date(),
+            lastAccessedAt: new Date(),
+          })
+          .where(eq(progress.id, existing.id));
+      }
+
+      await unlockNextLesson(ctx.session.user.id, input.lessonId);
+    }),
+
   markLessonStarted: protectedProcedure
     .input(z.object({ lessonId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -251,7 +309,7 @@ export const curriculumRouter = router({
         );
       if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
 
-      await db.delete(lessons).where(eq(lessons.curriculumId, input.id));
+      // Deleting the curriculum cascades to lessons → quizzes and progress via FK.
       await db.delete(curricula).where(eq(curricula.id, input.id));
     }),
 
@@ -275,6 +333,41 @@ export const curriculumRouter = router({
         .where(eq(learningProfiles.id, curriculum.profileId));
 
       return profile ?? null;
+    }),
+
+  /** Delete a failed curriculum and return its learning profile so the caller
+   *  can immediately re-trigger generation with the same inputs. */
+  retryAndGetProfile: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const [curriculum] = await db
+        .select()
+        .from(curricula)
+        .where(
+          and(
+            eq(curricula.id, input.id),
+            eq(curricula.userId, ctx.session.user.id)
+          )
+        );
+      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const [profile] = await db
+        .select()
+        .from(learningProfiles)
+        .where(eq(learningProfiles.id, curriculum.profileId));
+
+      // Deleting the curriculum cascades to lessons → quizzes and progress via FK.
+      await db.delete(curricula).where(eq(curricula.id, input.id));
+
+      if (!profile) throw new TRPCError({ code: "NOT_FOUND", message: "Learning profile not found" });
+
+      return {
+        topic: profile.topic,
+        experienceLevel: profile.experienceLevel,
+        goals: profile.goals,
+        availableMinutesPerDay: profile.availableMinutesPerDay,
+        additionalContext: profile.additionalContext ?? "",
+      };
     }),
 });
 

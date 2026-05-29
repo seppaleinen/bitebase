@@ -35,6 +35,7 @@ ios/
 
 # ── Package manager ───────────────────────────────────────────────────────────
 # pnpm
+.pnpm-store/
 pnpm-debug.log*
 
 # npm / yarn logs
@@ -92,6 +93,9 @@ Desktop.ini
 *.key
 *.cert
 *.p12
+
+# ── Dev scripts ───────────────────────────────────────────────────────────────
+scripts/smoke-screenshots/
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 # Vercel

@@ -28,14 +28,15 @@ export function scoreQuiz(
 
   const feedback: QuizFeedbackItem[] = questions.map((q) => ({
     questionId: q.id,
-    correct: answers[q.id] === q.correctAnswer,
+    correct: (answers[q.id] ?? "").trim().toLowerCase() === q.correctAnswer.trim().toLowerCase(),
     correctAnswer: q.correctAnswer,
     explanation: q.explanation,
   }));
 
   const correct = feedback.filter((f) => f.correct).length;
-  const score = total === 0 ? 0 : Math.round((correct / total) * 100);
-  const passed = score >= passingScore;
+  // No questions → trivially 100% (nothing to get wrong)
+  const score = total === 0 ? 100 : Math.round((correct / total) * 100);
+  const passed = total === 0 ? true : score >= passingScore;
 
   return { score, passed, correct, total, feedback };
 }
