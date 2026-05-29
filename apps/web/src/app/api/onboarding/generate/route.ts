@@ -25,15 +25,57 @@ import {
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
-/** Extract a JSON object from model text that may be wrapped in markdown code fences. */
+/** Fix unescaped control characters (newlines, tabs) inside JSON string values. */
+function fixJsonControlChars(text: string): string {
+  let inString = false;
+  let escaped = false;
+  let result = "";
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (escaped) { result += char; escaped = false; continue; }
+    if (char === "\\" && inString) { result += char; escaped = true; continue; }
+    if (char === '"') { inString = !inString; result += char; continue; }
+    if (inString) {
+      if (char === "\n") { result += "\\n"; continue; }
+      if (char === "\r") { result += "\\r"; continue; }
+      if (char === "\t") { result += "\\t"; continue; }
+    }
+    result += char;
+  }
+  return result;
+}
+
+/** Extract and parse a JSON object from model text that may be wrapped in markdown
+ *  code fences, prefixed with prose, or wrapped in a JSON-Schema envelope. */
 function extractJson(text: string): unknown {
+  // Remove markdown code fences
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
   const raw = fenced ? fenced[1] : text.trim();
-  // Strip leading/trailing non-JSON characters (e.g. "Here is the JSON:" prefix)
+
+  // Find the outermost JSON object
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start === -1 || end === -1) throw new Error("No JSON object found in response");
-  return JSON.parse(raw.slice(start, end + 1));
+
+  let jsonStr = raw.slice(start, end + 1);
+
+  // Fix unescaped newlines/tabs inside string values (model sometimes outputs raw markdown)
+  jsonStr = fixJsonControlChars(jsonStr);
+
+  const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+
+  // Detect JSON-Schema envelope: {"type":"object","properties":{...}} and unwrap it
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    parsed.type === "object" &&
+    parsed.properties &&
+    typeof parsed.properties === "object"
+  ) {
+    return parsed.properties;
+  }
+
+  return parsed;
 }
 
 interface GenerateJsonParams {

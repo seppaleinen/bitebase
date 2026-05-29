@@ -76,5 +76,13 @@ IMPORTANT — JSON field requirements:
 - quiz.passingScore: integer between 50 and 100 (use 70 if unsure)
 - Each quiz question must have: id (e.g. "q1"), type ("multiple_choice" or "fill_in_blank"), question, correctAnswer, explanation
 - multiple_choice questions must also have: options — an array of exactly 4 answer strings
-- correctAnswer must be the exact text of one of the options (not an index number)`;
+- correctAnswer must be the exact text of one of the options (not an index number)
+
+CRITICAL JSON FORMAT RULES:
+- Return ONLY a raw JSON object — do NOT wrap in \`\`\`json\`\`\` code fences
+- Do NOT return a JSON Schema ({"type":"object","properties":{...}}) — return actual data
+- The root object must have these exact keys: content, estimatedMinutes, sources, quiz
+- The "content" field must be a single JSON string — escape all newlines as \\n inside it
+- Example structure (fill in real content):
+  {"content":"# Title\\n\\nLesson text here...","estimatedMinutes":15,"sources":[],"quiz":{"questions":[...],"passingScore":70}}`;
 }
