@@ -118,9 +118,7 @@ function OnboardingChat() {
   const [finalizedProfile, setFinalizedProfile] =
     useState<LearningProfile | null>(null);
 
-  const initialMessage = promptParam
-    ? `I'd like to ${decodeURIComponent(promptParam)}`
-    : null;
+  const initialMessage = promptParam ? decodeURIComponent(promptParam) : null;
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, append } =
     useChat({
@@ -130,7 +128,7 @@ function OnboardingChat() {
           id: "welcome",
           role: "assistant",
           content: initialMessage
-            ? `Great to see you again! Let me help you dive into that.\n\n${initialMessage}\n\nSounds exciting! Let me ask you a few quick questions to personalise this perfectly for you. First — how would you describe your current level with this topic?`
+            ? `Great choice! Let me help you build a curriculum around "${initialMessage}". I have a couple of quick questions to personalise it — what's your current level (beginner, intermediate, or advanced), what's your main goal, and how many minutes a day can you dedicate?`
             : "Hi there! I'm BiteBase, your personal learning assistant. I'm here to help you create a curriculum tailored just for you.\n\nWhat topic or skill have you been wanting to learn? It could be anything — programming, cooking, history, music theory, a new language... the world is yours! 🌟",
         },
       ],
