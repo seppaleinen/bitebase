@@ -177,12 +177,22 @@ function OnboardingChat() {
     const aiText = lastAssistantMessage.content.toLowerCase();
     const aiRaw = lastAssistantMessage.content; // preserve case for option extraction
 
-    // Level chips — only when not yet answered
-    if (!alreadyHasLevel && /experience|your level|what level|how (advanced|experienced)/.test(aiText))
+    // Level chips — only when not yet answered.
+    // Matches both explicit level questions ("what's your level") and natural
+    // phrasing that mentions a level keyword in a question context.
+    if (
+      !alreadyHasLevel &&
+      (/experience|your level|what level|how (advanced|experienced)/.test(aiText) ||
+        (aiRaw.includes("?") && /\b(beginner|intermediate|advanced)\b/.test(aiText)))
+    )
       return ["Beginner", "Intermediate", "Advanced"];
 
     // Generic: if the message contains a "?" try to extract "X or Y (or Z)" options
     // from the model's own phrasing, then fall back to a "No preference" chip.
+    // Skip generic extraction for level questions when user already answered level.
+    const isLevelQuestion = /experience|your level|what level|how (advanced|experienced)/.test(aiText) ||
+      /\b(beginner|intermediate|advanced)\b/.test(aiText);
+    if (alreadyHasLevel && isLevelQuestion) return [];
     if (aiRaw.includes("?")) {
       const orParts = aiRaw.split(/\bor\b/i);
       if (orParts.length >= 2 && orParts.length <= 5) {

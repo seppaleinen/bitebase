@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { Send } from "lucide-react-native";
 import { useChat } from "ai/react";
 import type { LearningProfile } from "@bitebase/ai";
+import { extractProfileValues } from "@bitebase/ai";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
@@ -24,7 +25,7 @@ export default function OnboardingScreen() {
   const [generationStatus, setGenerationStatus] = useState("");
   const [finalizedProfile, setFinalizedProfile] = useState<LearningProfile | null>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, append } = useChat({
     api: `${API_BASE}/api/onboarding/chat`,
     fetch: (url, options) =>
       fetch(url, { ...options, credentials: "include" }),
@@ -52,11 +53,36 @@ export default function OnboardingScreen() {
     }
   }, [messages]);
 
+  // Layered profile detection: tool call → PROFILE:text marker → heuristic
   useEffect(() => {
-    if (finalizedProfile) {
-      generateCurriculum(finalizedProfile);
+    if (finalizedProfile || isLoading) return;
+
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    if (!lastAssistant) return;
+
+    let detected: LearningProfile | null = null;
+
+    // Secondary: PROFILE:{...} text marker
+    const match = lastAssistant.content.match(/PROFILE:\s*(\{[^]*?\})/);
+    if (match) {
+      try {
+        const p = JSON.parse(match[1]) as LearningProfile;
+        if (p.topic && p.experienceLevel && p.goals) detected = p;
+      } catch { /* fall through to heuristic */ }
     }
-  }, [finalizedProfile]);
+
+    // Heuristic: scan conversation for all 3 fields
+    if (!detected) {
+      const chatMessages = messages.map((m) => ({
+        role: m.role as "user" | "assistant" | "system",
+        content: m.content,
+      }));
+      const extracted = extractProfileValues(chatMessages);
+      if (extracted) detected = extracted;
+    }
+
+    if (detected) setFinalizedProfile(detected);
+  }, [messages, isLoading, finalizedProfile]);
 
   async function generateCurriculum(profile: LearningProfile) {
     setIsGenerating(true);
@@ -109,6 +135,60 @@ export default function OnboardingScreen() {
   }
 
   const displayMessages = messages.filter((m) => (m.role as string) !== "tool");
+
+  const suggestions: string[] = (() => {
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    if (!lastAssistant || isLoading || finalizedProfile) return [];
+
+    const allUserText = messages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content)
+      .join(" ")
+      .toLowerCase();
+    const alreadyHasLevel = /\b(beginner|intermediate|advanced)\b/.test(allUserText);
+
+    const aiText = lastAssistant.content.toLowerCase();
+    const aiRaw = lastAssistant.content;
+
+    if (
+      !alreadyHasLevel &&
+      (/experience|your level|what level|how (advanced|experienced)/.test(aiText) ||
+        (aiRaw.includes("?") && /\b(beginner|intermediate|advanced)\b/.test(aiText)))
+    )
+      return ["Beginner", "Intermediate", "Advanced"];
+
+    // Skip generic extraction for level questions when user already answered level.
+    const isLevelQuestion = /experience|your level|what level|how (advanced|experienced)/.test(aiText) ||
+      /\b(beginner|intermediate|advanced)\b/.test(aiText);
+    if (alreadyHasLevel && isLevelQuestion) return [];
+
+    if (aiRaw.includes("?")) {
+      const orParts = lastAssistant.content.split(/\bor\b/i);
+      if (orParts.length >= 2 && orParts.length <= 5) {
+        const extracted = orParts.map((part) => {
+          const segments = part.split(",").map((s) => s.trim()).filter(Boolean);
+          const candidate = segments[segments.length - 1] ?? part.trim();
+          const cleaned = candidate
+            .replace(/^[\s?!.]+|[\s?!.]+$/g, "")
+            .replace(
+              /^(do you have a preference for|is your focus more on|are you (?:more )?interested in|would you (?:prefer|like)|do you prefer|a preference for)\s+/i,
+              ""
+            )
+            .trim();
+          const words = cleaned.split(/\s+/).filter((w) => /[a-zA-Z]/.test(w)).slice(0, 4);
+          if (words.length === 0) return "";
+          const joined = words.join(" ");
+          return joined.charAt(0).toUpperCase() + joined.slice(1);
+        }).filter((o) => o.length >= 2 && o.length <= 40);
+
+        const unique = [...new Set(extracted)].slice(0, 4);
+        if (unique.length >= 2) return [...unique, "No preference"];
+      }
+      return ["No preference"];
+    }
+
+    return [];
+  })();
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -186,7 +266,66 @@ export default function OnboardingScreen() {
             </View>
           )}
 
+          {finalizedProfile && !isGenerating && (
+            <View className="mx-4 mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <Text className="mb-3 text-sm font-semibold text-emerald-800">
+                Ready to generate your curriculum
+              </Text>
+              <View className="mb-4 gap-1">
+                <View className="flex-row">
+                  <Text className="w-20 text-xs font-medium text-emerald-700">Topic</Text>
+                  <Text className="flex-1 text-xs capitalize text-emerald-700">
+                    {finalizedProfile.topic}
+                  </Text>
+                </View>
+                <View className="flex-row">
+                  <Text className="w-20 text-xs font-medium text-emerald-700">Level</Text>
+                  <Text className="flex-1 text-xs capitalize text-emerald-700">
+                    {finalizedProfile.experienceLevel}
+                  </Text>
+                </View>
+                <View className="flex-row">
+                  <Text className="w-20 text-xs font-medium text-emerald-700">Goal</Text>
+                  <Text className="flex-1 text-xs text-emerald-700">
+                    {finalizedProfile.goals}
+                  </Text>
+                </View>
+              </View>
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={() => setFinalizedProfile(null)}
+                  className="flex-1 rounded-xl border border-emerald-300 py-2.5"
+                >
+                  <Text className="text-center text-xs font-medium text-emerald-700">
+                    Edit answers
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => void generateCurriculum(finalizedProfile)}
+                  className="flex-1 rounded-xl bg-emerald-600 py-2.5"
+                >
+                  <Text className="text-center text-xs font-medium text-white">
+                    Build my curriculum
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           <View className="border-t border-gray-100 px-4 py-3">
+            {suggestions.length > 0 && (
+              <View className="mb-3 flex-row flex-wrap gap-2">
+                {suggestions.map((s) => (
+                  <TouchableOpacity
+                    key={s}
+                    onPress={() => void append({ role: "user", content: s })}
+                    className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5"
+                  >
+                    <Text className="text-xs font-medium text-violet-700">{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
             <View className="flex-row items-center gap-3">
               <TextInput
                 value={input}

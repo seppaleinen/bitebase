@@ -105,4 +105,85 @@ describe("extractCollectedFields", () => {
     expect(result).toContain("hold confident conversations in French");
     expect(result).not.toContain("learn some basics");
   });
+
+  // ── Topic/goals overlap prevention ────────────────────────────────────────
+
+  it("does not extract goals from a topic statement like 'I want to learn Italian'", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "I want to learn Italian" },
+    ];
+    const result = extractCollectedFields(messages);
+    expect(result).toContain('topic="italian"');
+    expect(result).not.toContain("goals=");
+  });
+
+  it("does not extract goals from 'study X' messages", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "I'd like to study quantum physics" },
+    ];
+    const result = extractCollectedFields(messages);
+    expect(result).toContain('topic="quantum physics"');
+    expect(result).not.toContain("goals=");
+  });
+
+  it("does not extract goals from 'teach me about X' messages", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Teach me about machine learning" },
+    ];
+    const result = extractCollectedFields(messages);
+    expect(result).toContain('topic="machine learning"');
+    expect(result).not.toContain("goals=");
+  });
+
+  it("does not extract goals from 'interested in X' messages", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "I'm interested in woodworking" },
+    ];
+    const result = extractCollectedFields(messages);
+    expect(result).toContain('topic="woodworking"');
+    expect(result).not.toContain("goals=");
+  });
+
+  it("extracts topic from first message and goals from a later message separately", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "I want to learn Italian" },
+      {
+        role: "assistant",
+        content: "Great choice! What's your experience level?",
+      },
+      { role: "user", content: "Beginner" },
+      {
+        role: "assistant",
+        content: "Got it. What are your goals for learning Italian?",
+      },
+      {
+        role: "user",
+        content: "I want to have conversations with my in-laws",
+      },
+    ];
+    const result = extractCollectedFields(messages);
+    expect(result).toContain('topic="italian"');
+    expect(result).toContain('experienceLevel="beginner"');
+    expect(result).toContain("goals=");
+    expect(result).toContain("I want to have conversations with my in-laws");
+    expect(result).toContain("You have all 3 values");
+  });
+
+  it("still extracts goals from non-topic multi-word messages", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "hold conversations" },
+    ];
+    const result = extractCollectedFields(messages);
+    expect(result).toContain("goals=");
+    expect(result).toContain("hold conversations");
+  });
+
+  it("treats 'I want to learn X' as topic only, not goals, even with 2+ words", () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "learn Spanish" },
+    ];
+    const result = extractCollectedFields(messages);
+    expect(result).toContain('topic="spanish"');
+    expect(result).not.toContain("goals=");
+  });
 });
