@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { streamText } from "ai";
-import { getModel, ONBOARDING_SYSTEM_PROMPT, onboardingTools } from "@bitebase/ai";
+import { getModel, ONBOARDING_SYSTEM_PROMPT } from "@bitebase/ai";
 import { auth } from "@bitebase/api";
 
 export async function POST(req: Request) {
@@ -12,27 +12,20 @@ export async function POST(req: Request) {
 
   const { messages } = await req.json();
 
+  // No tools — llama3.2 via OpenAI-compat doesn't reliably execute tool calls.
+  // The model is instructed to embed a PROFILE:{...} JSON line in its text when
+  // it has gathered all 4 required fields; the client parses that marker.
   const result = streamText({
     model: getModel(),
     system: ONBOARDING_SYSTEM_PROMPT,
     messages,
-    tools: onboardingTools,
-    maxSteps: 5,
     temperature: 0.7,
     onError({ error }) {
       console.error("[onboarding/chat] streamText error:", error);
     },
-    onStepFinish({ stepType, toolCalls, toolResults, finishReason, usage }) {
+    onStepFinish({ finishReason, usage }) {
       if (process.env.NODE_ENV !== "production") {
-        console.log("[onboarding/chat] step:", {
-          stepType,
-          finishReason,
-          toolCalls: toolCalls.map((t) => t.toolName),
-          usage,
-        });
-        if (toolResults.length > 0) {
-          console.log("[onboarding/chat] toolResults:", JSON.stringify(toolResults, null, 2));
-        }
+        console.log("[onboarding/chat] step:", { finishReason, usage });
       }
     },
   });

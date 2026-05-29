@@ -135,11 +135,18 @@ function OnboardingChat() {
         },
       ],
       onFinish(message) {
-        const toolCall = message.toolInvocations?.find(
-          (t) => t.toolName === "finalizeProfile"
-        );
-        if (toolCall && "result" in toolCall && toolCall.result?.profile) {
-          setFinalizedProfile(toolCall.result.profile as LearningProfile);
+        // The model embeds a PROFILE:{...} line when it has all 4 required fields.
+        // Parse it out and trigger generation — no tool calling needed.
+        const match = message.content.match(/PROFILE:(\{.*\})/);
+        if (match) {
+          try {
+            const profile = JSON.parse(match[1]) as LearningProfile;
+            if (profile.topic && profile.experienceLevel && profile.goals && profile.availableMinutesPerDay >= 5) {
+              setFinalizedProfile(profile);
+            }
+          } catch {
+            // malformed JSON — ignore, let conversation continue
+          }
         }
       },
     });
@@ -249,8 +256,10 @@ function OnboardingChat() {
           {messages.map((m) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if ((m.role as any) === "tool") return null;
-            // Skip assistant messages with no visible text (pure tool-call steps)
-            if (m.role === "assistant" && !m.content?.trim()) return null;
+            // Strip the PROFILE:{...} marker line before display
+            const displayContent = m.content?.replace(/\nPROFILE:\{.*\}$/, "").replace(/^PROFILE:\{.*\}$/, "").trim();
+            // Skip messages with no visible text
+            if (!displayContent) return null;
             const isAssistant = m.role === "assistant";
 
             return (
@@ -270,16 +279,13 @@ function OnboardingChat() {
                       : "bg-violet-600 text-white"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{m.content}</p>
-                  {isAssistant &&
-                    m.toolInvocations?.some(
-                      (t) => t.toolName === "finalizeProfile"
-                    ) && (
-                      <div className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                        <CheckCircle className="h-3.5 w-3.5" />
-                        Profile captured! Generating your curriculum...
-                      </div>
-                    )}
+                  <p className="whitespace-pre-wrap">{displayContent}</p>
+                  {isAssistant && finalizedProfile && m === messages[messages.length - 1] && (
+                    <div className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      Profile captured! Generating your curriculum...
+                    </div>
+                  )}
                 </div>
               </div>
             );
