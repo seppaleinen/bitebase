@@ -76,12 +76,6 @@ export function extractCollectedFields(messages: ChatMessage[]): string {
     .filter((m) => m.role === "user")
     .map((m) => m.content);
 
-  const assistantText = messages
-    .filter((m) => m.role === "assistant")
-    .map((m) => m.content)
-    .join("\n")
-    .toLowerCase();
-
   const collected: string[] = [];
   const missing: string[] = [];
 
