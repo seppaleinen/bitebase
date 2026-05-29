@@ -80,6 +80,7 @@ export const quizQuestionSchema = z.object({
     .describe("Exact text of the correct answer (must match one of the options for multiple_choice)"),
   explanation: z
     .string()
+    .catch("")
     .describe("Brief explanation of why this answer is correct"),
 });
 

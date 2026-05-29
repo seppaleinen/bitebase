@@ -213,9 +213,10 @@ describe("quizQuestionSchema", () => {
     ).toThrow();
   });
 
-  it("rejects a missing explanation", () => {
+  it("defaults explanation to empty string when missing", () => {
     const { explanation: _, ...noExplanation } = mcQuestion;
-    expect(() => quizQuestionSchema.parse(noExplanation)).toThrow();
+    const result = quizQuestionSchema.parse(noExplanation);
+    expect(result.explanation).toBe("");
   });
 });
 
