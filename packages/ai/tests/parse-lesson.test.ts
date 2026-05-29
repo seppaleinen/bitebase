@@ -128,6 +128,47 @@ describe("parseLessonResponse", () => {
     });
   });
 
+  describe("multi-paragraph CONTENT section", () => {
+    it("correctly extracts a realistic multi-paragraph lesson body (≥200 chars)", () => {
+      const multiParaContent = [
+        "# Basic Greetings in French",
+        "",
+        "## Introduction",
+        "",
+        "Learning greetings is the first step in any language. In French, there are",
+        "several ways to say hello depending on the context and time of day.",
+        "",
+        "## Common Greetings",
+        "",
+        "Here are the most essential French greetings you will encounter every day:",
+        "",
+        "- **Bonjour** — Hello / Good morning (formal, used during the day)",
+        "- **Bonsoir** — Good evening (used after around 6 pm)",
+        "- **Salut** — Hi / Bye (informal, used with friends)",
+        "- **Bonne nuit** — Good night (said when parting at night)",
+        "",
+        "## Practical Examples",
+        "",
+        "When meeting someone for the first time at work, say: *Bonjour, je m'appelle Marie.*",
+        "(Hello, my name is Marie.) With a friend, you would say: *Salut, ça va?*",
+        "(Hi, how are you?) Responding positively: *Ça va bien, merci!* (I'm doing well, thanks!)",
+        "",
+        "## Key Takeaways",
+        "",
+        "Remember: use *Bonjour* in formal settings and *Salut* only with people you know well.",
+      ].join("\n");
+
+      const result = parseLessonResponse(buildLesson({ content: multiParaContent }));
+
+      expect(result.content).toBe(multiParaContent);
+      expect(result.content.trim().length).toBeGreaterThanOrEqual(200);
+      expect(result.content).toContain("## Introduction");
+      expect(result.content).toContain("## Common Greetings");
+      expect(result.content).toContain("## Practical Examples");
+      expect(result.content).toContain("Bonjour");
+    });
+  });
+
   describe("quiz with unescaped control characters in JSON", () => {
     it("handles raw newlines inside quiz JSON string values", () => {
       const quizWithNewlines = `{"questions":[{"id":"q1","type":"multiple_choice","question":"What is\nnested?","options":["A","B"],"correctAnswer":"A","explanation":"OK"}],"passingScore":70}`;

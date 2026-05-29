@@ -10,6 +10,8 @@ import {
   Loader2,
   Sparkles,
   CheckCircle,
+  CheckCircle2,
+  Circle,
   BookOpen,
   ChevronRight,
   Plus,
@@ -19,6 +21,7 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { LearningProfile } from "@bitebase/ai";
 import type { AppRouter } from "@bitebase/api";
 import { trpcReact } from "@/lib/trpc/provider";
+import { extractProfileValues } from "@/lib/onboarding-state";
 
 type GenerationStatus = {
   event: string;
@@ -27,8 +30,16 @@ type GenerationStatus = {
     curriculumId?: string;
     title?: string;
     totalSections?: number;
+    lessons?: { title: string; section: string }[];
   };
 };
+
+type LessonStatus = "pending" | "generating" | "done";
+interface LessonProgress {
+  title: string;
+  section: string;
+  status: LessonStatus;
+}
 
 // ?? Returning-user gate ???????????????????????????????????????????????????????
 
@@ -107,14 +118,36 @@ function OnboardingChat() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const promptParam = searchParams.get("prompt");
+  const isRefine = searchParams.get("refine") === "1";
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const confirmationRef = useRef<HTMLDivElement>(null);
   const [generationStatus, setGenerationStatus] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [lessonProgressList, setLessonProgressList] = useState<LessonProgress[]>([]);
   const [finalizedProfile, setFinalizedProfile] =
     useState<LearningProfile | null>(null);
 
+  // Read the stored profile once on mount for refine mode, then clear it to
+  // prevent stale data on future visits.
+  const [refineProfile] = useState<LearningProfile | null>(() => {
+    if (!isRefine) return null;
+    try {
+      const stored = sessionStorage.getItem("bitebase_retry_profile");
+      sessionStorage.removeItem("bitebase_retry_profile");
+      return stored ? (JSON.parse(stored) as LearningProfile) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const initialMessage = promptParam ? decodeURIComponent(promptParam) : null;
+
+  const welcomeContent = refineProfile
+    ? `Welcome back! Here's your previous learning profile:\n- Topic: ${refineProfile.topic}\n- Level: ${refineProfile.experienceLevel}\n- Goal: ${refineProfile.goals}\n- Daily time: ${refineProfile.availableMinutesPerDay} minutes\n\nWhat would you like to change? (e.g. "I want to focus more on conversation", "I have 30 minutes a day now", "I'm actually intermediate level")`
+    : initialMessage
+    ? `Great choice! Let me help you build a curriculum around "${initialMessage}". I have a couple of quick questions to personalise it — what's your current level (beginner, intermediate, or advanced), what's your main goal, and how many minutes a day can you dedicate?`
+    : "Hi there! I'm BiteBase, your personal learning assistant. I'm here to help you create a curriculum tailored just for you.\n\nWhat topic or skill have you been wanting to learn? It could be anything — programming, cooking, history, music theory, a new language... the world is yours! 🌍";
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, append } =
     useChat({
@@ -123,40 +156,118 @@ function OnboardingChat() {
         {
           id: "welcome",
           role: "assistant",
-          content: initialMessage
-            ? `Great choice! Let me help you build a curriculum around "${initialMessage}". I have a couple of quick questions to personalise it ? what's your current level (beginner, intermediate, or advanced), what's your main goal, and how many minutes a day can you dedicate?`
-            : "Hi there! I'm BiteBase, your personal learning assistant. I'm here to help you create a curriculum tailored just for you.\n\nWhat topic or skill have you been wanting to learn? It could be anything ? programming, cooking, history, music theory, a new language... the world is yours! ??",
+          content: welcomeContent,
         },
       ],
-      onFinish(message) {
-        // The model embeds a PROFILE: {...} line when it has all 4 required fields.
-        // Parse it out and trigger generation ? no tool calling needed.
-        const match = message.content.match(/PROFILE:\s*(\{[\s\S]*?\})\s*$/m);
-        if (match) {
-          try {
-            const profile = JSON.parse(match[1]) as LearningProfile;
-            if (profile.topic && profile.experienceLevel && profile.goals && profile.availableMinutesPerDay >= 5) {
-              setFinalizedProfile(profile);
-            }
-          } catch {
-            // malformed JSON ? ignore, let conversation continue
-          }
-        }
-      },
     });
 
-  // Parse SUGGESTIONS from the last assistant message
+  // Derive quick-reply chips from the last AI question (client-side, no model involvement).
   const lastAssistantMessage = [...messages].reverse().find((m) => m.role === "assistant");
   const suggestions: string[] = (() => {
-    if (!lastAssistantMessage || isLoading) return [];
-    const match = lastAssistantMessage.content.match(/SUGGESTIONS:\s*(\[[^\]]*\])/);
-    if (!match) return [];
-    try { return JSON.parse(match[1]) as string[]; } catch { return []; }
+    if (!lastAssistantMessage || isLoading || finalizedProfile) return [];
+
+    const allUserText = messages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content)
+      .join(" ")
+      .toLowerCase();
+
+    const alreadyHasLevel = /\b(beginner|intermediate|advanced)\b/.test(allUserText);
+    const alreadyHasMinutes = /\d+\s*(minutes?|mins?|hours?|hrs?)/.test(allUserText);
+
+    const aiText = lastAssistantMessage.content.toLowerCase();
+    const aiRaw = lastAssistantMessage.content; // preserve case for option extraction
+
+    // Level chips — only when not yet answered
+    if (!alreadyHasLevel && /experience|your level|what level|how (advanced|experienced)/.test(aiText))
+      return ["Beginner", "Intermediate", "Advanced"];
+
+    // Time chips — only when not yet answered
+    if (!alreadyHasMinutes && /minute|how (much|many|long)|time (per|each|a) day|dedicate|commit/.test(aiText))
+      return ["5 minutes", "15 minutes", "30 minutes", "1 hour"];
+
+    // Generic: if the message contains a "?" try to extract "X or Y (or Z)" options
+    // from the model's own phrasing, then fall back to a "No preference" chip.
+    if (aiRaw.includes("?")) {
+      const orParts = aiRaw.split(/\bor\b/i);
+      if (orParts.length >= 2 && orParts.length <= 5) {
+        const extracted = orParts.map((part) => {
+          // Take the last non-empty segment after splitting on commas
+          const segments = part.split(",").map((s) => s.trim()).filter(Boolean);
+          const candidate = segments[segments.length - 1] ?? part.trim();
+          // Strip common question-preamble phrases
+          const cleaned = candidate
+            .replace(/^[\s?!.]+|[\s?!.]+$/g, "")
+            .replace(
+              /^(do you have a preference for|is your focus more on|are you (?:more )?interested in|would you (?:prefer|like)|do you prefer|a preference for)\s+/i,
+              ""
+            )
+            .trim();
+          const words = cleaned.split(/\s+/).filter((w) => /[a-zA-Z]/.test(w)).slice(0, 4);
+          if (words.length === 0) return "";
+          const joined = words.join(" ");
+          return joined.charAt(0).toUpperCase() + joined.slice(1);
+        }).filter((o) => o.length >= 2 && o.length <= 40);
+
+        // Deduplicate and keep 2-4 options
+        const unique = [...new Set(extracted)].slice(0, 4);
+        if (unique.length >= 2) return [...unique, "No preference"];
+      }
+      // At minimum offer "No preference" for any unanswered question
+      return ["No preference"];
+    }
+
+    return [];
   })();
+
+  // Detect when all 4 profile fields have been collected.
+  // Runs after every message update so it catches both the PROFILE marker path
+  // and the heuristic path — no dependency on onFinish timing.
+  useEffect(() => {
+    if (finalizedProfile || isLoading) return;
+
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    if (!lastAssistant) return;
+
+    // Fast path: model emitted a PROFILE:{...} marker
+    const match = lastAssistant.content.match(/PROFILE:\s*(\{[^]*?\})/);
+    if (match) {
+      try {
+        const p = JSON.parse(match[1]) as LearningProfile;
+        const mins = Number(p.availableMinutesPerDay);
+        if (p.topic && p.experienceLevel && p.goals && mins >= 5) {
+          setFinalizedProfile({ ...p, availableMinutesPerDay: mins });
+          return;
+        }
+      } catch { /* fall through to heuristic */ }
+    }
+
+    // Heuristic path: scan conversation history for all 4 fields.
+    // Only surface the card when the AI's last message signals completion.
+    const aiSignalsReady =
+      /profile ready|all.*?information|ready to (build|create|generate)|let('s| us) (build|create|generate)|i('ve| have) (all|everything)/i.test(
+        lastAssistant.content
+      );
+    if (aiSignalsReady) {
+      const chatMessages = messages.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
+      const profile = extractProfileValues(chatMessages);
+      if (profile) setFinalizedProfile(profile);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, isLoading]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (finalizedProfile) {
+      confirmationRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [finalizedProfile]);
 
   // If a prompt was pre-filled, send the first user message automatically.
   // Intentionally runs once on mount — append and promptParam are stable.
@@ -171,6 +282,7 @@ function OnboardingChat() {
     setIsGenerating(true);
     setGenerationError(null);
     setGenerationStatus("Starting curriculum generation...");
+    setLessonProgressList([]);
 
     try {
       const response = await fetch("/api/onboarding/generate", {
@@ -212,6 +324,19 @@ function OnboardingChat() {
               curriculumId = parsed.data.curriculumId ?? null;
               setGenerationStatus(
                 `Building ${parsed.data.totalSections} sections for "${parsed.data.title}"...`
+              );
+            } else if (parsed.event === "lesson_list") {
+              const { lessons } = parsed.data as { lessons: { title: string; section: string }[] };
+              setLessonProgressList(lessons.map((l) => ({ ...l, status: "pending" })));
+            } else if (parsed.event === "lesson_started") {
+              const { title } = parsed.data as { title: string };
+              setLessonProgressList((prev) =>
+                prev.map((l) => l.title === title ? { ...l, status: "generating" } : l)
+              );
+            } else if (parsed.event === "lesson_completed") {
+              const { title } = parsed.data as { title: string };
+              setLessonProgressList((prev) =>
+                prev.map((l) => l.title === title ? { ...l, status: "done" } : l)
               );
             } else if (parsed.event === "done") {
               curriculumId = parsed.data.curriculumId ?? curriculumId;
@@ -261,24 +386,78 @@ function OnboardingChat() {
       {/* Generation overlay */}
       {isGenerating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm">
-          <div className="mx-4 max-w-sm text-center">
-            <div className="mb-6 flex justify-center">
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-violet-100">
-                <Sparkles className="h-10 w-10 text-violet-600" />
-                <div className="absolute inset-0 animate-ping rounded-full bg-violet-200 opacity-50" />
+          <div className="mx-4 w-full max-w-sm rounded-2xl border border-violet-100 bg-white p-6 shadow-xl">
+            {/* Header */}
+            <div className="mb-4 flex items-center gap-3">
+              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-100">
+                <Sparkles className="h-6 w-6 text-violet-600" />
+                <div className="absolute inset-0 animate-ping rounded-xl bg-violet-200 opacity-40" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Building your curriculum</h2>
+                <p className="text-xs text-gray-500">Generating personalised lessons</p>
               </div>
             </div>
-            <h2 className="mb-2 text-xl font-bold text-gray-900">
-              Building your curriculum
-            </h2>
-            <p className="mb-6 text-sm text-gray-500">
-              This may take a minute while BiteBase researches and creates
-              personalised lessons just for you.
-            </p>
-            <div className="rounded-xl bg-violet-50 px-4 py-3 text-sm text-violet-700">
-              <Loader2 className="mr-2 inline-block h-4 w-4 animate-spin" />
-              {generationStatus}
-            </div>
+
+            {/* Lesson progress list */}
+            {lessonProgressList.length > 0 ? (
+              <>
+                <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
+                  <span>
+                    <span className="font-semibold text-emerald-600">
+                      {lessonProgressList.filter((l) => l.status === "done").length}
+                    </span>
+                    {" of "}
+                    <span className="font-semibold">{lessonProgressList.length}</span>
+                    {" lessons ready"}
+                  </span>
+                  <span className="text-gray-400">
+                    {lessonProgressList.filter((l) => l.status === "generating").length > 0 && "generating..."}
+                  </span>
+                </div>
+                <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                  <ul className="space-y-1.5">
+                    {lessonProgressList.map((lesson) => (
+                      <li key={lesson.title} className="flex items-start gap-2.5 py-0.5">
+                        {lesson.status === "done" ? (
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        ) : lesson.status === "generating" ? (
+                          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-violet-500" />
+                        ) : (
+                          <Circle className="mt-0.5 h-4 w-4 shrink-0 text-gray-300" />
+                        )}
+                        <div className="min-w-0">
+                          <p className={`truncate text-xs font-medium leading-tight ${
+                            lesson.status === "done"
+                              ? "text-gray-700"
+                              : lesson.status === "generating"
+                              ? "text-violet-700"
+                              : "text-gray-400"
+                          }`}>
+                            {lesson.title}
+                          </p>
+                          <p className="truncate text-[10px] text-gray-400">{lesson.section}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {generationStatus && (
+                  <p className="mt-3 text-center text-xs text-gray-400">{generationStatus}</p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="mb-4 text-xs text-gray-500">
+                  This may take a minute while BiteBase researches and creates
+                  personalised lessons just for you.
+                </p>
+                <div className="rounded-xl bg-violet-50 px-4 py-3 text-xs text-violet-700">
+                  <Loader2 className="mr-2 inline-block h-4 w-4 animate-spin" />
+                  {generationStatus}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -350,6 +529,39 @@ function OnboardingChat() {
         </div>
       </div>
 
+      {/* Profile confirmation card */}
+      {finalizedProfile && !isGenerating && (
+        <div ref={confirmationRef} className="mx-6 mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+          <p className="mb-3 text-sm font-semibold text-emerald-800">Ready to generate your curriculum</p>
+          <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-emerald-700">
+            <span className="font-medium">Topic</span>
+            <span className="capitalize">{finalizedProfile.topic}</span>
+            <span className="font-medium">Level</span>
+            <span className="capitalize">{finalizedProfile.experienceLevel}</span>
+            <span className="font-medium">Goal</span>
+            <span>{finalizedProfile.goals}</span>
+            <span className="font-medium">Daily time</span>
+            <span>{finalizedProfile.availableMinutesPerDay} min</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setFinalizedProfile(null)}
+              className="flex-1 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+            >
+              Edit answers
+            </button>
+            <button
+              type="button"
+              onClick={() => void startGeneration(finalizedProfile)}
+              className="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700"
+            >
+              Build my curriculum →
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Error banner */}
       {generationError && !isGenerating && (
         <div className="mx-6 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -416,9 +628,10 @@ export default function OnboardingPage() {
   const promptParam = searchParams.get("prompt");
 
   const autoGenerate = searchParams.get("autoGenerate") === "1";
+  const refine = searchParams.get("refine") === "1";
 
-  // Skip the gate if a prompt or autoGenerate flag is present.
-  const [showChat, setShowChat] = useState(!!promptParam || autoGenerate);
+  // Skip the gate if a prompt, autoGenerate, or refine flag is present.
+  const [showChat, setShowChat] = useState(!!promptParam || autoGenerate || refine);
 
   // GateOrChat fetches curricula and short-circuits to the chat when there are
   // no active curricula, so first-time users see the chat immediately.

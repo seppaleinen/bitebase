@@ -11,6 +11,8 @@ import {
   ChevronRight,
   Loader2,
   Sparkles,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 import { trpcReact } from "@/lib/trpc/provider";
 import { Progress } from "@bitebase/ui/web";
@@ -125,6 +127,8 @@ function CurriculumCard({
   const utils = trpcReact.useUtils();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isRedoing, setIsRedoing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const deleteMutation = trpcReact.curriculum.delete.useMutation({
     onSuccess: () => utils.curriculum.list.invalidate(),
@@ -144,8 +148,21 @@ function CurriculumCard({
 
   const isGenerating = curriculum.generationStatus === "generating";
   const isFailed = curriculum.generationStatus === "failed";
+  const isMutating = isDeleting || isRetrying || isRedoing;
 
-  async function handleDelete(e: React.MouseEvent) {
+  function handleDeleteClick(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setConfirmingDelete(true);
+  }
+
+  function handleCancelDelete(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setConfirmingDelete(false);
+  }
+
+  async function handleConfirmDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     setIsDeleting(true);
@@ -153,6 +170,7 @@ function CurriculumCard({
       await deleteMutation.mutateAsync({ id: curriculum.id });
     } finally {
       setIsDeleting(false);
+      setConfirmingDelete(false);
     }
   }
 
@@ -168,6 +186,39 @@ function CurriculumCard({
       setIsRetrying(false);
     }
   }
+
+  async function handleRedo(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsRedoing(true);
+    try {
+      const profile = await retryMutation.mutateAsync({ id: curriculum.id });
+      sessionStorage.setItem("bitebase_retry_profile", JSON.stringify(profile));
+      router.push("/onboarding?refine=1");
+    } catch {
+      setIsRedoing(false);
+    }
+  }
+
+  const deleteConfirmButtons = (
+    <div className="flex gap-2">
+      <button
+        onClick={handleCancelDelete}
+        disabled={isDeleting}
+        className="flex-1 rounded-lg border border-gray-200 py-1.5 text-xs font-medium text-gray-500 hover:border-gray-300 transition-colors disabled:opacity-50"
+      >
+        Cancel
+      </button>
+      <button
+        onClick={handleConfirmDelete}
+        disabled={isDeleting}
+        className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-red-200 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+      >
+        {isDeleting && <Loader2 className="h-3 w-3 animate-spin" />}
+        {isDeleting ? "Deleting..." : "Confirm delete"}
+      </button>
+    </div>
+  );
 
   const cardContent = (
     <>
@@ -208,32 +259,83 @@ function CurriculumCard({
         <Progress value={progressPct} />
       </div>
 
-      {isFailed ? (
-        <div className="mt-4 flex gap-2">
-          <button
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="flex-1 rounded-lg border border-gray-200 py-1.5 text-xs font-medium text-gray-500 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-50"
-          >
-            {isDeleting ? "Deleting..." : "Delete"}
-          </button>
-          <button
-            onClick={handleRetry}
-            disabled={isDeleting || isRetrying}
-            className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-violet-600 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition-colors disabled:opacity-50"
-          >
-            {isRetrying && <Loader2 className="h-3 w-3 animate-spin" />}
-            {isRetrying ? "Starting..." : "Try again"}
-          </button>
+      {/* Failed: Delete + Try again (try again still auto-generates) */}
+      {isFailed && (
+        <div className="border-t border-gray-100 pt-3 mt-3">
+          {confirmingDelete ? deleteConfirmButtons : (
+            <div className="flex gap-2">
+              <button
+                onClick={handleDeleteClick}
+                disabled={isMutating}
+                className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-gray-200 py-1.5 text-xs font-medium text-gray-500 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-50"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete
+              </button>
+              <button
+                onClick={handleRetry}
+                disabled={isMutating}
+                className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-violet-600 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition-colors disabled:opacity-50"
+              >
+                {isRetrying && <Loader2 className="h-3 w-3 animate-spin" />}
+                {isRetrying ? "Starting..." : "Try again"}
+              </button>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
-          <span className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {Math.round(curriculum.totalEstimatedMinutes / 60)}h total
-          </span>
-          <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-        </div>
+      )}
+
+      {/* Generating / active / complete: clock row + action buttons */}
+      {!isFailed && (
+        <>
+          <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {Math.round(curriculum.totalEstimatedMinutes / 60)}h total
+            </span>
+            {!isGenerating && (
+              <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            )}
+          </div>
+
+          <div className="border-t border-gray-100 pt-3 mt-3">
+            {confirmingDelete ? deleteConfirmButtons : isGenerating ? (
+              /* Generating: Delete only, no Redo */
+              <button
+                onClick={handleDeleteClick}
+                disabled={isMutating}
+                className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-50"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete
+              </button>
+            ) : (
+              /* Active / complete: Delete + Redo */
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDeleteClick}
+                  disabled={isMutating}
+                  className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Delete
+                </button>
+                <button
+                  onClick={handleRedo}
+                  disabled={isMutating}
+                  className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-violet-200 hover:text-violet-600 transition-colors disabled:opacity-50"
+                >
+                  {isRedoing ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3" />
+                  )}
+                  {isRedoing ? "Loading..." : "Redo this course"}
+                </button>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </>
   );

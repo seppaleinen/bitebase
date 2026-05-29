@@ -43,6 +43,10 @@ WORKDIR /app
 # Re-copy node_modules from the installer stage, then layer the full source on top
 COPY --from=installer /app .
 COPY --from=pruner /app/out/full/ .
+# Root tsconfig.json is not included in turbo prune output but is required because
+# apps/web/tsconfig.json extends "../../tsconfig.json". Copy it directly from the
+# pruner stage (which did a full COPY . . before pruning).
+COPY --from=pruner /app/tsconfig.json ./tsconfig.json
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production

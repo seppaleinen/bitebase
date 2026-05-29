@@ -147,6 +147,54 @@ test.describe("Onboarding chat", () => {
     await expect(page.getByPlaceholder(/type your message/i)).toBeVisible();
     await expect(page.locator("button[type='submit']")).toBeVisible();
   });
+
+  test("level chips disappear after user has already said 'Beginner'", async ({ page }) => {
+    await setTestSession(page);
+    await mockTRPC(page, { curricula: [] });
+
+    // Always respond asking about experience level — this would trigger chips
+    // if the user hasn't already provided a level.
+    await page.route("**/api/onboarding/chat", (route) => {
+      const body = [
+        `0:"What is your experience level? Are you a beginner, intermediate, or advanced learner?"\n`,
+        `e:{"finishReason":"stop","usage":{"promptTokens":10,"completionTokens":20},"isContinued":false}\n`,
+        `d:{"finishReason":"stop","usage":{"promptTokens":10,"completionTokens":20}}\n`,
+      ].join("");
+      return route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body,
+      });
+    });
+
+    await page.goto("/onboarding");
+    await expect(page.getByPlaceholder(/type your message/i)).toBeVisible();
+
+    // Send a topic message to trigger the first AI response (which asks about level)
+    await page.getByPlaceholder(/type your message/i).fill("I want to learn Spanish");
+    await page.locator("button[type='submit']").click();
+
+    // Wait for AI response asking about level — level chips should now appear
+    await expect(
+      page.getByText(/what is your experience level/i)
+    ).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("button", { name: "Beginner" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Intermediate" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Advanced" })).toBeVisible();
+
+    // User clicks the "Beginner" chip — this sends "Beginner" as a user message
+    await page.getByRole("button", { name: "Beginner" }).click();
+
+    // Wait for the next AI response (still asking about level due to mock)
+    await expect(
+      page.getByText(/what is your experience level/i).first()
+    ).toBeVisible({ timeout: 5000 });
+
+    // Level chips must NOT appear now because the user already said "Beginner"
+    await expect(page.getByRole("button", { name: "Beginner" })).not.toBeVisible();
+    await expect(page.getByRole("button", { name: "Intermediate" })).not.toBeVisible();
+    await expect(page.getByRole("button", { name: "Advanced" })).not.toBeVisible();
+  });
 });
 
 // ── Lesson page ───────────────────────────────────────────────────────────────

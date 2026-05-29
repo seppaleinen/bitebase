@@ -196,16 +196,41 @@ Do not edit `packages/db/src/schema/users.ts` manually — Better Auth owns that
 
 ## Testing strategy
 
-We follow: **unit tests sparingly for complex logic, integration tests for tRPC boundaries, E2E for main user flows.**
+We follow: **unit tests for complex/pure logic, integration tests for tRPC boundaries, E2E for important user flows.**
 
-### Unit tests — `packages/api` and `packages/ai`
+### When to write which kind of test
 
-Runner: **Vitest**. Config: `vitest.config.ts` at each package root.
+| Situation | Test type | Where |
+|---|---|---|
+| A pure function with non-trivial logic (scoring, parsing, state extraction) | Unit | same package as the function, `tests/` subfolder |
+| A new tRPC procedure or mutation | Integration | `packages/api/tests/curriculum.integration.test.ts` |
+| A new Zod schema used for AI output | Unit | `packages/ai/tests/schemas.test.ts` |
+| A new Next.js API utility extracted to `apps/web/src/lib/` | Unit | `apps/web/src/lib/*.test.ts` |
+| A new or changed user-facing flow (auth, onboarding, lesson, quiz) | E2E | `apps/web/tests/e2e/` |
+| A bug fix | **Write the failing test first (TDD)**, then fix the code | whichever layer the bug lives in |
 
-- `packages/api/tests/quiz-scoring.test.ts` — `scoreQuiz()` pure function: score calculation, pass/fail boundary (70%), per-question feedback
-- `packages/ai/tests/schemas.test.ts` — Zod schema validation: `learningProfileSchema`, `curriculumPlanSchema`, `quizQuestionSchema`
+### TDD for bug fixes
 
-Run: `pnpm --filter @bitebase/api test` and `pnpm --filter @bitebase/ai test`
+When a bug is reported:
+1. **Reproduce it as a test** — write the smallest test that captures the broken behaviour and confirm it fails.
+2. **Fix the code** — make the test pass with the minimal change needed.
+3. **Verify nothing regressed** — run the full suite for the affected package.
+
+This prevents the same bug from silently coming back and gives reviewers a clear signal of what was broken.
+
+### Unit tests
+
+Runner: **Vitest**. Config: `vitest.config.ts` at each package root (also `apps/web`).
+
+**What belongs here:** any function that can be called without a database, network, or browser. Extract logic out of API routes / React components into a `lib/` file so it is testable.
+
+Key files:
+- `packages/api/tests/quiz-scoring.test.ts` — `scoreQuiz()` pure function
+- `packages/ai/tests/schemas.test.ts` — Zod schema validation
+- `packages/ai/tests/parse-lesson.test.ts` — `parseLessonResponse()` parser
+- `apps/web/src/lib/onboarding-state.test.ts` — `extractCollectedFields()` (chat state extractor)
+
+Run: `pnpm --filter @bitebase/api test`, `pnpm --filter @bitebase/ai test`, `pnpm --filter @bitebase/web test`
 
 ### Integration tests — `packages/api`
 
@@ -228,6 +253,8 @@ The web server auto-starts via `webServer` config. To skip auto-start and use an
 SKIP_WEB_SERVER=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm --filter @bitebase/web test:e2e
 ```
 
+**What belongs here:** user-visible flows that cross multiple layers (UI → API → DB mock). Do not use E2E for logic that can be tested at a lower level.
+
 **Auth bypass for E2E**: The `(app)/layout.tsx` checks for a cookie `__playwright_test__=1` in non-production environments. If present, it uses a hardcoded mock session (`playwright-test-user`) without hitting the database. Set it via `setTestSession(page)` from `tests/e2e/fixtures.ts`.
 
 **tRPC mocking**: `mockTRPC(page, data)` in `fixtures.ts` intercepts `**/api/trpc*` via `page.route()`. It reads procedure names from query params (`?0.procedure=curriculum.list&batch=1`) and returns correctly shaped JSON.
@@ -236,7 +263,7 @@ SKIP_WEB_SERVER=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm --filter @biteb
 
 Test files:
 - `tests/e2e/auth.spec.ts` — register form, login form, bad credentials error, landing page CTAs
-- `tests/e2e/learning.spec.ts` — dashboard empty/populated, onboarding chat, lesson page, full quiz flow (pass, fail, review answers)
+- `tests/e2e/learning.spec.ts` — dashboard empty/populated, onboarding chat, lesson page, full quiz flow (pass, fail, review answers), chip de-duplication (level chips disappear once level is answered)
 
 ---
 
@@ -332,8 +359,9 @@ Key design decisions:
 
 1. **Schema change?** Edit `packages/db/src/schema/learning.ts`, then run `pnpm db:push`.
 2. **New tRPC procedure?** Add it to `packages/api/src/routers/curriculum.ts` and export any new pure logic into `packages/api/src/lib/`.
-3. **New complex pure function?** Add a unit test in `packages/api/tests/`.
+3. **New complex pure function?** Extract it to a `lib/` file and add a unit test alongside it.
 4. **New API boundary?** Add an integration test in `packages/api/tests/curriculum.integration.test.ts`.
 5. **New user-facing page or flow?** Add an E2E test scenario in `apps/web/tests/e2e/learning.spec.ts` or `auth.spec.ts`.
 6. **New AI schema?** Add Zod validation tests in `packages/ai/tests/schemas.test.ts`.
 7. **New Next.js API route?** Add `export const dynamic = "force-dynamic"` at the top.
+8. **Fixing a bug?** Write the failing test first, then fix the code (TDD). See the Testing strategy section for which layer to test at.

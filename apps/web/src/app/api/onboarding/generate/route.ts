@@ -24,14 +24,56 @@ import {
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
-/** Call `fn` up to `maxAttempts` times, waiting `delayMs * attempt` between retries. */
-async function withRetry<T>(fn: () => Promise<T>, maxAttempts: number, delayMs: number): Promise<T> {
+/**
+ * Run tasks with at most `limit` concurrent executions.
+ * Preserves result order. Waits for ALL tasks (like Promise.allSettled)
+ * so in-flight work finishes before we inspect failures.
+ */
+async function runConcurrent<T>(
+  tasks: (() => Promise<T>)[],
+  limit: number
+): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = new Array(tasks.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (true) {
+      const i = nextIndex++;
+      if (i >= tasks.length) break;
+      try {
+        results[i] = { status: "fulfilled", value: await tasks[i]() };
+      } catch (reason) {
+        results[i] = { status: "rejected", reason };
+      }
+    }
+  }
+
+  const workerCount = Math.min(limit, tasks.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+const LESSON_CONCURRENCY = Math.max(1, parseInt(process.env.LESSON_GENERATION_CONCURRENCY ?? "3", 10));
+
+/**
+ * Call `fn(attempt)` up to `maxAttempts` times.
+ * Passes the 1-based attempt number so callers can vary behaviour (e.g. temperature).
+ * Waits `delayMs * attempt` between retries and logs each failure.
+ */
+async function withRetry<T>(
+  fn: (attempt: number) => Promise<T>,
+  maxAttempts: number,
+  delayMs: number,
+  label = "task"
+): Promise<T> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return await fn();
+      return await fn(attempt);
     } catch (err) {
       lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[generate] ${label} attempt ${attempt}/${maxAttempts} failed: ${msg}`);
       if (attempt < maxAttempts) {
         await new Promise((res) => setTimeout(res, delayMs * attempt));
       }
@@ -263,76 +305,121 @@ export async function POST(req: Request) {
         });
 
         const searchTool = getSearchTool();
+        const curriculumIdStr: string = curriculumId;
 
-        let lessonOrder = 0;
-        let firstLessonId: string | undefined;
+        interface LessonMeta {
+          id: string;
+          order: number;
+          section: (typeof curriculumPlan.sections)[number];
+          subsection: (typeof curriculumPlan.sections)[number]["subsections"][number];
+        }
 
+        const allLessonMeta: LessonMeta[] = [];
+        let order = 0;
         for (const section of curriculumPlan.sections) {
           for (const subsection of section.subsections) {
-            send("status", {
-              message: `Creating lesson: ${subsection.title}...`,
-            });
+            allLessonMeta.push({ id: randomUUID(), order: order++, section, subsection });
+          }
+        }
+        const firstLessonId = allLessonMeta[0]?.id;
 
-            let searchContext = "";
-            if (searchTool) {
-              try {
-                const { text: searchResults } = await generateText({
-                  model: getModel(),
-                  tools: { webSearch: searchTool },
-                  prompt: `Search for comprehensive information about "${subsection.title}" in the context of ${profile.topic} for a ${profile.experienceLevel} learner. Search for the most relevant and educational content.`,
-                  maxSteps: 3,
-                  temperature: 0.3,
-                });
-                searchContext = searchResults;
-              } catch {
-                // Web search failed, continue without it
-              }
+        send("lesson_list", {
+          lessons: allLessonMeta.map((m) => ({
+            title: m.subsection.title,
+            section: m.section.title,
+          })),
+        });
+
+        const curriculumOutline = allLessonMeta
+          .map((m) => `${m.order + 1}. [${m.section.title}] ${m.subsection.title}`)
+          .join("\n");
+
+        const tasks = allLessonMeta.map((meta) => async () => {
+          send("lesson_started", { title: meta.subsection.title });
+
+          let searchContext = "";
+          if (searchTool) {
+            try {
+              const { text: searchResults } = await generateText({
+                model: getModel(),
+                tools: { webSearch: searchTool },
+                prompt: `Search for comprehensive information about "${meta.subsection.title}" in the context of ${profile.topic} for a ${profile.experienceLevel} learner. Search for the most relevant and educational content.`,
+                maxSteps: 3,
+                temperature: 0.3,
+              });
+              searchContext = searchResults;
+            } catch {
+              // Web search failed, continue without it
             }
+          }
 
-            const lessonData = await withRetry(async () => {
+          // Temperature rises each retry so the model tries a different approach
+          // instead of reproducing the same thin output.
+          let lessonData: Awaited<ReturnType<typeof parseLessonResponse>> | null = null;
+          try {
+            lessonData = await withRetry(async (attempt) => {
+              const temperature = Math.min(0.7 + (attempt - 1) * 0.15, 1.0);
               const { text } = await generateText({
                 model: getModel(),
                 system: buildLessonSystemPrompt(
                   profile,
-                  section.title,
-                  subsection.title,
+                  meta.section.title,
+                  meta.subsection.title,
+                  curriculumOutline,
                   searchContext ||
-                    `Focus on ${subsection.title} as part of ${section.title} in ${profile.topic}.`
+                    `Focus on ${meta.subsection.title} as part of ${meta.section.title} in ${profile.topic}.`,
+                  meta.order + 1,
+                  allLessonMeta.length,
                 ),
-                prompt: `Write the complete lesson about "${subsection.title}" for the section "${section.title}".`,
-                temperature: 0.7,
+                prompt: `Write the complete lesson about "${meta.subsection.title}" for the section "${meta.section.title}".`,
+                temperature,
               });
+              if (process.env.NODE_ENV !== "production") {
+                console.log(`[generate] lesson ${meta.order + 1} attempt ${attempt} raw (first 300): ${text.slice(0, 300)}`);
+              }
               const parsed = parseLessonResponse(text);
-              if (!parsed.content) throw new Error("Empty lesson content");
+              if (!parsed.content || parsed.content.trim().length < 200)
+                throw new Error(`Lesson content too short (${parsed.content?.trim().length ?? 0} chars)`);
               return parsed;
-            }, 3, 1000);
-
-            const lessonId = randomUUID();
-            await db.insert(lessons).values({
-              id: lessonId,
-              curriculumId,
-              sectionId: section.id,
-              subsectionId: subsection.id,
-              title: subsection.title,
-              content: lessonData.content,
-              sources: lessonData.sources,
-              estimatedMinutes: lessonData.estimatedMinutes,
-              order: lessonOrder,
-            });
-
-            await db.insert(quizzes).values({
-              id: randomUUID(),
-              lessonId,
-              questions: lessonData.quiz.questions,
-              passingScore: lessonData.quiz.passingScore,
-            });
-
-            if (lessonOrder === 0) {
-              firstLessonId = lessonId;
-            }
-
-            lessonOrder++;
+            }, 3, 1000, `lesson "${meta.subsection.title}"`);
+          } catch (lessonErr) {
+            // A single lesson failing should not abort the entire curriculum.
+            // Save a placeholder so the card is still clickable and the user knows what happened.
+            console.error(`[generate] lesson "${meta.subsection.title}" failed after all retries — saving placeholder`);
+            lessonData = {
+              content: `# ${meta.subsection.title}\n\nThis lesson could not be generated automatically. Try using the "Redo this course" option from the dashboard to regenerate your curriculum.`,
+              estimatedMinutes: 5,
+              sources: [],
+              quiz: { questions: [], passingScore: 70 },
+            };
           }
+
+          await db.insert(lessons).values({
+            id: meta.id,
+            curriculumId: curriculumIdStr,
+            sectionId: meta.section.id,
+            subsectionId: meta.subsection.id,
+            title: meta.subsection.title,
+            content: lessonData.content,
+            sources: lessonData.sources,
+            estimatedMinutes: lessonData.estimatedMinutes,
+            order: meta.order,
+          });
+          await db.insert(quizzes).values({
+            id: randomUUID(),
+            lessonId: meta.id,
+            questions: lessonData.quiz.questions,
+            passingScore: lessonData.quiz.passingScore,
+          });
+
+          send("lesson_completed", { title: meta.subsection.title });
+        });
+
+        const settled = await runConcurrent(tasks, LESSON_CONCURRENCY);
+        const failures = settled.filter((r) => r.status === "rejected");
+        if (failures.length > 0) {
+          const firstErr = (failures[0] as PromiseRejectedResult).reason;
+          throw firstErr instanceof Error ? firstErr : new Error(String(firstErr));
         }
 
         if (firstLessonId) {

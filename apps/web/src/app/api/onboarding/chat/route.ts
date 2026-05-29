@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { streamText } from "ai";
 import { getModel, ONBOARDING_SYSTEM_PROMPT } from "@bitebase/ai";
 import { auth } from "@bitebase/api";
+import { extractCollectedFields, type ChatMessage } from "@/lib/onboarding-state";
 
 const TEST_COOKIE = "__playwright_test__=1";
 
@@ -27,14 +28,18 @@ export async function POST(req: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const { messages } = await req.json();
+  const { messages } = (await req.json()) as { messages: ChatMessage[] };
 
-  // No tools — llama3.2 via OpenAI-compat doesn't reliably execute tool calls.
-  // The model is instructed to embed a PROFILE:{...} JSON line in its text when
-  // it has gathered all 4 required fields; the client parses that marker.
+  const collectedSummary = extractCollectedFields(messages);
+  const systemPrompt = `${ONBOARDING_SYSTEM_PROMPT}\n\nCurrent state — ${collectedSummary}`;
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[onboarding/chat] state:", collectedSummary);
+  }
+
   const result = streamText({
     model: getModel(),
-    system: ONBOARDING_SYSTEM_PROMPT,
+    system: systemPrompt,
     messages,
     temperature: 0.7,
     onError({ error }) {
