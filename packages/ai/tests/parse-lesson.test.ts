@@ -112,6 +112,41 @@ describe("parseLessonResponse", () => {
     });
   });
 
+  describe("decorated separators (model writes === 🎯 Title === instead of ===CONTENT===)", () => {
+    it("handles emoji title as first separator — replaces with ===CONTENT===", () => {
+      const text = "=== 🎯 Quantum Field Theory ===\n\nLesson body here.\n\n===MINUTES===\n12\n===SOURCES===\n[]\n===QUIZ===\n{}";
+      const result = parseLessonResponse(text);
+      expect(result.content).toBe("Lesson body here.");
+      expect(result.estimatedMinutes).toBe(12);
+    });
+
+    it("handles === Title === with text only (no emoji)", () => {
+      const text = "=== Introduction ===\n\nSome content.\n\n===MINUTES===\n8\n===SOURCES===\n[]\n===QUIZ===\n{\"questions\":[],\"passingScore\":70}";
+      const result = parseLessonResponse(text);
+      expect(result.content).toBe("Some content.");
+      expect(result.estimatedMinutes).toBe(8);
+    });
+
+    it("handles === ⏰ MINUTES === decorated separator", () => {
+      const text = "===CONTENT===\nHello\n=== ⏰ MINUTES ===\n5\n===SOURCES===\n[]\n===QUIZ===\n{}";
+      const result = parseLessonResponse(text);
+      expect(result.content).toBe("Hello");
+      expect(result.estimatedMinutes).toBe(5);
+    });
+
+    it("handles === 🎯 CONTENT === decorated separator", () => {
+      const text = "=== 🎯 CONTENT ===\nContent body\n===MINUTES===\n3\n===SOURCES===\n[]\n===QUIZ===\n{}";
+      const result = parseLessonResponse(text);
+      expect(result.content).toBe("Content body");
+    });
+
+    it("still throws when no ===...=== block exists at all", () => {
+      expect(() => parseLessonResponse("Just some text with no separators")).toThrow(
+        "No ===CONTENT=== section found"
+      );
+    });
+  });
+
   describe("missing CONTENT section (regression)", () => {
     it("throws when the CONTENT section is absent", () => {
       const text = "===MINUTES===\n10\n===SOURCES===\n[]\n===QUIZ===\n{}";

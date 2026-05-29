@@ -28,6 +28,34 @@ function fixJsonControlChars(text: string): string {
 }
 
 /**
+ * Normalize model output: replace decorated or emoji-prefixed separator lines
+ * with the standard ===LABEL=== format that the section parser expects.
+ *
+ * Handles two patterns:
+ *   1. First non-standard section (e.g. "=== 🎯 Title ===") → "===CONTENT==="
+ *   2. Decorated standard labels (e.g. "=== ⏰ MINUTES ===") → "===MINUTES==="
+ */
+function normalizeSeparators(text: string): string {
+  const standardLabels = new Set(["CONTENT", "MINUTES", "SOURCES", "QUIZ"]);
+
+  // Phase 1: fix decorated standard separators (emoji or text between === and label)
+  for (const label of standardLabels) {
+    const decorated = new RegExp(`^===\\s*[^=]*?${label}[^=]*?===\\s*$`, "gim");
+    text = text.replace(decorated, `===${label}===`);
+  }
+
+  // Phase 2: if the first ===...=== block is not a standard label, it's likely
+  // the model using "=== Title ===" as a heading instead of ===CONTENT===.
+  const sectionRe = /^(===)\s*([^=]+?)\s*(===)\s*$/m;
+  const first = text.match(sectionRe);
+  if (first && !standardLabels.has(first[2].trim().toUpperCase())) {
+    text = text.slice(0, first.index!) + "===CONTENT===" + text.slice(first.index! + first[0].length);
+  }
+
+  return text;
+}
+
+/**
  * Parse a lesson response in separator format into structured data.
  *
  * The model writes four delimited sections:
@@ -45,9 +73,11 @@ export function parseLessonResponse(text: string): {
   sources: { title: string; url: string }[];
   quiz: { questions: QuizQuestion[]; passingScore: number };
 } {
+  const normalized = normalizeSeparators(text);
+
   const section = (name: string) => {
     const re = new RegExp(`===\\s*${name}\\s*===\\s*([\\s\\S]*?)(?====|$)`, "i");
-    return text.match(re)?.[1]?.trim() ?? "";
+    return normalized.match(re)?.[1]?.trim() ?? "";
   };
 
   const content = section("CONTENT");

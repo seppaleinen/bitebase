@@ -40,10 +40,24 @@
     @apply prose-p:text-gray-700 prose-p:leading-relaxed;
     @apply prose-code:rounded prose-code:bg-violet-50 prose-code:px-1 prose-code:py-0.5 prose-code:text-violet-700 prose-code:before:content-none prose-code:after:content-none;
     @apply prose-pre:rounded-xl prose-pre:bg-gray-900;
-    @apply prose-blockquote:border-violet-300 prose-blockquote:text-gray-600;
+    @apply prose-blockquote:not-italic prose-blockquote:font-normal;
     @apply prose-a:text-violet-600 prose-a:no-underline hover:prose-a:underline;
     @apply prose-strong:text-gray-900;
     @apply prose-li:text-gray-700;
+    @apply prose-th:border prose-th:border-gray-200 prose-th:bg-gray-50 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-xs prose-th:font-semibold prose-th:text-gray-600 prose-th:uppercase prose-th:tracking-wider;
+    @apply prose-td:border prose-td:border-gray-200 prose-td:px-3 prose-td:py-2 prose-td:text-sm;
+  }
+
+  .prose-lesson table {
+    @apply overflow-hidden rounded-lg;
+  }
+
+  .prose-lesson tbody tr:nth-child(even) {
+    @apply bg-gray-50;
+  }
+
+  .prose-lesson tbody tr:hover {
+    @apply bg-violet-50/50;
   }
 }
 

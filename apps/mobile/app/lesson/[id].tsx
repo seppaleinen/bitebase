@@ -83,6 +83,35 @@ export default function LessonScreen() {
                 },
                 strong: { fontWeight: "600" },
                 link: { color: "#7c3aed" },
+                blockquote: {
+                  backgroundColor: "#f5f3ff",
+                  borderLeftWidth: 4,
+                  borderLeftColor: "#a78bfa",
+                  borderRadius: 12,
+                  padding: 12,
+                  marginVertical: 8,
+                },
+                table: {
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                  borderRadius: 8,
+                  marginVertical: 8,
+                },
+                th: {
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                  backgroundColor: "#f9fafb",
+                  padding: 8,
+                  fontWeight: "600",
+                  fontSize: 13,
+                  color: "#6b7280",
+                },
+                td: {
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                  padding: 8,
+                  fontSize: 14,
+                },
               }}
             >
               {lesson.content}

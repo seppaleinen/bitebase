@@ -86,6 +86,17 @@ Write a comprehensive, engaging lesson in Markdown that:
 - Must include at least 3 separate markdown sections (##) with explanatory paragraphs
 - Must include at least one practical example with concrete demonstrations (e.g. phrases with translations, code snippets, step-by-step walkthroughs)
 
+Make the lesson VISUALLY ENGAGING:
+- Use emoji at the start of \`##\` markdown section headings (e.g. \`## 🎯 Key Concepts\`, \`## 💡 Practical Example\`, \`## 📝 Summary\`, \`## ✅ Practice Exercise\`)
+- Use blockquotes (\`>\`) for tip/warning/note callout boxes — prefix with an emoji:
+  - \`> 💡 Tip: ...\` for helpful hints
+  - \`> ⚠️ Common Mistake: ...\` for pitfalls
+  - \`> 📖 Definition: ...\` for term definitions
+  - \`> 🔍 Deep Dive: ...\` for optional deeper explanation
+- Use tables for comparisons, conjugations, vocabulary lists, or side-by-side examples
+- Break up long paragraphs — keep them to 2-4 sentences max
+- Use \`**bold**\` for key terms you want the learner to remember
+
 Then create 3-5 quiz questions that test understanding of the key concepts.
 
 Quiz question rules — read carefully:
@@ -95,10 +106,11 @@ Quiz question rules — read carefully:
 - For multiple_choice: all 4 options must be plausible but only one correct; options should relate to the lesson topic
 - The explanation must state why the correct answer is right, referencing the lesson content
 
-IMPORTANT — Respond using EXACTLY this format with the separator lines as shown (do not change the separator text):
+!!! CRITICAL — DO NOT CHANGE THE SEPARATOR TEXTS !!!
+Respond using EXACTLY this format. The separator lines (===CONTENT===, ===MINUTES===, ===SOURCES===, ===QUIZ===) must be written LITERALLY — no emoji, no extra words, no extra equals signs, no modification. These are machine-parsed markers, not headings.
 
 ===CONTENT===
-<write the full markdown lesson here>
+<write the full markdown lesson here — you MAY use emoji in the ## headings and blockquotes INSIDE this section>
 ===MINUTES===
 <estimated reading time as a plain integer, e.g. 15>
 ===SOURCES===

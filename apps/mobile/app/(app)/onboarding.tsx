@@ -18,6 +18,19 @@ import { extractProfileValues } from "@bitebase/ai";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
+function keyboardHandler(onActivate: () => void) {
+  return {
+    onKeyDown: (e: { key: string; preventDefault: () => void }) => {
+      if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+        e.preventDefault();
+        onActivate();
+      }
+    },
+    accessible: true,
+    role: "button" as const,
+  } as any;
+}
+
 export default function OnboardingScreen() {
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
@@ -295,6 +308,7 @@ export default function OnboardingScreen() {
                 <TouchableOpacity
                   onPress={() => setFinalizedProfile(null)}
                   className="flex-1 rounded-xl border border-emerald-300 py-2.5"
+                  {...keyboardHandler(() => setFinalizedProfile(null))}
                 >
                   <Text className="text-center text-xs font-medium text-emerald-700">
                     Edit answers
@@ -303,6 +317,7 @@ export default function OnboardingScreen() {
                 <TouchableOpacity
                   onPress={() => void generateCurriculum(finalizedProfile)}
                   className="flex-1 rounded-xl bg-emerald-600 py-2.5"
+                  {...keyboardHandler(() => void generateCurriculum(finalizedProfile))}
                 >
                   <Text className="text-center text-xs font-medium text-white">
                     Build my curriculum
@@ -320,6 +335,7 @@ export default function OnboardingScreen() {
                     key={s}
                     onPress={() => void append({ role: "user", content: s })}
                     className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5"
+                    {...keyboardHandler(() => void append({ role: "user", content: s }))}
                   >
                     <Text className="text-xs font-medium text-violet-700">{s}</Text>
                   </TouchableOpacity>
@@ -337,11 +353,20 @@ export default function OnboardingScreen() {
                 className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900"
                 returnKeyType="send"
                 onSubmitEditing={() => handleSubmit()}
+                {...{
+                  onKeyDown: (e: { key: string; preventDefault: () => void; shiftKey: boolean }) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit();
+                    }
+                  },
+                } as any}
               />
               <TouchableOpacity
                 onPress={() => handleSubmit()}
                 disabled={isLoading || !input.trim()}
                 className="h-10 w-10 items-center justify-center rounded-xl bg-violet-600 disabled:opacity-60"
+                {...keyboardHandler(() => handleSubmit())}
               >
                 <Send color="white" size={16} />
               </TouchableOpacity>

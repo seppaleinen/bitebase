@@ -10,11 +10,30 @@ import {
   Loader2,
   CheckCircle2,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { trpcReact } from "@/lib/trpc/provider";
 import { Badge } from "@bitebase/ui/web";
 import QuizSection from "@/components/quiz-section";
+
+const markdownComponents: Components = {
+  blockquote({ children }) {
+    return (
+      <blockquote className="my-5 rounded-xl border-l-4 border-violet-300 bg-violet-50 p-4 shadow-sm">
+        <div className="text-sm leading-relaxed [&>p]:my-0">{children}</div>
+      </blockquote>
+    );
+  },
+  hr() {
+    return (
+      <div className="my-8 flex items-center justify-center gap-2">
+        <span className="h-px flex-1 bg-gray-200" />
+        <span className="text-gray-300">&#x2726;</span>
+        <span className="h-px flex-1 bg-gray-200" />
+      </div>
+    );
+  },
+};
 
 export default function LessonPage({
   params,
@@ -96,17 +115,17 @@ export default function LessonPage({
 
       {/* Lesson header — hidden during quiz to avoid text-matching ambiguity */}
       {!showQuiz && (
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 via-violet-500 to-indigo-600 p-6 text-white shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <Badge variant={isCompleted ? "success" : "secondary"}>
               {isCompleted ? "Completed" : "Lesson"}
             </Badge>
-            <span className="flex items-center gap-1 text-xs text-gray-400">
+            <span className="flex items-center gap-1 text-xs text-white/70">
               <Clock className="h-3 w-3" />
               {lesson.estimatedMinutes} min read
             </span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{lesson.title}</p>
+          <p className="text-2xl font-extrabold tracking-tight">{lesson.title}</p>
         </div>
       )}
 
@@ -114,7 +133,7 @@ export default function LessonPage({
       {!showQuiz && (
         <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
           <div className="prose-lesson">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {lesson.content}
             </ReactMarkdown>
           </div>

@@ -22,7 +22,7 @@ export default defineConfig({
   webServer: process.env.SKIP_WEB_SERVER
     ? undefined
     : {
-        command: "pnpm dev",
+        command: "rm -rf apps/web/.next && pnpm dev",
         url: "http://localhost:3000",
         reuseExistingServer: true,
         timeout: 120_000,
