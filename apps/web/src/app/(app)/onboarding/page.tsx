@@ -406,7 +406,9 @@ function GateOrChat({ onStartNew }: { onStartNew: () => void }) {
     );
   }
 
-  if (!curricula || curricula.length === 0) {
+  // Only count non-failed curricula — failed ones shouldn't block access to the chat
+  const activeCurricula = curricula?.filter((c) => c.generationStatus !== "failed") ?? [];
+  if (activeCurricula.length === 0) {
     return <OnboardingChat />;
   }
 

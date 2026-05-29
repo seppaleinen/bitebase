@@ -156,7 +156,6 @@ function CurriculumCard({
   function handleRetry(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    deleteMutation.mutate({ id: curriculum.id });
     router.push("/onboarding");
   }
 
