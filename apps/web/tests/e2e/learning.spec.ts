@@ -244,7 +244,7 @@ test.describe("Quiz engine", () => {
     const nextBtn = page.getByRole("button", { name: /next/i });
     await expect(nextBtn).toBeDisabled();
 
-    await page.getByText("interface").click();
+    await page.getByRole("button", { name: /interface/i }).click();
     await expect(nextBtn).toBeEnabled();
   });
 
@@ -255,7 +255,7 @@ test.describe("Quiz engine", () => {
     await page.goto("/lesson/lesson-1");
     await page.getByRole("button", { name: /take the quiz/i }).click();
 
-    await page.getByText("interface").click();
+    await page.getByRole("button", { name: /interface/i }).click();
     await page.getByRole("button", { name: /next/i }).click();
 
     await expect(page.getByText(/question 2 of 3/i)).toBeVisible();
@@ -278,7 +278,7 @@ test.describe("Quiz engine", () => {
     await page.goto("/lesson/lesson-1");
     await page.getByRole("button", { name: /take the quiz/i }).click();
 
-    await page.getByText("interface").click();
+    await page.getByRole("button", { name: /interface/i }).click();
     await page.getByRole("button", { name: /next/i }).click();
     await page.getByText("string").click();
     await page.getByRole("button", { name: /next/i }).click();
@@ -306,7 +306,7 @@ test.describe("Quiz engine", () => {
     await page.goto("/lesson/lesson-1");
     await page.getByRole("button", { name: /take the quiz/i }).click();
 
-    await page.getByText("interface").click();
+    await page.getByRole("button", { name: /interface/i }).click();
     await page.getByRole("button", { name: /next/i }).click();
     await page.getByText("string").click();
     await page.getByRole("button", { name: /next/i }).click();
@@ -349,7 +349,7 @@ test.describe("Quiz engine", () => {
     await page.goto("/lesson/lesson-1");
     await page.getByRole("button", { name: /take the quiz/i }).click();
 
-    await page.getByText("interface").click();
+    await page.getByRole("button", { name: /interface/i }).click();
     await page.getByRole("button", { name: /next/i }).click();
     await page.getByText("string").click();
     await page.getByRole("button", { name: /next/i }).click();

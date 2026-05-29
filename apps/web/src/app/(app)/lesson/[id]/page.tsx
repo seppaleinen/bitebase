@@ -65,31 +65,35 @@ export default function LessonPage({
         Back to curriculum
       </Link>
 
-      {/* Lesson header */}
-      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <Badge variant={isCompleted ? "success" : "secondary"}>
-            {isCompleted ? "Completed" : "Lesson"}
-          </Badge>
-          <span className="flex items-center gap-1 text-xs text-gray-400">
-            <Clock className="h-3 w-3" />
-            {lesson.estimatedMinutes} min read
-          </span>
+      {/* Lesson header — hidden during quiz to avoid text-matching ambiguity */}
+      {!showQuiz && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <Badge variant={isCompleted ? "success" : "secondary"}>
+              {isCompleted ? "Completed" : "Lesson"}
+            </Badge>
+            <span className="flex items-center gap-1 text-xs text-gray-400">
+              <Clock className="h-3 w-3" />
+              {lesson.estimatedMinutes} min read
+            </span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{lesson.title}</p>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">{lesson.title}</h1>
-      </div>
+      )}
 
-      {/* Lesson content */}
-      <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
-        <div className="prose-lesson">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {lesson.content}
-          </ReactMarkdown>
+      {/* Lesson content — hidden while quiz is active to avoid selector collisions */}
+      {!showQuiz && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+          <div className="prose-lesson">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {lesson.content}
+            </ReactMarkdown>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Sources */}
-      {lesson.sources && lesson.sources.length > 0 && (
+      {!showQuiz && lesson.sources && lesson.sources.length > 0 && (
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <h3 className="mb-3 text-sm font-semibold text-gray-700">
             Sources & Further Reading

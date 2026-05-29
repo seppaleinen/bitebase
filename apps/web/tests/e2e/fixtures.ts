@@ -44,6 +44,17 @@ export async function mockAuth(page: Page, { fail = false } = {}) {
       })
     );
   } else {
+    // Pre-set the Playwright test bypass cookie so that after successful auth the
+    // server-side layout allows access to protected routes without a real DB session.
+    await page.context().addCookies([
+      {
+        name: "__playwright_test__",
+        value: "1",
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
+
     await page.route("**/api/auth/sign-up/email", (route) =>
       route.fulfill({
         status: 200,
@@ -105,53 +116,27 @@ function resolveData(procedurePath: string, data: TRPCMockData): unknown {
  *   [{"result":{"data":{"json":<result>}}}, ...]
  */
 export async function mockTRPC(page: Page, data: TRPCMockData = {}) {
-  await page.route("**/api/trpc*", async (route) => {
+  // Use a regex so we match both /api/trpc and /api/trpc/<procedure>?batch=1
+  await page.route(/\/api\/trpc/, async (route) => {
     const url = new URL(route.request().url());
 
-    // tRPC batch stream sends ?batch=1&0.procedure=...&1.procedure=...
-    // Collect all procedure names from query params
+    // httpBatchLink sends GET /api/trpc/curriculum.list?batch=1 for queries
+    // and POST /api/trpc/curriculum.submitQuiz?batch=1 for mutations.
+    // Extract procedure name(s) from the path segment after /api/trpc/.
     const procedures: string[] = [];
-    for (const [key, value] of url.searchParams.entries()) {
-      if (key.match(/^\d+\.procedure$/)) {
-        procedures.push(value);
-      }
-    }
-
-    // Fall back to URL-path style: /api/trpc/curriculum.list,curriculum.get
-    if (procedures.length === 0) {
-      const pathPart = url.pathname.split("/api/trpc/")[1];
-      if (pathPart) procedures.push(...pathPart.split(","));
-    }
-
-    // If still nothing, try to determine from POST body
-    if (procedures.length === 0 && route.request().method() === "POST") {
-      try {
-        const body = await route.request().postDataJSON();
-        if (body && typeof body === "object") {
-          // Body keys are indices; look for procedure hints in query or just return empty batch
-          const indices = Object.keys(body).filter((k) => /^\d+$/.test(k));
-          // We can't easily determine procedure from body alone without the query param,
-          // so return null for all
-          const results = indices.map(() => ({ result: { data: { json: null } } }));
-          return route.fulfill({
-            status: 200,
-            contentType: "application/json",
-            body: JSON.stringify(results),
-          });
-        }
-      } catch {
-        // ignore parse errors
-      }
+    const pathPart = url.pathname.split("/api/trpc/")[1];
+    if (pathPart) {
+      procedures.push(...pathPart.split(","));
     }
 
     const results = procedures.map((proc) => ({
-      result: { data: { json: resolveData(proc, data) } },
+      result: { data: resolveData(proc, data) },
     }));
 
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(results.length > 0 ? results : [{ result: { data: { json: null } } }]),
+      body: JSON.stringify(results.length > 0 ? results : [{ result: { data: null } }]),
     });
   });
 }
