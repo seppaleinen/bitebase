@@ -102,6 +102,7 @@ export async function POST(req: Request) {
         const { object: curriculumPlan } = await generateObject({
           model: getModel(),
           schema: curriculumPlanSchema,
+          mode: "json",
           system: buildCurriculumSystemPrompt(profile),
           prompt: `Create a personalized curriculum for learning ${profile.topic} for a ${profile.experienceLevel} learner.`,
           temperature: 0.7,
@@ -156,6 +157,7 @@ export async function POST(req: Request) {
               generateObject({
                 model: getModel(),
                 schema: lessonContentSchema,
+                mode: "json",
                 system: buildLessonSystemPrompt(
                   profile,
                   section.title,
