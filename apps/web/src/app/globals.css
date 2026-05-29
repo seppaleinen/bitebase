@@ -1,13 +1,18 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 250 250 255;
-    --foreground: 15 15 30;
+    --color-bg-warm: #faf7f4;
+    --color-card: #ffffff;
+    --color-text-primary: #2d2419;
+    --color-text-body: #4a3f35;
+    --color-text-muted: #8a7f73;
+    --color-accent: #c75146;
+    --color-accent-light: #f0d9d6;
+    --color-secondary: #7a9c8c;
+    --color-secondary-light: #e3ede8;
   }
 
   * {
@@ -19,8 +24,11 @@
   }
 
   body {
-    @apply bg-slate-50 text-gray-900 antialiased;
-    font-family: "Inter", system-ui, sans-serif;
+    @apply antialiased;
+    background-color: var(--color-bg-warm);
+    color: var(--color-text-body);
+    font-family: var(--font-literata), Georgia, "Times New Roman", serif;
+    line-height: 1.75;
   }
 
   h1,
@@ -29,35 +37,256 @@
   h4,
   h5,
   h6 {
-    @apply font-semibold tracking-tight;
+    font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
+    color: var(--color-text-primary);
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 }
 
 @layer components {
-  .prose-lesson {
-    @apply prose prose-gray max-w-none;
-    @apply prose-headings:text-gray-900 prose-headings:font-semibold;
-    @apply prose-p:text-gray-700 prose-p:leading-relaxed;
-    @apply prose-code:rounded prose-code:bg-violet-50 prose-code:px-1 prose-code:py-0.5 prose-code:text-violet-700 prose-code:before:content-none prose-code:after:content-none;
-    @apply prose-pre:rounded-xl prose-pre:bg-gray-900;
-    @apply prose-blockquote:not-italic prose-blockquote:font-normal;
-    @apply prose-a:text-violet-600 prose-a:no-underline hover:prose-a:underline;
-    @apply prose-strong:text-gray-900;
-    @apply prose-li:text-gray-700;
-    @apply prose-th:border prose-th:border-gray-200 prose-th:bg-gray-50 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-xs prose-th:font-semibold prose-th:text-gray-600 prose-th:uppercase prose-th:tracking-wider;
-    @apply prose-td:border prose-td:border-gray-200 prose-td:px-3 prose-td:py-2 prose-td:text-sm;
+  /* ── Reading progress bar ─────────────────────────────────────────────── */
+  .reading-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    background: var(--color-accent);
+    z-index: 50;
+    transition: width 80ms linear;
+    border-radius: 0 2px 2px 0;
   }
 
+  /* ── Warm editorial prose ─────────────────────────────────────────────── */
+  .prose-lesson {
+    font-family: var(--font-literata), Georgia, "Times New Roman", serif;
+    color: var(--color-text-body);
+    line-height: 1.75;
+    font-size: 1.0625rem;
+  }
+
+  .prose-lesson h1,
+  .prose-lesson h2,
+  .prose-lesson h3,
+  .prose-lesson h4 {
+    font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
+    color: var(--color-text-primary);
+    font-weight: 620;
+    letter-spacing: -0.01em;
+  }
+
+  .prose-lesson h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.75em;
+    margin-top: 0;
+  }
+
+  .prose-lesson h2 {
+    font-size: 1.4rem;
+    margin-top: 2em;
+    margin-bottom: 0.6em;
+  }
+
+  .prose-lesson h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+  }
+
+  .prose-lesson p {
+    margin-top: 0;
+    margin-bottom: 1.25em;
+    line-height: 1.75;
+  }
+
+  .prose-lesson p:last-child {
+    margin-bottom: 0;
+  }
+
+  .prose-lesson strong {
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+
+  .prose-lesson ul,
+  .prose-lesson ol {
+    margin-top: 0.5em;
+    margin-bottom: 1.25em;
+    padding-left: 1.5em;
+  }
+
+  .prose-lesson li {
+    margin-bottom: 0.35em;
+    line-height: 1.65;
+  }
+
+  .prose-lesson a {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+    text-underline-offset: 2px;
+    transition: text-decoration-color 150ms;
+  }
+
+  .prose-lesson a:hover {
+    text-decoration-color: var(--color-accent);
+  }
+
+  .prose-lesson code {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: 0.85em;
+    background: var(--color-secondary-light);
+    color: #3d6b5a;
+    border-radius: 4px;
+    padding: 0.15em 0.4em;
+  }
+
+  .prose-lesson pre {
+    background: #2a2520;
+    border-radius: 12px;
+    padding: 1.25em;
+    overflow-x: auto;
+    margin-top: 1em;
+    margin-bottom: 1.5em;
+  }
+
+  .prose-lesson pre code {
+    background: transparent;
+    color: #e8ddd0;
+    padding: 0;
+    font-size: 0.85em;
+    line-height: 1.6;
+  }
+
+  /* ── Callout blockquotes ──────────────────────────────────────────────── */
+  .prose-lesson blockquote {
+    margin: 1.5em 0;
+    padding: 1em 1.25em;
+    border-radius: 12px;
+    border-left: 4px solid #cbd5e0;
+    background: #f8f6f4;
+    font-style: normal;
+  }
+
+  .prose-lesson blockquote.callout-tip {
+    border-left-color: #d4893a;
+    background: #fcf7f0;
+  }
+
+  .prose-lesson blockquote.callout-warning {
+    border-left-color: #c75146;
+    background: #fdf3f1;
+  }
+
+  .prose-lesson blockquote.callout-definition {
+    border-left-color: #5b8aaf;
+    background: #f2f6f9;
+  }
+
+  .prose-lesson blockquote.callout-deepdive {
+    border-left-color: #8b6cb0;
+    background: #f6f2fa;
+  }
+
+  .prose-lesson blockquote.callout-success {
+    border-left-color: #6a9e7a;
+    background: #f1f6f2;
+  }
+
+  .prose-lesson blockquote p {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+    font-size: 0.95em;
+    line-height: 1.6;
+  }
+
+  .prose-lesson blockquote p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* ── Tables ───────────────────────────────────────────────────────────── */
   .prose-lesson table {
-    @apply overflow-hidden rounded-lg;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border-radius: 10px;
+    margin: 1.5em 0;
+    font-size: 0.925em;
+    border: 1px solid #e5ddd4;
+  }
+
+  .prose-lesson th {
+    background: #f2ede8;
+    color: var(--color-text-primary);
+    font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
+    font-weight: 600;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.65em 0.85em;
+    text-align: left;
+    border-bottom: 1px solid #e5ddd4;
+  }
+
+  .prose-lesson td {
+    padding: 0.6em 0.85em;
+    border-bottom: 1px solid #efe9e2;
+    line-height: 1.5;
+  }
+
+  .prose-lesson tbody tr:last-child td {
+    border-bottom: none;
   }
 
   .prose-lesson tbody tr:nth-child(even) {
-    @apply bg-gray-50;
+    background: #fcfaf8;
   }
 
   .prose-lesson tbody tr:hover {
-    @apply bg-violet-50/50;
+    background: #f8f0e8;
+  }
+
+  /* ── Decorative dividers ──────────────────────────────────────────────── */
+  .prose-lesson hr {
+    margin: 2.5em 0;
+    border: 0;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      #d4c9bd 20%,
+      #d4c9bd 80%,
+      transparent
+    );
+  }
+
+  /* ── Hero pattern ─────────────────────────────────────────────────────── */
+  .hero-pattern {
+    background-color: var(--color-accent);
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* ── Content fade-in ──────────────────────────────────────────────────── */
+  .content-fade-in {
+    animation: contentFadeIn 0.6s ease-out both;
+  }
+
+  .content-fade-in-delayed {
+    animation: contentFadeIn 0.6s ease-out 0.15s both;
+  }
+
+  @keyframes contentFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
 

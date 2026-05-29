@@ -42,8 +42,8 @@ export default function LessonScreen() {
 
   if (isLoading || !data) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator color="#7c3aed" size="large" />
+      <View className="flex-1 items-center justify-center bg-[#faf7f4]">
+        <ActivityIndicator color="#c75146" size="large" />
       </View>
     );
   }
@@ -51,12 +51,12 @@ export default function LessonScreen() {
   const { lesson, quiz } = data;
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-row items-center gap-3 border-b border-gray-100 px-4 py-3">
+    <SafeAreaView className="flex-1 bg-[#faf7f4]">
+      <View className="flex-row items-center gap-3 border-b border-[#efe9e2] px-4 py-3">
         <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft color="#6b7280" size={20} />
+          <ChevronLeft color="#8a7f73" size={20} />
         </TouchableOpacity>
-        <Text className="flex-1 font-semibold text-gray-900" numberOfLines={1}>
+        <Text className="flex-1 font-[family-name:var(--font-fraunces)] font-semibold text-[#2d2419]" numberOfLines={1}>
           {lesson.title}
         </Text>
       </View>
@@ -66,49 +66,51 @@ export default function LessonScreen() {
           <>
             <Markdown
               style={{
-                body: { color: "#374151", lineHeight: 24, fontSize: 15 },
-                heading1: { color: "#111827", fontWeight: "700", marginBottom: 12 },
-                heading2: { color: "#111827", fontWeight: "600", marginBottom: 8 },
-                heading3: { color: "#111827", fontWeight: "600", marginBottom: 6 },
+                body: { color: "#4a3f35", lineHeight: 24, fontSize: 15, fontFamily: "var(--font-literata), Georgia, serif" },
+                heading1: { color: "#2d2419", fontFamily: "var(--font-fraunces), Georgia, serif", fontWeight: "700", marginBottom: 12, fontSize: 22 },
+                heading2: { color: "#2d2419", fontFamily: "var(--font-fraunces), Georgia, serif", fontWeight: "600", marginBottom: 8, fontSize: 18 },
+                heading3: { color: "#2d2419", fontFamily: "var(--font-fraunces), Georgia, serif", fontWeight: "600", marginBottom: 6 },
                 code_inline: {
-                  backgroundColor: "#f5f3ff",
-                  color: "#7c3aed",
+                  backgroundColor: "#e3ede8",
+                  color: "#3d6b5a",
                   borderRadius: 4,
                   paddingHorizontal: 4,
+                  fontFamily: "monospace",
                 },
                 fence: {
-                  backgroundColor: "#1f2937",
+                  backgroundColor: "#2a2520",
                   borderRadius: 12,
                   padding: 12,
                 },
-                strong: { fontWeight: "600" },
-                link: { color: "#7c3aed" },
+                strong: { fontWeight: "600", color: "#2d2419" },
+                link: { color: "#c75146" },
                 blockquote: {
-                  backgroundColor: "#f5f3ff",
+                  backgroundColor: "#f8f6f4",
                   borderLeftWidth: 4,
-                  borderLeftColor: "#a78bfa",
+                  borderLeftColor: "#cbd5e0",
                   borderRadius: 12,
                   padding: 12,
                   marginVertical: 8,
                 },
                 table: {
                   borderWidth: 1,
-                  borderColor: "#e5e7eb",
+                  borderColor: "#efe9e2",
                   borderRadius: 8,
                   marginVertical: 8,
                 },
                 th: {
                   borderWidth: 1,
-                  borderColor: "#e5e7eb",
-                  backgroundColor: "#f9fafb",
+                  borderColor: "#efe9e2",
+                  backgroundColor: "#f2ede8",
                   padding: 8,
                   fontWeight: "600",
                   fontSize: 13,
-                  color: "#6b7280",
+                  color: "#2d2419",
+                  fontFamily: "var(--font-fraunces), Georgia, serif",
                 },
                 td: {
                   borderWidth: 1,
-                  borderColor: "#e5e7eb",
+                  borderColor: "#efe9e2",
                   padding: 8,
                   fontSize: 14,
                 },
@@ -120,7 +122,7 @@ export default function LessonScreen() {
             {quiz && (
               <TouchableOpacity
                 onPress={() => setShowQuiz(true)}
-                className="mb-8 mt-6 flex-row items-center justify-center gap-2 rounded-xl bg-violet-600 py-3"
+                className="mb-8 mt-6 flex-row items-center justify-center gap-2 rounded-xl bg-[#c75146] py-3"
               >
                 <Text className="font-semibold text-white">Take the quiz</Text>
                 <ChevronRight color="white" size={16} />
@@ -132,10 +134,10 @@ export default function LessonScreen() {
             <Text className="mb-2 text-5xl">
               {quizResult.passed ? "🏆" : "📚"}
             </Text>
-            <Text className="mb-1 text-xl font-bold text-gray-900">
+            <Text className="mb-1 text-xl font-[family-name:var(--font-fraunces)] font-bold text-[#2d2419]">
               {quizResult.passed ? "Lesson complete!" : "Keep at it!"}
             </Text>
-            <Text className="mb-6 text-gray-500">
+            <Text className="mb-6 font-[family-name:var(--font-literata)] text-[#8a7f73]">
               You scored {quizResult.score}%
               {!quizResult.passed ? ". Review and try again!" : "!"}
             </Text>
@@ -145,9 +147,9 @@ export default function LessonScreen() {
                 setQuizAnswers({});
                 setQuizResult(null);
               }}
-              className="rounded-xl border border-gray-200 px-6 py-2.5"
+              className="rounded-xl border border-[#d4c9bd] px-6 py-2.5"
             >
-              <Text className="text-sm font-medium text-gray-700">
+              <Text className="text-sm font-medium text-[#8a7f73]">
                 {quizResult.passed ? "Back to lesson" : "Review lesson"}
               </Text>
             </TouchableOpacity>
@@ -157,7 +159,7 @@ export default function LessonScreen() {
             <View className="py-4">
               {quiz.questions.map((q, i) => (
                 <View key={q.id} className="mb-6">
-                  <Text className="mb-3 font-semibold text-gray-900">
+                  <Text className="mb-3 font-[family-name:var(--font-fraunces)] font-semibold text-[#2d2419]">
                     {i + 1}. {q.question}
                   </Text>
                   {q.type === "multiple_choice" && q.options ? (
@@ -172,12 +174,12 @@ export default function LessonScreen() {
                           }
                           className={`mb-2 rounded-xl border px-4 py-3 ${
                             selected
-                              ? "border-violet-400 bg-violet-50"
-                              : "border-gray-200 bg-white"
+                              ? "border-[#c75146] bg-[#f0d9d6]"
+                              : "border-[#efe9e2] bg-[#fcfaf8]"
                           }`}
                         >
                           <Text
-                            className={`text-sm ${selected ? "text-violet-700 font-medium" : "text-gray-700"}`}
+                            className={`text-sm font-[family-name:var(--font-literata)] ${selected ? "text-[#c75146] font-medium" : "text-[#4a3f35]"}`}
                           >
                             <Text className="font-semibold">{label}. </Text>
                             {opt}
@@ -186,8 +188,8 @@ export default function LessonScreen() {
                       );
                     })
                   ) : (
-                    <View className="rounded-xl border border-gray-200 px-4 py-3">
-                      <Text className="text-sm text-gray-400">
+                    <View className="rounded-xl border border-[#efe9e2] px-4 py-3">
+                      <Text className="font-[family-name:var(--font-literata)] text-sm text-[#8a7f73]">
                         {quizAnswers[q.id] || "Tap to answer..."}
                       </Text>
                     </View>
@@ -203,7 +205,7 @@ export default function LessonScreen() {
                   submitQuiz.isPending ||
                   quiz.questions.some((q) => !quizAnswers[q.id])
                 }
-                className="mb-8 rounded-xl bg-violet-600 py-3 items-center disabled:opacity-60"
+                className="mb-8 rounded-xl bg-[#c75146] py-3 items-center disabled:opacity-60"
               >
                 {submitQuiz.isPending ? (
                   <ActivityIndicator color="white" size="small" />
