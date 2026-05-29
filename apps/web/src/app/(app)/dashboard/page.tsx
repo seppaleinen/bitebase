@@ -1,6 +1,7 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   BookOpen,
@@ -120,6 +121,14 @@ function CurriculumCard({
     createdAt: Date | string;
   };
 }) {
+  const router = useRouter();
+  const utils = trpcReact.useUtils();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const deleteMutation = trpcReact.curriculum.delete.useMutation({
+    onSuccess: () => utils.curriculum.list.invalidate(),
+  });
+
   const { data: lessonsData } = trpcReact.curriculum.getLessons.useQuery({
     curriculumId: curriculum.id,
   });
@@ -133,11 +142,26 @@ function CurriculumCard({
   const isGenerating = curriculum.generationStatus === "generating";
   const isFailed = curriculum.generationStatus === "failed";
 
-  return (
-    <Link
-      href={`/curriculum/${curriculum.id}`}
-      className="group block rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-violet-200 hover:shadow-md"
-    >
+  async function handleDelete(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDeleting(true);
+    try {
+      await deleteMutation.mutateAsync({ id: curriculum.id });
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  function handleRetry(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    deleteMutation.mutate({ id: curriculum.id });
+    router.push("/onboarding");
+  }
+
+  const cardContent = (
+    <>
       <div className="mb-4 flex items-start justify-between gap-2">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100">
           <BookOpen className="h-5 w-5 text-violet-600" />
@@ -175,13 +199,49 @@ function CurriculumCard({
         <Progress value={progressPct} />
       </div>
 
-      <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
-        <span className="flex items-center gap-1">
-          <Clock className="h-3 w-3" />
-          {Math.round(curriculum.totalEstimatedMinutes / 60)}h total
-        </span>
-        <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+      {isFailed ? (
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="flex-1 rounded-lg border border-gray-200 py-1.5 text-xs font-medium text-gray-500 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-50"
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </button>
+          <button
+            onClick={handleRetry}
+            disabled={isDeleting}
+            className="flex-1 rounded-lg bg-violet-600 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition-colors disabled:opacity-50"
+          >
+            Try again
+          </button>
+        </div>
+      ) : (
+        <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {Math.round(curriculum.totalEstimatedMinutes / 60)}h total
+          </span>
+          <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+        </div>
+      )}
+    </>
+  );
+
+  if (isFailed) {
+    return (
+      <div className="group block rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
+        {cardContent}
       </div>
+    );
+  }
+
+  return (
+    <Link
+      href={`/curriculum/${curriculum.id}`}
+      className="group block rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-violet-200 hover:shadow-md"
+    >
+      {cardContent}
     </Link>
   );
 }

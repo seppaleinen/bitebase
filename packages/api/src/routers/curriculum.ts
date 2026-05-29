@@ -237,6 +237,24 @@ export const curriculumRouter = router({
         : null;
     }),
 
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const [curriculum] = await db
+        .select()
+        .from(curricula)
+        .where(
+          and(
+            eq(curricula.id, input.id),
+            eq(curricula.userId, ctx.session.user.id)
+          )
+        );
+      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
+
+      await db.delete(lessons).where(eq(lessons.curriculumId, input.id));
+      await db.delete(curricula).where(eq(curricula.id, input.id));
+    }),
+
   getProfile: protectedProcedure
     .input(z.object({ curriculumId: z.string() }))
     .query(async ({ ctx, input }) => {
