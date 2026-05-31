@@ -21,6 +21,7 @@ import remarkGfm from "remark-gfm";
 import { trpcReact } from "@/lib/trpc/provider";
 import { Badge } from "@bitebase/ui/web";
 import QuizSection from "@/components/quiz-section";
+import { extractSummary, summaryBody } from "@/lib/extract-summary";
 
 /* ── Callout type detection ───────────────────────────────────────── */
 
@@ -68,10 +69,13 @@ const markdownComponents: Components = {
     return (
       <blockquote className={`${cls}`}>
         {type && (
-          <div className={`mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${calloutIconColor[type]}`}>
-            {calloutIcon[type]}
-            <span>{type === "tip" ? "Tip" : type === "warning" ? "Warning" : type === "definition" ? "Definition" : type === "deepdive" ? "Deep Dive" : "Note"}</span>
-          </div>
+          <>
+            <div className={`flex items-center gap-1.5 ${calloutIconColor[type]}`}>
+              {calloutIcon[type]}
+              <span className="text-xs font-bold uppercase tracking-wider">{type === "tip" ? "Tip" : type === "warning" ? "Warning" : type === "definition" ? "Definition" : type === "deepdive" ? "Deep Dive" : "Note"}</span>
+            </div>
+            <div className="my-2 border-t border-current opacity-15" />
+          </>
         )}
         <div className="[&>p]:my-0">{children}</div>
       </blockquote>
@@ -216,6 +220,21 @@ export default function LessonPage({
   const isCompleted = userProgress?.status === "completed";
   const hasQuizQuestions = (quiz?.questions?.length ?? 0) > 0;
 
+  // Extract summary/takeaways section for a dedicated card
+  const summaryInfo = extractSummary(lesson.content);
+  const mainContent = summaryInfo
+    ? lesson.content
+        .split("\n")
+        .slice(0, summaryInfo.startLine)
+        .concat(
+          lesson.content
+            .split("\n")
+            .slice(summaryInfo.endLine)
+        )
+        .join("\n")
+        .trim()
+    : lesson.content;
+
   function handleSignInToQuiz() {
     router.push(`/login?redirect=/lesson/${id}`);
   }
@@ -257,11 +276,32 @@ export default function LessonPage({
         <div className="content-fade-in rounded-2xl border border-[#efe9e2] bg-[var(--color-card)] p-8 shadow-sm" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)" }}>
           <div className="prose-lesson">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {lesson.content}
+              {mainContent}
             </ReactMarkdown>
           </div>
         </div>
       )}
+
+      {/* Key Takeaways card */}
+      {!showQuiz && summaryInfo && (() => {
+        const body = summaryBody(summaryInfo.section);
+        if (!body) return null;
+        return (
+          <div className="content-fade-in-delayed rounded-2xl border border-amber-200/60 bg-amber-50/70 p-6 shadow-sm" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-200/70 text-xs">🎯</span>
+              <h3 className="font-[family-name:var(--font-fraunces)] text-base font-semibold text-[var(--color-text-primary)]">
+                Key Takeaways
+              </h3>
+            </div>
+            <div className="prose-lesson text-sm [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:mb-2 [&_ul:last-child]:mb-0 [&_li]:mb-1">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                {body}
+              </ReactMarkdown>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Visual References — deduplicated by URL */}
       {!showQuiz && (() => {
