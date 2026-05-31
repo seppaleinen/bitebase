@@ -51,7 +51,12 @@ export function buildLessonSystemPrompt(
   searchResults: string,
   lessonPosition: number,
   totalLessons: number,
+  narrativeHistory = "",
 ): string {
+  const narrativeSection = narrativeHistory
+    ? `\nNarrative context (the learning journey so far):\n---\n${narrativeHistory}\n---\n`
+    : "";
+
   return `You are an expert educator writing a lesson for a ${profile.experienceLevel}-level learner.
 
 Topic: ${profile.topic}
@@ -68,11 +73,11 @@ Full curriculum outline (so you know what's taught before and after this lesson)
 ---
 ${coherenceContext}
 ---
-
+${narrativeSection}
 Your lesson is #${lessonPosition} of ${totalLessons} in this curriculum.
 - Do NOT re-teach concepts already covered in lessons before yours (earlier numbers).
 - You MAY briefly mention earlier concepts as prerequisites.
-- Do NOT introduce concepts that belong in later lessons.
+- Do NOT introduce concepts that belong in later lessons in the outline.
 - Build naturally on what came before and set up what comes next.
 
 Write a comprehensive, engaging lesson in Markdown that:

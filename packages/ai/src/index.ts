@@ -6,3 +6,4 @@ export { parseLessonResponse } from "./lib/parse-lesson";
 export * from "./lib/parse-lesson";
 export { extractProfileValues, extractTopic } from "./lib/extract-profile";
 export type { ChatMessage, ExtractedProfile } from "./lib/extract-profile";
+export { buildNarrativeThreads } from "./lib/narrative-thread";

@@ -6,6 +6,7 @@ import {
   getModel,
   buildCurriculumSystemPrompt,
   buildLessonSystemPrompt,
+  buildNarrativeThreads,
   curriculumPlanSchema,
   learningProfileSchema,
   createWebSearchTool,
@@ -336,6 +337,8 @@ export async function POST(req: Request) {
           .map((m) => `${m.order + 1}. [${m.section.title}] ${m.subsection.title}`)
           .join("\n");
 
+        const narrativeThreads = buildNarrativeThreads(curriculumPlan);
+
         const tasks = allLessonMeta.map((meta) => async () => {
           send("lesson_started", { title: meta.subsection.title });
 
@@ -386,6 +389,7 @@ export async function POST(req: Request) {
                     `Focus on ${meta.subsection.title} as part of ${meta.section.title} in ${profile.topic}.`,
                   meta.order + 1,
                   allLessonMeta.length,
+                  narrativeThreads[meta.order],
                 ),
                 prompt: `Write the complete lesson about "${meta.subsection.title}" for the section "${meta.section.title}".`,
                 temperature,
