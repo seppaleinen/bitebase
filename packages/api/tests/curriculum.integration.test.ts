@@ -412,25 +412,23 @@ describe("curriculum.retryAndGetProfile", () => {
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
-  it("returns profile fields and triggers curriculum cleanup when called for a valid failed curriculum", async () => {
+  it("returns profile fields and curriculum ID without deleting the curriculum", async () => {
     // Sequence: [curriculum], [profile]
     mockDb.select.mockImplementation(
       makeSelectSequence([[mockFailedCurriculum], [mockProfile]])
     );
-    const del = makeDelete();
-    mockDb.delete.mockReturnValue(del);
 
     const caller = appRouter.createCaller(authedCtx() as never);
     const result = await caller.curriculum.retryAndGetProfile({ id: MOCK_CURRICULUM_ID });
 
+    expect(result.curriculumId).toBe(MOCK_CURRICULUM_ID);
     expect(result.topic).toBe(mockProfile.topic);
     expect(result.experienceLevel).toBe(mockProfile.experienceLevel);
     expect(result.goals).toBe(mockProfile.goals);
     expect(result.additionalContext).toBe(mockProfile.additionalContext);
 
-    // At least one delete was issued (lessons or curricula cleanup)
-    expect(mockDb.delete).toHaveBeenCalled();
-    expect(del.where).toHaveBeenCalled();
+    // No delete should be issued — deletion is deferred
+    expect(mockDb.delete).not.toHaveBeenCalled();
   });
 
   it("throws NOT_FOUND when the profile record is missing", async () => {
@@ -438,8 +436,6 @@ describe("curriculum.retryAndGetProfile", () => {
     mockDb.select.mockImplementation(
       makeSelectSequence([[mockFailedCurriculum], []])
     );
-    const del = makeDelete();
-    mockDb.delete.mockReturnValue(del);
 
     const caller = appRouter.createCaller(authedCtx() as never);
     await expect(

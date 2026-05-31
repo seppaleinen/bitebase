@@ -299,11 +299,15 @@ function OnboardingChat() {
     setGenerationStatus("Starting curriculum generation...");
     setLessonProgressList([]);
 
+    // Read and clear the pending replace-request from sessionStorage
+    const replaceCurriculumId = sessionStorage.getItem("bitebase_replace_curriculum_id");
+    sessionStorage.removeItem("bitebase_replace_curriculum_id");
+
     try {
       const response = await fetch("/api/onboarding/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        body: JSON.stringify(replaceCurriculumId ? { ...profile, replaceCurriculumId } : profile),
       });
 
       if (!response.ok) {

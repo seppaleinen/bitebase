@@ -242,7 +242,8 @@ export async function POST(req: Request) {
   }
 
   const bodyJson = await req.json();
-  const profileResult = learningProfileSchema.safeParse(bodyJson);
+  const { replaceCurriculumId, ...profileData } = bodyJson;
+  const profileResult = learningProfileSchema.safeParse(profileData);
   if (!profileResult.success) {
     return new Response(JSON.stringify({ error: "Invalid profile" }), {
       status: 400,
@@ -402,7 +403,7 @@ export async function POST(req: Request) {
             // Save a placeholder so the card is still clickable and the user knows what happened.
             console.error(`[generate] lesson "${meta.subsection.title}" failed after all retries — saving placeholder`);
             lessonData = {
-              content: `# ${meta.subsection.title}\n\nThis lesson could not be generated automatically. Try using the "Redo this course" option from the dashboard to regenerate your curriculum.`,
+              content: `# ${meta.subsection.title}\n\nThis lesson could not be generated automatically. Try using the "Remake course" option from the dashboard to regenerate your curriculum.`,
               estimatedMinutes: 5,
               sources: [],
               quiz: { questions: [], passingScore: 70 },
@@ -458,6 +459,16 @@ export async function POST(req: Request) {
           .update(curricula)
           .set({ generationStatus: "complete" })
           .where(eq(curricula.id, curriculumId));
+
+        // Non-destructive remake: delete old curriculum now that the new one is ready
+        if (replaceCurriculumId && typeof replaceCurriculumId === "string" && replaceCurriculumId !== curriculumId) {
+          try {
+            await db.delete(curricula).where(eq(curricula.id, replaceCurriculumId));
+          } catch (err) {
+            // Best-effort; old curriculum may have been deleted already
+            console.warn(`[generate] failed to remove old curriculum ${replaceCurriculumId}:`, err);
+          }
+        }
 
         send("done", { curriculumId });
       } catch (err) {

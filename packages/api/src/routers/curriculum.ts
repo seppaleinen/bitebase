@@ -335,8 +335,9 @@ export const curriculumRouter = router({
       return profile ?? null;
     }),
 
-  /** Delete a failed curriculum and return its learning profile so the caller
-   *  can immediately re-trigger generation with the same inputs. */
+  /** Fetch a learning profile so the caller can re-trigger generation with the
+   *  same inputs. Does NOT delete the curriculum — deletion is deferred until
+   *  the new curriculum has been successfully generated. */
   retryAndGetProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -356,12 +357,10 @@ export const curriculumRouter = router({
         .from(learningProfiles)
         .where(eq(learningProfiles.id, curriculum.profileId));
 
-      // Deleting the curriculum cascades to lessons → quizzes and progress via FK.
-      await db.delete(curricula).where(eq(curricula.id, input.id));
-
       if (!profile) throw new TRPCError({ code: "NOT_FOUND", message: "Learning profile not found" });
 
       return {
+        curriculumId: input.id,
         topic: profile.topic,
         experienceLevel: profile.experienceLevel,
         goals: profile.goals,

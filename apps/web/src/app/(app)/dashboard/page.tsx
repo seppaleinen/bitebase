@@ -45,14 +45,16 @@ function DashboardContent() {
               : "Start your first curriculum"}
           </p>
         </div>
-        <Link
-          href="/onboarding"
-          className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
-          aria-label="Create a new course"
-        >
-          <Plus className="h-4 w-4" />
-          New course
-        </Link>
+        {hasCurricula && (
+          <Link
+            href="/onboarding"
+            className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+            aria-label="Create a new course"
+          >
+            <Plus className="h-4 w-4" />
+            New course
+          </Link>
+        )}
       </div>
 
       {/* New curriculum banner */}
@@ -180,8 +182,9 @@ function CurriculumCard({
     e.stopPropagation();
     setIsRetrying(true);
     try {
-      const profile = await retryMutation.mutateAsync({ id: curriculum.id });
-      sessionStorage.setItem("bitebase_retry_profile", JSON.stringify(profile));
+      const data = await retryMutation.mutateAsync({ id: curriculum.id });
+      sessionStorage.setItem("bitebase_retry_profile", JSON.stringify(data));
+      sessionStorage.setItem("bitebase_replace_curriculum_id", data.curriculumId);
       router.push("/onboarding?autoGenerate=1");
     } catch {
       setIsRetrying(false);
@@ -193,8 +196,9 @@ function CurriculumCard({
     e.stopPropagation();
     setIsRedoing(true);
     try {
-      const profile = await retryMutation.mutateAsync({ id: curriculum.id });
-      sessionStorage.setItem("bitebase_retry_profile", JSON.stringify(profile));
+      const data = await retryMutation.mutateAsync({ id: curriculum.id });
+      sessionStorage.setItem("bitebase_retry_profile", JSON.stringify(data));
+      sessionStorage.setItem("bitebase_replace_curriculum_id", data.curriculumId);
       router.push("/onboarding?refine=1");
     } catch {
       setIsRedoing(false);
@@ -330,7 +334,7 @@ function CurriculumCard({
                 <button
                   onClick={handleRedo}
                   disabled={isMutating}
-                  aria-label="Redo course generation"
+                  aria-label="Remake course"
                   className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-violet-200 hover:text-violet-600 transition-colors disabled:opacity-50"
                 >
                   {isRedoing ? (
@@ -338,7 +342,7 @@ function CurriculumCard({
                   ) : (
                     <RefreshCw className="h-3 w-3" />
                   )}
-                  {isRedoing ? "Loading..." : "Redo this course"}
+                  {isRedoing ? "Loading..." : "Remake course"}
                 </button>
               </div>
             )}
