@@ -50,7 +50,7 @@ export default function LoginPage() {
         <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
+              <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
                 {error}
               </div>
             )}
@@ -85,7 +85,8 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2.5 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />

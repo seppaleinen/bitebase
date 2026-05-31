@@ -55,9 +55,12 @@ export default function LoginScreen() {
 
           <View className="rounded-2xl bg-white p-6 shadow-sm">
             {error ? (
-              <View className="mb-4 rounded-xl bg-red-50 p-3">
-                <Text className="text-sm text-red-600">{error}</Text>
-              </View>
+              <Text
+                className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-600"
+                accessibilityRole="alert"
+              >
+                {error}
+              </Text>
             ) : null}
 
             <View className="mb-4">
@@ -70,6 +73,7 @@ export default function LoginScreen() {
                 placeholder="you@example.com"
                 autoCapitalize="none"
                 keyboardType="email-address"
+                accessibilityLabel="Email address"
                 className="rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900"
               />
             </View>
@@ -83,6 +87,7 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 placeholder="••••••••"
                 secureTextEntry
+                accessibilityLabel="Password"
                 className="rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900"
               />
             </View>
@@ -103,6 +108,7 @@ export default function LoginScreen() {
           <TouchableOpacity
             onPress={() => router.push("/(auth)/register")}
             className="mt-4 items-center"
+            accessibilityLabel="Create a new account"
           >
             <Text className="text-sm text-gray-500">
               No account?{" "}

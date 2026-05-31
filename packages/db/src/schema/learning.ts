@@ -82,7 +82,7 @@ export const lessons = pgTable("lessons", {
   subsectionId: text("subsection_id"),
   title: text("title").notNull(),
   content: text("content").notNull(),
-  sources: jsonb("sources").$type<Array<{ title: string; url: string }>>().notNull().default([]),
+  sources: jsonb("sources").$type<Array<{ title: string; url: string; imageUrls?: string[] }>>().notNull().default([]),
   estimatedMinutes: integer("estimated_minutes").notNull(),
   order: integer("order").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),

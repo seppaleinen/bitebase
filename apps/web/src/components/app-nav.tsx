@@ -62,8 +62,8 @@ export default function AppNav({ user }: AppNavProps) {
             </div>
             <button
               onClick={handleSignOut}
-              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              title="Sign out"
+              aria-label="Sign out"
+              className="rounded-lg p-2.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
             >
               <LogOut className="h-4 w-4" />
             </button>

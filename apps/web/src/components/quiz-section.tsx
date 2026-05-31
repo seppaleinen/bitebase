@@ -295,7 +295,7 @@ function ReviewSection({
               </p>
             </div>
             {!fb.correct && (
-              <div className="ml-6 space-y-1 text-xs">
+              <div className="ml-6 space-y-1 text-xs font-bold">
                 {userAnswer && (
                   <p className="text-red-600">Your answer: {userAnswer}</p>
                 )}
@@ -394,14 +394,20 @@ export default function QuizSection({
       {/* Progress */}
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="text-gray-500">
+          <div aria-live="polite" className="text-gray-500">
             Question {currentQ + 1} of {quiz.questions.length}
-          </span>
-          <span className="text-gray-400">
+          </div>
+          <span className="text-gray-500">
             {Object.keys(answers).length} answered
           </span>
         </div>
-        <div className="h-1.5 w-full rounded-full bg-gray-100">
+        <div
+          role="progressbar"
+          aria-valuenow={Math.round(((currentQ + 1) / quiz.questions.length) * 100)}
+          aria-valuemax={100}
+          aria-label={`Question ${currentQ + 1} of ${quiz.questions.length}`}
+          className="h-1.5 w-full rounded-full bg-gray-100"
+        >
           <div
             className="h-1.5 rounded-full bg-violet-600 transition-all"
             style={{ width: `${((currentQ + 1) / quiz.questions.length) * 100}%` }}
@@ -425,6 +431,7 @@ export default function QuizSection({
                 <button
                   key={option}
                   onClick={() => handleAnswer(currentQuestion.id, option)}
+                  aria-pressed={isSelected}
                   className={`w-full rounded-xl border px-4 py-3 text-left text-sm transition-all ${
                     isSelected
                       ? "border-violet-400 bg-violet-50 text-violet-700 ring-2 ring-violet-200"
@@ -442,6 +449,7 @@ export default function QuizSection({
             type="text"
             value={currentAnswer ?? ""}
             onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
+            aria-label={`Answer for: ${currentQuestion.question}`}
             placeholder="Type your answer..."
             className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
           />

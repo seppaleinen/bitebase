@@ -166,7 +166,7 @@ export default function OnboardingScreen() {
           className="flex-1"
         >
           <View className="border-b border-gray-100 px-5 py-3">
-            <Text className="text-base font-semibold text-gray-900">
+            <Text accessibilityRole="header" className="text-base font-semibold text-gray-900">
               New Course
             </Text>
             <Text className="text-xs text-gray-500">
@@ -184,6 +184,7 @@ export default function OnboardingScreen() {
               return (
                 <View
                   className={`flex-row gap-2 ${isAssistant ? "" : "flex-row-reverse"}`}
+                  accessibilityLabel={isAssistant ? `BiteBase: ${m.content}` : `You: ${m.content}`}
                 >
                   {isAssistant && (
                     <View className="h-8 w-8 items-center justify-center rounded-full bg-violet-600">
@@ -212,32 +213,32 @@ export default function OnboardingScreen() {
           />
 
           {isLoading && (
-            <View className="px-5 py-2">
+            <View className="px-5 py-2" accessibilityRole="alert" accessibilityLabel="BiteBase is typing">
               <ActivityIndicator color="#7c3aed" size="small" />
             </View>
           )}
 
           {finalizedProfile && !isGenerating && (
-            <View testID="profile-card" className="mx-4 mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <View testID="profile-card" accessibilityLabel="Profile review card" className="mx-4 mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
               <Text className="mb-3 text-sm font-semibold text-emerald-800">
                 Ready to generate your curriculum
               </Text>
               <View className="mb-4 gap-1">
                 <View className="flex-row">
                   <Text className="w-20 text-xs font-medium text-emerald-700">Topic</Text>
-                  <Text testID="profile-topic" className="flex-1 text-xs capitalize text-emerald-700">
+                  <Text testID="profile-topic" accessibilityLabel={`Topic: ${finalizedProfile.topic}`} className="flex-1 text-xs capitalize text-emerald-700">
                     {finalizedProfile.topic}
                   </Text>
                 </View>
                 <View className="flex-row">
                   <Text className="w-20 text-xs font-medium text-emerald-700">Level</Text>
-                  <Text testID="profile-level" className="flex-1 text-xs capitalize text-emerald-700">
+                  <Text testID="profile-level" accessibilityLabel={`Level: ${finalizedProfile.experienceLevel}`} className="flex-1 text-xs capitalize text-emerald-700">
                     {finalizedProfile.experienceLevel}
                   </Text>
                 </View>
                 <View className="flex-row">
                   <Text className="w-20 text-xs font-medium text-emerald-700">Goal</Text>
-                  <Text testID="profile-goals" className="flex-1 text-xs text-emerald-700">
+                  <Text testID="profile-goals" accessibilityLabel={`Goal: ${finalizedProfile.goals}`} className="flex-1 text-xs text-emerald-700">
                     {finalizedProfile.goals}
                   </Text>
                 </View>
@@ -247,6 +248,7 @@ export default function OnboardingScreen() {
                   onPress={() => setFinalizedProfile(null)}
                   className="flex-1 rounded-xl border border-emerald-300 py-2.5"
                   testID="edit-answers"
+                  accessibilityLabel="Edit answers"
                   {...keyboardHandler(() => setFinalizedProfile(null))}
                 >
                   <Text className="text-center text-xs font-medium text-emerald-700">
@@ -257,6 +259,7 @@ export default function OnboardingScreen() {
                   onPress={() => void generateCurriculum(finalizedProfile)}
                   className="flex-1 rounded-xl bg-emerald-600 py-2.5"
                   testID="build-curriculum"
+                  accessibilityLabel="Build my curriculum"
                   {...keyboardHandler(() => void generateCurriculum(finalizedProfile))}
                 >
                   <Text className="text-center text-xs font-medium text-white">
@@ -274,6 +277,7 @@ export default function OnboardingScreen() {
                   <TouchableOpacity
                     key={s}
                     onPress={() => void append({ role: "user", content: s })}
+                    accessibilityLabel={s}
                     className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5"
                     {...keyboardHandler(() => void append({ role: "user", content: s }))}
                   >
@@ -289,6 +293,7 @@ export default function OnboardingScreen() {
                   handleInputChange({ target: { value: text } } as React.ChangeEvent<HTMLInputElement>)
                 }
                 placeholder="Type your message..."
+                accessibilityLabel="Type your message"
                 multiline
                 className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900"
                 returnKeyType="send"

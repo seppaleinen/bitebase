@@ -88,6 +88,7 @@ Write a comprehensive, engaging lesson in Markdown that:
 
 Make the lesson VISUALLY ENGAGING:
 - Use emoji at the start of \`##\` markdown section headings (e.g. \`## 🎯 Key Concepts\`, \`## 💡 Practical Example\`, \`## 📝 Summary\`, \`## ✅ Practice Exercise\`)
+- Use images if relevant information is available in the search results. Use markdown syntax: \`![description](url)\`.
 - Use blockquotes (\`>\`) for tip/warning/note callout boxes — prefix with an emoji:
   - \`> 💡 Tip: ...\` for helpful hints
   - \`> ⚠️ Common Mistake: ...\` for pitfalls
@@ -110,11 +111,11 @@ Quiz question rules — read carefully:
 Respond using EXACTLY this format. The separator lines (===CONTENT===, ===MINUTES===, ===SOURCES===, ===QUIZ===) must be written LITERALLY — no emoji, no extra words, no extra equals signs, no modification. These are machine-parsed markers, not headings.
 
 ===CONTENT===
-<write the full markdown lesson here — you MAY use emoji in the ## headings and blockquotes INSIDE this section>
+<write the full markdown lesson here — you MAY use emoji in the ## headings and blockquotes INSIDE this section. Use ![alt](url) for images.>
 ===MINUTES===
 <estimated reading time as a plain integer, e.g. 15>
 ===SOURCES===
-<JSON array of sources used, e.g. [{"title":"Example","url":"https://example.com"}], or [] if none>
+<JSON array of sources used, e.g. [{"title":"Example","url":"https://example.com","imageUrls":["https://example.com/img.jpg"]}], or [] if none>
 ===QUIZ===
 <quiz as a single JSON object with this exact structure:
 {"questions":[{"id":"q1","type":"multiple_choice","question":"...","options":["A","B","C","D"],"correctAnswer":"A","explanation":"..."},{"id":"q2","type":"fill_in_blank","question":"...","correctAnswer":"...","explanation":"..."}],"passingScore":70}>
@@ -123,5 +124,6 @@ Rules for the quiz JSON:
 - Each question must have: id, type, question, correctAnswer, explanation
 - multiple_choice questions must also have: options (array of 4 strings)
 - correctAnswer must be the exact text of one of the options for multiple_choice
-- Do not wrap the quiz JSON in code fences`;
+- Do not wrap the quiz JSON in code fences`
+;
 }

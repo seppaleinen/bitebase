@@ -92,6 +92,7 @@ export const lessonContentSchema = z.object({
       z.object({
         title: z.string(),
         url: z.string(),
+        imageUrls: z.array(z.string()).optional(),
       })
     )
     .catch([])

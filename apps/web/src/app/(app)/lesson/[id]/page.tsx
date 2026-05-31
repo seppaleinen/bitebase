@@ -79,6 +79,28 @@ const markdownComponents: Components = {
   hr() {
     return <hr />;
   },
+  img({ src, alt }) {
+    if (!src) return null;
+    return (
+      <span className="block my-6 overflow-hidden rounded-xl border border-[#efe9e2] shadow-sm">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt=""
+          className="w-full h-auto object-cover"
+          loading="lazy"
+          onError={(e) => {
+            (e.target as HTMLImageElement).parentElement?.classList.add("hidden");
+          }}
+        />
+        {alt && (
+          <span className="block bg-[#fcfaf8] px-4 py-2 text-[11px] font-medium text-[var(--color-text-muted)] italic border-t border-[#efe9e2]">
+            {alt}
+          </span>
+        )}
+      </span>
+    );
+  },
 };
 
 /* ── Reading progress bar ─────────────────────────────────────────── */
@@ -96,7 +118,17 @@ function ReadingProgress() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  return <div className="reading-progress" style={{ width: `${progress}%` }} />;
+  return (
+    <div
+      role="progressbar"
+      aria-label="Reading progress"
+      aria-valuenow={progress}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      className="fixed left-0 top-0 h-1 bg-violet-600 transition-all"
+      style={{ width: `${progress}%` }}
+    />
+  );
 }
 
 export default function LessonPage({
@@ -167,13 +199,14 @@ export default function LessonPage({
   const hasQuizQuestions = (quiz?.questions?.length ?? 0) > 0;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <main className="mx-auto max-w-3xl space-y-6">
       <ReadingProgress />
 
       {/* Back nav */}
       <Link
         href={`/curriculum/${lesson.curriculumId}`}
         className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition-colors"
+        aria-label="Back to curriculum"
       >
         <ChevronLeft className="h-4 w-4" />
         Back to curriculum
@@ -186,7 +219,7 @@ export default function LessonPage({
             <Badge variant={isCompleted ? "success" : "secondary"}>
               {isCompleted ? "Completed" : "Lesson"}
             </Badge>
-            <span className="flex items-center gap-1 text-xs text-white/70">
+            <span className="flex items-center gap-1 text-sm text-white/70">
               <Clock className="h-3 w-3" />
               {lesson.estimatedMinutes} min read
             </span>
@@ -204,6 +237,41 @@ export default function LessonPage({
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {lesson.content}
             </ReactMarkdown>
+          </div>
+        </div>
+      )}
+
+      {/* Visual References */}
+      {!showQuiz && lesson.sources && lesson.sources.some(s => s.imageUrls && s.imageUrls.length > 0) && (
+        <div className="content-fade-in-delayed rounded-2xl border border-[#efe9e2] bg-[var(--color-card)] p-5 shadow-sm" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+          <h3 className="mb-4 font-[family-name:var(--font-fraunces)] text-sm font-semibold text-[var(--color-text-primary)]">
+            Visual References
+          </h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {lesson.sources.flatMap((s, si) => (s.imageUrls || []).map((url, ii) => (
+              <a 
+                key={`${si}-${ii}`} 
+                href={url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="group relative aspect-video overflow-hidden rounded-lg border border-[#efe9e2]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src={url} 
+                  alt={s.title} 
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="lazy"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).closest("a")?.remove();
+                  }}
+                />
+                <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                  <p className="truncate text-[10px] font-medium text-white">{s.title}</p>
+                </div>
+              </a>
+            )))}
           </div>
         </div>
       )}
@@ -321,6 +389,6 @@ export default function LessonPage({
           )}
         </div>
       )}
-    </div>
+    </main>
   );
 }

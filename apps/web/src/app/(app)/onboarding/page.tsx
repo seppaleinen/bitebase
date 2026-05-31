@@ -410,14 +410,14 @@ function OnboardingChat() {
               </div>
               <div>
                 <h2 className="text-base font-bold text-gray-900">Building your curriculum</h2>
-                <p className="text-xs text-gray-500">Generating personalised lessons</p>
+                <p className="text-sm text-gray-500">Generating personalised lessons</p>
               </div>
             </div>
 
             {/* Lesson progress list */}
             {lessonProgressList.length > 0 ? (
               <>
-                <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
+                <div className="mb-3 flex items-center justify-between text-sm text-gray-500">
                   <span>
                     <span className="font-semibold text-emerald-600">
                       {lessonProgressList.filter((l) => l.status === "done").length}
@@ -451,23 +451,23 @@ function OnboardingChat() {
                           }`}>
                             {lesson.title}
                           </p>
-                          <p className="truncate text-[10px] text-gray-400">{lesson.section}</p>
+                          <p className="truncate text-xs text-gray-400">{lesson.section}</p>
                         </div>
                       </li>
                     ))}
                   </ul>
                 </div>
                 {generationStatus && (
-                  <p className="mt-3 text-center text-xs text-gray-400">{generationStatus}</p>
+                  <p className="mt-3 text-center text-sm text-gray-400">{generationStatus}</p>
                 )}
               </>
             ) : (
               <>
-                <p className="mb-4 text-xs text-gray-500">
+                <p className="mb-4 text-sm text-gray-500">
                   This may take a minute while BiteBase researches and creates
                   personalised lessons just for you.
                 </p>
-                <div className="rounded-xl bg-violet-50 px-4 py-3 text-xs text-violet-700">
+                <div className="rounded-xl bg-violet-50 px-4 py-3 text-sm text-violet-700">
                   <Loader2 className="mr-2 inline-block h-4 w-4 animate-spin" />
                   {generationStatus}
                 </div>
@@ -495,12 +495,14 @@ function OnboardingChat() {
             const isAssistant = m.role === "assistant";
 
             return (
-              <div
+              <article
                 key={m.id}
+                role="listitem"
+                aria-label={isAssistant ? `BiteBase: ${displayContent}` : `You: ${displayContent}`}
                 className={`flex gap-3 animate-slide-up ${isAssistant ? "" : "flex-row-reverse"}`}
               >
                 {isAssistant && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600" aria-hidden="true">
                     <Brain className="h-4 w-4 text-white" />
                   </div>
                 )}
@@ -519,7 +521,7 @@ function OnboardingChat() {
                     </div>
                   )}
                 </div>
-              </div>
+              </article>
             );
           })}
           {isLoading && (
@@ -596,7 +598,7 @@ function OnboardingChat() {
                     onClick={() => {
                       void append({ role: "user", content: s });
                     }}
-                    className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition-colors hover:border-violet-400 hover:bg-violet-100"
+                    className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-medium text-violet-700 transition-colors hover:border-violet-400 hover:bg-violet-100"
                   >
                     {s}
                   </button>
@@ -649,7 +651,7 @@ export default function OnboardingPage() {
   // GateOrChat fetches curricula and short-circuits to the chat when there are
   // no active curricula, so first-time users see the chat immediately.
   return (
-    <div className="flex h-screen flex-col bg-gradient-to-br from-violet-50 via-white to-indigo-50">
+    <main className="flex h-screen flex-col bg-gradient-to-br from-violet-50 via-white to-indigo-50">
       {/* Header */}
       <div className="border-b border-white/50 bg-white/80 backdrop-blur-sm px-6 py-4">
         <div className="mx-auto flex max-w-2xl items-center gap-3">
@@ -673,7 +675,7 @@ export default function OnboardingPage() {
           )}
         </Suspense>
       </div>
-    </div>
+    </main>
   );
 }
 

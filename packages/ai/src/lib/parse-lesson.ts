@@ -70,7 +70,7 @@ function normalizeSeparators(text: string): string {
 export function parseLessonResponse(text: string): {
   content: string;
   estimatedMinutes: number;
-  sources: { title: string; url: string }[];
+  sources: { title: string; url: string; imageUrls?: string[] }[];
   quiz: { questions: QuizQuestion[]; passingScore: number };
 } {
   const normalized = normalizeSeparators(text);
@@ -87,7 +87,7 @@ export function parseLessonResponse(text: string): {
 
   const estimatedMinutes = Math.max(1, parseInt(minutesRaw) || 10);
 
-  let sources: { title: string; url: string }[] = [];
+  let sources: { title: string; url: string; imageUrls?: string[] }[] = [];
   try {
     const parsed = JSON.parse(sourcesRaw || "[]");
     if (Array.isArray(parsed)) sources = parsed;

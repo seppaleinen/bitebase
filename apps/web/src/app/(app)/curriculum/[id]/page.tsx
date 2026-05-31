@@ -51,7 +51,7 @@ export default function CurriculumPage({
   const lessonBySection = new Map(lessonsData.map((l) => [l.sectionId + (l.subsectionId ?? ""), l]));
 
   return (
-    <div className="space-y-8">
+    <main className="space-y-8">
       {/* Back + header */}
       <div>
         <Link
@@ -102,7 +102,10 @@ export default function CurriculumPage({
               className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
             >
               <div className="flex items-center gap-4 border-b border-gray-50 bg-gray-50 px-5 py-4">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white">
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white"
+                  aria-label={`Section ${sectionIdx + 1}`}
+                >
                   {sectionIdx + 1}
                 </div>
                 <div className="flex-1">
@@ -156,12 +159,12 @@ export default function CurriculumPage({
                       </div>
                       <div className="flex items-center gap-2">
                         {isCompleted && (
-                          <Badge variant="success" className="text-xs">
+                          <Badge variant="success" className="text-xs font-bold">
                             Done
                           </Badge>
                         )}
                         {lessonStatus === "in_progress" && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-xs font-bold">
                             In progress
                           </Badge>
                         )}
@@ -183,6 +186,6 @@ export default function CurriculumPage({
           );
         })}
       </div>
-    </div>
+    </main>
   );
 }

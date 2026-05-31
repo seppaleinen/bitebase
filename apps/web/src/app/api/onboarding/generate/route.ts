@@ -195,17 +195,19 @@ async function generateJsonObject<T>(
   throw lastError;
 }
 
-function getSearchTool() {
+function getSearchTool(includeImages = false) {
   if (process.env.SEARXNG_BASE_URL) {
     return createWebSearchTool({
       provider: "searxng",
       baseUrl: process.env.SEARXNG_BASE_URL,
+      includeImages,
     });
   }
   if (process.env.TAVILY_API_KEY) {
     return createWebSearchTool({
       provider: "tavily",
       apiKey: process.env.TAVILY_API_KEY,
+      includeImages,
     });
   }
   return null;
@@ -303,7 +305,7 @@ export async function POST(req: Request) {
           totalSections: curriculumPlan.sections.length,
         });
 
-        const searchTool = getSearchTool();
+        const searchTool = getSearchTool(true);
         const curriculumIdStr: string = curriculumId;
 
         interface LessonMeta {
@@ -337,9 +339,10 @@ export async function POST(req: Request) {
           send("lesson_started", { title: meta.subsection.title });
 
           let searchContext = "";
+          const searchImageUrls: string[] = [];
           if (searchTool) {
             try {
-              const { text: searchResults } = await generateText({
+              const { text: searchResults, toolResults } = await generateText({
                 model: getModel(),
                 tools: { webSearch: searchTool },
                 prompt: `Search for comprehensive information about "${meta.subsection.title}" in the context of ${profile.topic} for a ${profile.experienceLevel} learner. Search for the most relevant and educational content.`,
@@ -347,8 +350,21 @@ export async function POST(req: Request) {
                 temperature: 0.3,
               });
               searchContext = searchResults;
-            } catch {
-              // Web search failed, continue without it
+
+              // Collect image URLs from tool results
+              const searchToolResult = toolResults.find((r) => r.toolName === "webSearch");
+              if (searchToolResult && typeof searchToolResult.result === "object" && searchToolResult.result !== null) {
+                const results = (searchToolResult.result as { results?: { imageUrls?: string[] }[] }).results;
+                if (Array.isArray(results)) {
+                  for (const r of results) {
+                    if (Array.isArray(r.imageUrls)) {
+                      searchImageUrls.push(...r.imageUrls);
+                    }
+                  }
+                }
+              }
+            } catch (err) {
+              console.error(`[generate] search failed for "${meta.subsection.title}":`, err);
             }
           }
 
@@ -393,6 +409,12 @@ export async function POST(req: Request) {
             };
           }
 
+          // Attach search images to sources if the model didn't provide any or as additional context
+          const finalSources = (lessonData.sources || []).map((s) => ({
+            ...s,
+            imageUrls: s.imageUrls || (searchImageUrls.length > 0 ? searchImageUrls : undefined),
+          }));
+
           await db.insert(lessons).values({
             id: meta.id,
             curriculumId: curriculumIdStr,
@@ -400,7 +422,7 @@ export async function POST(req: Request) {
             subsectionId: meta.subsection.id,
             title: meta.subsection.title,
             content: lessonData.content,
-            sources: lessonData.sources,
+            sources: finalSources,
             estimatedMinutes: lessonData.estimatedMinutes,
             order: meta.order,
           });

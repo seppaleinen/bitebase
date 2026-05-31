@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import Markdown from "react-native-markdown-display";
 import { trpcReact } from "@/lib/trpc-provider";
+import { Image } from "expo-image";
 
 export default function LessonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -53,7 +54,7 @@ export default function LessonScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#faf7f4]">
       <View className="flex-row items-center gap-3 border-b border-[#efe9e2] px-4 py-3">
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityLabel="Go back">
           <ChevronLeft color="#8a7f73" size={20} />
         </TouchableOpacity>
         <Text className="flex-1 font-[family-name:var(--font-fraunces)] font-semibold text-[#2d2419]" numberOfLines={1}>
@@ -65,6 +66,28 @@ export default function LessonScreen() {
         {!showQuiz ? (
           <>
             <Markdown
+              rules={{
+                image: (node) => {
+                  const { src, alt } = node.attributes;
+                  return (
+                    <View key={src} className="my-4 overflow-hidden rounded-2xl border border-[#efe9e2] bg-[#fcfaf8]">
+                      <Image
+                        source={{ uri: src }}
+                        style={{ width: "100%", aspectRatio: 16 / 9 }}
+                        contentFit="cover"
+                        transition={300}
+                        alt={alt}
+                        accessibilityLabel={alt || "Lesson image"}
+                      />
+                      {alt ? (
+                        <View className="border-t border-[#efe9e2] px-3 py-2">
+                          <Text className="text-[11px] italic text-[#8a7f73]">{alt}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                },
+              }}
               style={{
                 body: { color: "#4a3f35", lineHeight: 24, fontSize: 15, fontFamily: "var(--font-literata), Georgia, serif" },
                 heading1: { color: "#2d2419", fontFamily: "var(--font-fraunces), Georgia, serif", fontWeight: "700", marginBottom: 12, fontSize: 22 },
@@ -119,10 +142,41 @@ export default function LessonScreen() {
               {lesson.content}
             </Markdown>
 
+            {/* Visual References */}
+            {lesson.sources && lesson.sources.some(s => s.imageUrls && s.imageUrls.length > 0) && (
+              <View className="mt-6">
+                <Text accessibilityRole="header" className="mb-3 font-[family-name:var(--font-fraunces)] text-sm font-semibold text-[#2d2419]">
+                  Visual References
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
+                  {lesson.sources.flatMap((s, si) => (s.imageUrls || []).map((url, ii) => (
+                    <TouchableOpacity
+                      key={`${si}-${ii}`}
+                      className="mr-3 w-48 overflow-hidden rounded-xl border border-[#efe9e2] bg-white"
+                      activeOpacity={0.9}
+                    >
+                      <Image
+                        source={{ uri: url }}
+                        style={{ width: "100%", height: 100 }}
+                        contentFit="cover"
+                        transition={300}
+                      />
+                      <View className="p-2">
+                        <Text className="text-[10px] font-medium text-[#4a3f35]" numberOfLines={1}>
+                          {s.title}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )))}
+                </ScrollView>
+              </View>
+            )}
+
             {quiz && (
               <TouchableOpacity
                 onPress={() => setShowQuiz(true)}
-                className="mb-8 mt-6 flex-row items-center justify-center gap-2 rounded-xl bg-[#c75146] py-3"
+                accessibilityLabel="Take the quiz"
+                className="mb-8 mt-10 flex-row items-center justify-center gap-2 rounded-xl bg-[#c75146] py-3"
               >
                 <Text className="font-semibold text-white">Take the quiz</Text>
                 <ChevronRight color="white" size={16} />
@@ -131,7 +185,7 @@ export default function LessonScreen() {
           </>
         ) : quizResult ? (
           <View className="items-center py-8">
-            <Text className="mb-2 text-5xl">
+            <Text className="mb-2 text-5xl" accessibilityLabel={quizResult.passed ? "Lesson complete" : "Keep studying"}>
               {quizResult.passed ? "🏆" : "📚"}
             </Text>
             <Text className="mb-1 text-xl font-[family-name:var(--font-fraunces)] font-bold text-[#2d2419]">
@@ -172,6 +226,8 @@ export default function LessonScreen() {
                           onPress={() =>
                             setQuizAnswers((a) => ({ ...a, [q.id]: opt }))
                           }
+                          accessibilityLabel={`Option ${label}: ${opt}`}
+                          accessibilityState={{ selected }}
                           className={`mb-2 rounded-xl border px-4 py-3 ${
                             selected
                               ? "border-[#c75146] bg-[#f0d9d6]"
@@ -201,6 +257,7 @@ export default function LessonScreen() {
                 onPress={() =>
                   submitQuiz.mutate({ lessonId: id, answers: quizAnswers })
                 }
+                accessibilityLabel="Submit quiz"
                 disabled={
                   submitQuiz.isPending ||
                   quiz.questions.some((q) => !quizAnswers[q.id])

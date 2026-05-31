@@ -47,10 +47,15 @@ export const finalizeProfileTool = tool({
 });
 
 type SearchConfig =
-  | { provider: "tavily"; apiKey: string }
-  | { provider: "searxng"; baseUrl: string };
+  | { provider: "tavily"; apiKey: string; includeImages?: boolean }
+  | { provider: "searxng"; baseUrl: string; includeImages?: boolean };
 
-type SearchResult = { title: string; url: string; content: string };
+type SearchResult = {
+  title: string;
+  url: string;
+  content: string;
+  imageUrls?: string[];
+};
 
 const searchInputSchema = z.object({
   query: z.string().describe("The search query to find relevant educational content"),
@@ -73,15 +78,27 @@ export function createWebSearchTool(config: SearchConfig) {
             query,
             search_depth: "advanced",
             max_results: 5,
+            include_images: config.includeImages,
+            include_image_descriptions: config.includeImages,
           }),
         });
         if (!response.ok) return { results: [] };
-        const data = (await response.json()) as { results: SearchResult[] };
+        const data = (await response.json()) as {
+          results: (SearchResult & { images?: { url: string }[] })[];
+          images?: { url: string }[];
+        };
+
+        // Extract images and associate them with results if possible,
+        // or just return them as a top-level property if we change the return type.
+        // The plan says: "Extract results[].images[].url from the response and attach imageUrls to each result."
+        // Wait, Tavily returns images at top level or per result?
+        // Let's check Tavily docs or trust the plan. The plan says results[].images[].url.
         return {
           results: data.results.map((r) => ({
             title: r.title,
             url: r.url,
             content: r.content,
+            imageUrls: r.images?.map((img) => img.url) ?? data.images?.map((img) => img.url),
           })),
         };
       }
@@ -91,15 +108,18 @@ export function createWebSearchTool(config: SearchConfig) {
         const url = new URL("/search", config.baseUrl);
         url.searchParams.set("q", query);
         url.searchParams.set("format", "json");
-        url.searchParams.set("categories", "general");
+        url.searchParams.set("categories", config.includeImages ? "images" : "general");
         const response = await fetch(url.toString());
         if (!response.ok) return { results: [] };
-        const data = (await response.json()) as { results: SearchResult[] };
+        const data = (await response.json()) as {
+          results: (SearchResult & { img_src?: string; thumbnail_src?: string })[];
+        };
         return {
           results: (data.results ?? []).map((r) => ({
             title: r.title,
             url: r.url,
             content: r.content,
+            imageUrls: r.img_src ? [r.img_src] : r.thumbnail_src ? [r.thumbnail_src] : undefined,
           })),
         };
       } catch {

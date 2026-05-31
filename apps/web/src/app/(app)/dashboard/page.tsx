@@ -34,7 +34,7 @@ function DashboardContent() {
   const hasCurricula = curricula && curricula.length > 0;
 
   return (
-    <div className="space-y-8">
+    <main className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -48,6 +48,7 @@ function DashboardContent() {
         <Link
           href="/onboarding"
           className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+          aria-label="Create a new course"
         >
           <Plus className="h-4 w-4" />
           New course
@@ -106,7 +107,7 @@ function DashboardContent() {
           ))}
         </div>
       )}
-    </div>
+    </main>
   );
 }
 
@@ -205,6 +206,7 @@ function CurriculumCard({
       <button
         onClick={handleCancelDelete}
         disabled={isDeleting}
+        aria-label="Cancel delete"
         className="flex-1 rounded-lg border border-gray-200 py-1.5 text-xs font-medium text-gray-500 hover:border-gray-300 transition-colors disabled:opacity-50"
       >
         Cancel
@@ -212,6 +214,7 @@ function CurriculumCard({
       <button
         onClick={handleConfirmDelete}
         disabled={isDeleting}
+        aria-label={isDeleting ? "Deleting curriculum" : "Confirm delete"}
         className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-red-200 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
       >
         {isDeleting && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -226,17 +229,17 @@ function CurriculumCard({
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100">
           <BookOpen className="h-5 w-5 text-violet-600" />
         </div>
-        {isGenerating && (
-          <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Generating
-          </span>
-        )}
-        {isFailed && (
-          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
-            Generation failed
-          </span>
-        )}
+          {isGenerating && (
+            <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Generating
+            </span>
+          )}
+          {isFailed && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
+              Generation failed
+            </span>
+          )}
         {!isGenerating && !isFailed && progressPct === 100 && (
           <Trophy className="h-4 w-4 text-amber-500" />
         )}
@@ -249,15 +252,15 @@ function CurriculumCard({
         {curriculum.description}
       </p>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>
-            {completedLessons}/{totalLessons} lessons
-          </span>
-          <span>{progressPct}%</span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span>
+              {completedLessons}/{totalLessons} lessons
+            </span>
+            <span>{progressPct}%</span>
+          </div>
+          <Progress value={progressPct} aria-label={`${progressPct}% complete`} role="progressbar" />
         </div>
-        <Progress value={progressPct} />
-      </div>
 
       {/* Failed: Delete + Try again (try again still auto-generates) */}
       {isFailed && (
@@ -267,6 +270,7 @@ function CurriculumCard({
               <button
                 onClick={handleDeleteClick}
                 disabled={isMutating}
+                aria-label="Delete course"
                 className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-gray-200 py-1.5 text-xs font-medium text-gray-500 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-50"
               >
                 <Trash2 className="h-3 w-3" />
@@ -275,6 +279,7 @@ function CurriculumCard({
               <button
                 onClick={handleRetry}
                 disabled={isMutating}
+                aria-label="Retry course generation"
                 className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-violet-600 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition-colors disabled:opacity-50"
               >
                 {isRetrying && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -304,6 +309,7 @@ function CurriculumCard({
               <button
                 onClick={handleDeleteClick}
                 disabled={isMutating}
+                aria-label="Delete course"
                 className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-50"
               >
                 <Trash2 className="h-3 w-3" />
@@ -315,6 +321,7 @@ function CurriculumCard({
                 <button
                   onClick={handleDeleteClick}
                   disabled={isMutating}
+                  aria-label="Delete course"
                   className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-50"
                 >
                   <Trash2 className="h-3 w-3" />
@@ -323,6 +330,7 @@ function CurriculumCard({
                 <button
                   onClick={handleRedo}
                   disabled={isMutating}
+                  aria-label="Redo course generation"
                   className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-violet-200 hover:text-violet-600 transition-colors disabled:opacity-50"
                 >
                   {isRedoing ? (
@@ -342,19 +350,39 @@ function CurriculumCard({
 
   if (isFailed) {
     return (
-      <div className="group block rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
+      <div
+        role="link"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            router.push(`/curriculum/${curriculum.id}`);
+          }
+        }}
+        aria-label={`Open ${curriculum.title}`}
+        className="group block cursor-pointer rounded-2xl border border-red-100 bg-white p-5 shadow-sm"
+      >
         {cardContent}
       </div>
     );
   }
 
   return (
-    <Link
-      href={`/curriculum/${curriculum.id}`}
-      className="group block rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-violet-200 hover:shadow-md"
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(`/curriculum/${curriculum.id}`)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          router.push(`/curriculum/${curriculum.id}`);
+        }
+      }}
+      aria-label={`Open ${curriculum.title}`}
+      className="group block cursor-pointer rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-violet-200 hover:shadow-md"
     >
       {cardContent}
-    </Link>
+    </div>
   );
 }
 
