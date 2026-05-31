@@ -1,6 +1,15 @@
 # BiteBase
 
-An interactive micro-learning tutor that swaps doomscrolling for bite-sized growth. Tell it what to learn, and it builds a playful, quiz-filled curriculum tailored just for you. Level up your brain!
+An interactive micro-learning tutor that swaps doomscrolling for bite-sized growth. Tell it what to learn, and it builds a playful, quiz-filled curriculum tailored just for you.
+
+<p align="center">
+  <img src="screenshots/landing.jpg" width="75%" alt="BiteBase landing page — hero section with tagline and call-to-action" />
+</p>
+
+<p align="center">
+  <img src="screenshots/explore.png" width="49%" alt="Community curriculum library — browse and discover lessons created by others" />
+  <img src="screenshots/onboarding.png" width="49%" alt="Onboarding chat — tell BiteBase what you'd like to learn" />
+</p>
 
 ## Stack
 
