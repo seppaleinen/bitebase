@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { headers, cookies } from "next/headers";
 import { auth } from "@bitebase/api";
 import AppNav from "@/components/app-nav";
@@ -38,13 +37,10 @@ export default async function AppLayout({
   } catch (err) {
     console.error("[layout] session check failed:", err instanceof Error ? err.message : err);
   }
-  if (!session?.user) {
-    redirect("/login");
-  }
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AppNav user={session.user} />
+      <AppNav user={session?.user ?? null} />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
     </div>
   );

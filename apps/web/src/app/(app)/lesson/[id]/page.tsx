@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   Clock,
@@ -131,39 +132,56 @@ function ReadingProgress() {
   );
 }
 
+function useUser() {
+  const { data, isLoading } = trpcReact.public.getSession.useQuery();
+  return { user: data ?? null, isLoading };
+}
+
 export default function LessonPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
+  const { user } = useUser();
   const utils = trpcReact.useUtils();
   const [showQuiz, setShowQuiz] = useState(false);
 
-  const { data, isLoading, isError } = trpcReact.curriculum.getLesson.useQuery({
-    lessonId: id,
-  });
+  const { data, isLoading, isError } =
+    trpcReact.public.getPublishedLesson.useQuery({
+      lessonId: id,
+    });
 
-  const { data: curriculum } = trpcReact.curriculum.get.useQuery(
+  const { data: curriculum } = trpcReact.public.getPublishedCurriculum.useQuery(
     { id: data?.lesson.curriculumId ?? "" },
     { enabled: !!data?.lesson.curriculumId }
   );
+
+  const { data: userProgress } =
+    trpcReact.curriculum.getLessonProgress.useQuery(
+      { lessonId: id },
+      { enabled: !!user }
+    );
 
   const markStarted = trpcReact.curriculum.markLessonStarted.useMutation();
 
   const completeNoQuiz = trpcReact.curriculum.markLessonCompleted.useMutation({
     onSuccess: () => {
-      void utils.curriculum.getLesson.invalidate({ lessonId: id });
+      void utils.curriculum.getLessonProgress.invalidate({ lessonId: id });
       void utils.curriculum.getNextLesson.invalidate({ lessonId: id });
     },
   });
 
-  const { data: nextLesson } = trpcReact.curriculum.getNextLesson.useQuery({ lessonId: id });
+  const { data: nextLesson } = trpcReact.curriculum.getNextLesson.useQuery(
+    { lessonId: id },
+    { enabled: !!user }
+  );
 
   const lessonId = data?.lesson?.id;
-  const progressStatus = data?.progress?.status;
+  const progressStatus = userProgress?.status;
   useEffect(() => {
-    if (lessonId && progressStatus === "available") {
+    if (lessonId && progressStatus === "available" && markStarted.isIdle) {
       markStarted.mutate({ lessonId: id });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,11 +199,11 @@ export default function LessonPage({
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <Link
-          href="/dashboard"
+          href="/explore"
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
           <ChevronLeft className="h-4 w-4" />
-          Back to dashboard
+          Back to explore
         </Link>
         <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm">
           <p className="text-sm text-gray-500">This lesson could not be loaded.</p>
@@ -194,9 +212,13 @@ export default function LessonPage({
     );
   }
 
-  const { lesson, quiz, progress } = data;
-  const isCompleted = progress?.status === "completed";
+  const { lesson, quiz } = data;
+  const isCompleted = userProgress?.status === "completed";
   const hasQuizQuestions = (quiz?.questions?.length ?? 0) > 0;
+
+  function handleSignInToQuiz() {
+    router.push(`/login?redirect=/lesson/${id}`);
+  }
 
   return (
     <main className="mx-auto max-w-3xl space-y-6">
@@ -300,8 +322,8 @@ export default function LessonPage({
         </div>
       )}
 
-      {/* No-quiz completion flow — shown when quiz is missing or has no questions */}
-      {!hasQuizQuestions && (
+      {/* No-quiz completion flow — only for authenticated users */}
+      {!hasQuizQuestions && user && (
         <div className="content-fade-in-delayed rounded-2xl border border-[#efe9e2] bg-[var(--color-card)] p-6 shadow-sm" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
           {isCompleted ? (
             <div className="flex items-center justify-between gap-4">
@@ -341,6 +363,22 @@ export default function LessonPage({
         </div>
       )}
 
+      {/* Sign-in prompt for anonymous users with no-quiz lessons */}
+      {!hasQuizQuestions && !user && (
+        <div className="content-fade-in-delayed rounded-2xl border border-[#efe9e2] bg-[var(--color-card)] p-6 text-center shadow-sm" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+          <p className="mb-4 text-sm text-[var(--color-text-muted)] font-[family-name:var(--font-literata)]">
+            Sign in to track your progress across lessons.
+          </p>
+          <Link
+            href={`/login?redirect=/lesson/${id}`}
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+          >
+            Sign in to continue
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
+
       {/* Quiz section */}
       {quiz && quiz.questions.length > 0 && (
         <div className="content-fade-in-delayed rounded-2xl border border-[#efe9e2] bg-[var(--color-card)] shadow-sm" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
@@ -356,7 +394,7 @@ export default function LessonPage({
               {isCompleted ? (
                 <div className="flex flex-col items-center gap-3">
                   <p className="text-sm font-medium text-[var(--color-secondary)]">
-                    You passed this quiz with {progress?.quizScore}%!
+                    You passed this quiz with {userProgress?.quizScore}%!
                   </p>
                   <button
                     onClick={() => setShowQuiz(true)}
@@ -365,12 +403,20 @@ export default function LessonPage({
                     Retake quiz
                   </button>
                 </div>
-              ) : (
+              ) : user ? (
                 <button
                   onClick={() => setShowQuiz(true)}
                   className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
                 >
                   Take the quiz
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSignInToQuiz}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                >
+                  Sign in to take quiz
                   <ChevronRight className="h-4 w-4" />
                 </button>
               )}
@@ -383,7 +429,8 @@ export default function LessonPage({
               curriculumId={lesson.curriculumId}
               curriculumTitle={curriculum?.title}
               onComplete={() => {
-                utils.curriculum.getLesson.invalidate({ lessonId: id });
+                utils.curriculum.getLessonProgress.invalidate({ lessonId: id });
+                utils.curriculum.getNextLesson.invalidate({ lessonId: id });
               }}
             />
           )}

@@ -643,14 +643,34 @@ function OnboardingChat() {
 // ?? Page root ?????????????????????????????????????????????????????????????????
 
 export default function OnboardingPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const promptParam = searchParams.get("prompt");
 
   const autoGenerate = searchParams.get("autoGenerate") === "1";
   const refine = searchParams.get("refine") === "1";
 
-  // Skip the gate if a prompt, autoGenerate, or refine flag is present.
+  // useState must be called unconditionally — before any early return
   const [showChat, setShowChat] = useState(!!promptParam || autoGenerate || refine);
+
+  const { data: session, isLoading: sessionLoading } =
+    trpcReact.public.getSession.useQuery();
+
+  useEffect(() => {
+    if (!sessionLoading && !session) {
+      router.push("/login");
+    }
+  }, [session, sessionLoading, router]);
+
+  if (sessionLoading) {
+    return (
+      <main className="flex h-screen items-center justify-center bg-gradient-to-br from-violet-50 via-white to-indigo-50">
+        <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+      </main>
+    );
+  }
+
+  if (!session) return null;
 
   // GateOrChat fetches curricula and short-circuits to the chat when there are
   // no active curricula, so first-time users see the chat immediately.

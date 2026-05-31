@@ -9,7 +9,7 @@ import {
   quizzes,
   progress,
 } from "@bitebase/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { randomUUID } from "crypto";
 
@@ -301,16 +301,52 @@ export const curriculumRouter = router({
       const [curriculum] = await db
         .select()
         .from(curricula)
-        .where(
-          and(
-            eq(curricula.id, input.id),
-            eq(curricula.userId, ctx.session.user.id)
-          )
-        );
+        .where(eq(curricula.id, input.id));
       if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
+      if (curriculum.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
 
       // Deleting the curriculum cascades to lessons → quizzes and progress via FK.
       await db.delete(curricula).where(eq(curricula.id, input.id));
+    }),
+
+  /** Get the current user's progress across all lessons in a curriculum. */
+  getProgressForCurriculum: protectedProcedure
+    .input(z.object({ curriculumId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const curriculumLessons = await db
+        .select({ id: lessons.id })
+        .from(lessons)
+        .where(eq(lessons.curriculumId, input.curriculumId));
+      const lessonIds = curriculumLessons.map((l) => l.id);
+      if (lessonIds.length === 0) return [];
+
+      return db
+        .select()
+        .from(progress)
+        .where(
+          and(
+            inArray(progress.lessonId, lessonIds),
+            eq(progress.userId, ctx.session.user.id)
+          )
+        );
+    }),
+
+  /** Get the current user's progress for a single lesson. */
+  getLessonProgress: protectedProcedure
+    .input(z.object({ lessonId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const [userProgress] = await db
+        .select()
+        .from(progress)
+        .where(
+          and(
+            eq(progress.lessonId, input.lessonId),
+            eq(progress.userId, ctx.session.user.id)
+          )
+        );
+      return userProgress ?? null;
     }),
 
   getProfile: protectedProcedure
@@ -319,13 +355,11 @@ export const curriculumRouter = router({
       const [curriculum] = await db
         .select()
         .from(curricula)
-        .where(
-          and(
-            eq(curricula.id, input.curriculumId),
-            eq(curricula.userId, ctx.session.user.id)
-          )
-        );
+        .where(eq(curricula.id, input.curriculumId));
       if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
+      if (curriculum.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
 
       const [profile] = await db
         .select()
@@ -344,13 +378,11 @@ export const curriculumRouter = router({
       const [curriculum] = await db
         .select()
         .from(curricula)
-        .where(
-          and(
-            eq(curricula.id, input.id),
-            eq(curricula.userId, ctx.session.user.id)
-          )
-        );
+        .where(eq(curricula.id, input.id));
       if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
+      if (curriculum.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
 
       const [profile] = await db
         .select()

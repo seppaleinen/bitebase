@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,12 +18,23 @@ import { trpcReact } from "@/lib/trpc/provider";
 import { Progress } from "@bitebase/ui/web";
 
 function DashboardContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const newCurriculumId = searchParams.get("new");
 
-  const { data: curricula, isLoading } = trpcReact.curriculum.list.useQuery();
+  const { data: session, isLoading: sessionLoading } =
+    trpcReact.public.getSession.useQuery();
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!sessionLoading && !session) {
+      router.push("/login");
+    }
+  }, [session, sessionLoading, router]);
+
+  const { data: curricula, isLoading: curriculaLoading } =
+    trpcReact.curriculum.list.useQuery(undefined, { enabled: !!session });
+
+  if (sessionLoading || curriculaLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-violet-400" />

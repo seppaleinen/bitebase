@@ -16,16 +16,29 @@ import { trpcReact } from "@/lib/trpc/provider";
 import { Progress, Badge } from "@bitebase/ui/web";
 import type { CurriculumSection } from "@bitebase/db";
 
+function useUser() {
+  const { data, isLoading } = trpcReact.public.getSession.useQuery();
+  return { user: data ?? null, isLoading };
+}
+
 export default function CurriculumPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const { user } = useUser();
+
   const { data: curriculum, isLoading: loadingCurriculum } =
-    trpcReact.curriculum.get.useQuery({ id });
+    trpcReact.public.getPublishedCurriculum.useQuery({ id });
   const { data: lessonsData, isLoading: loadingLessons } =
-    trpcReact.curriculum.getLessons.useQuery({ curriculumId: id });
+    trpcReact.public.getPublishedLessons.useQuery({ curriculumId: id });
+
+  const { data: progressList } =
+    trpcReact.curriculum.getProgressForCurriculum.useQuery(
+      { curriculumId: id },
+      { enabled: !!user }
+    );
 
   if (loadingCurriculum || loadingLessons) {
     return (
@@ -39,27 +52,25 @@ export default function CurriculumPage({
 
   const sections = curriculum.sections as CurriculumSection[];
   const totalLessons = lessonsData.length;
+  const progressMap = new Map(
+    (progressList ?? []).map((p) => [p.lessonId, p])
+  );
   const completedLessons = lessonsData.filter(
-    (l) => l.progress?.status === "completed"
+    (l) => progressMap.get(l.id)?.status === "completed"
   ).length;
   const progressPct =
     totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
-
-  const lessonsBySectionAndSubsection = new Map(
-    lessonsData.map((l) => [`${l.sectionId}:${l.subsectionId ?? ""}`, l])
-  );
-  const lessonBySection = new Map(lessonsData.map((l) => [l.sectionId + (l.subsectionId ?? ""), l]));
 
   return (
     <main className="space-y-8">
       {/* Back + header */}
       <div>
         <Link
-          href="/dashboard"
+          href={user ? "/dashboard" : "/explore"}
           className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
           <ChevronLeft className="h-4 w-4" />
-          Dashboard
+          {user ? "Dashboard" : "Explore"}
         </Link>
 
         <div className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 p-6 text-white">
@@ -70,19 +81,25 @@ export default function CurriculumPage({
           <h1 className="mb-2 text-2xl font-bold">{curriculum.title}</h1>
           <p className="mb-4 text-sm opacity-80">{curriculum.description}</p>
 
-          <div className="flex items-center gap-6">
-            <div className="text-sm">
-              <span className="font-semibold">{completedLessons}</span>
-              <span className="opacity-70">/{totalLessons} lessons done</span>
+          {user ? (
+            <div className="flex items-center gap-6">
+              <div className="text-sm">
+                <span className="font-semibold">{completedLessons}</span>
+                <span className="opacity-70">/{totalLessons} lessons done</span>
+              </div>
+              <div className="flex-1">
+                <Progress
+                  value={progressPct}
+                  className="h-1.5 bg-white/30"
+                />
+              </div>
+              <span className="text-sm font-semibold">{progressPct}%</span>
             </div>
-            <div className="flex-1">
-              <Progress
-                value={progressPct}
-                className="h-1.5 bg-white/30"
-              />
+          ) : (
+            <div className="text-sm opacity-70">
+              {totalLessons} lessons — sign in to track progress
             </div>
-            <span className="text-sm font-semibold">{progressPct}%</span>
-          </div>
+          )}
         </div>
       </div>
 
@@ -93,7 +110,7 @@ export default function CurriculumPage({
             (l) => l.sectionId === section.id
           );
           const sectionCompleted = sectionLessons.filter(
-            (l) => l.progress?.status === "completed"
+            (l) => progressMap.get(l.id)?.status === "completed"
           ).length;
 
           return (
@@ -127,15 +144,24 @@ export default function CurriculumPage({
 
               <div className="divide-y divide-gray-50">
                 {section.subsections.map((sub) => {
-                  const lesson = lessonsBySectionAndSubsection.get(
-                    `${section.id}:${sub.id}`
-                  ) ?? lessonBySection.get(section.id + sub.id);
-                  const lessonStatus = lesson?.progress?.status ?? "locked";
+                  const lesson = lessonsData.find(
+                    (l) =>
+                      l.sectionId === section.id &&
+                      (l.subsectionId === sub.id || !l.subsectionId)
+                  );
+                  const lessonProgress = lesson
+                    ? progressMap.get(lesson.id)
+                    : undefined;
+                  const lessonStatus =
+                    lessonProgress?.status ?? (user ? "locked" : "available");
                   const isLocked = lessonStatus === "locked" || !lesson;
                   const isCompleted = lessonStatus === "completed";
 
                   return (
-                    <div key={sub.id} className="flex items-center gap-4 px-5 py-4">
+                    <div
+                      key={sub.id}
+                      className="flex items-center gap-4 px-5 py-4"
+                    >
                       <div className="shrink-0">
                         {isCompleted ? (
                           <CheckCircle className="h-5 w-5 text-emerald-500" />
@@ -159,12 +185,18 @@ export default function CurriculumPage({
                       </div>
                       <div className="flex items-center gap-2">
                         {isCompleted && (
-                          <Badge variant="success" className="text-xs font-bold">
+                          <Badge
+                            variant="success"
+                            className="text-xs font-bold"
+                          >
                             Done
                           </Badge>
                         )}
                         {lessonStatus === "in_progress" && (
-                          <Badge variant="secondary" className="text-xs font-bold">
+                          <Badge
+                            variant="secondary"
+                            className="text-xs font-bold"
+                          >
                             In progress
                           </Badge>
                         )}
@@ -174,6 +206,15 @@ export default function CurriculumPage({
                             className="flex items-center gap-1 rounded-lg bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100"
                           >
                             {isCompleted ? "Review" : "Start"}
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </Link>
+                        )}
+                        {lesson && !user && (
+                          <Link
+                            href={`/lesson/${lesson.id}`}
+                            className="flex items-center gap-1 rounded-lg bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100"
+                          >
+                            Read
                             <ChevronRight className="h-3.5 w-3.5" />
                           </Link>
                         )}

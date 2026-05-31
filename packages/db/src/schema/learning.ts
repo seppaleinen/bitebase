@@ -61,6 +61,7 @@ export const curricula = pgTable("curricula", {
   totalEstimatedMinutes: integer("total_estimated_minutes").notNull(),
   sections: jsonb("sections").$type<CurriculumSection[]>().notNull(),
   generationStatus: text("generation_status").notNull().default("pending"),
+  isPublished: boolean("is_published").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
