@@ -15,13 +15,20 @@ import {
   BookOpen,
   Search,
   CheckCircle,
+  Bookmark,
 } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { trpcReact } from "@/lib/trpc/provider";
 import { Badge } from "@bitebase/ui/web";
 import QuizSection from "@/components/quiz-section";
+import { LessonImage } from "@/components/lesson-image";
+import {
+  SectionNavigator,
+  parseSections,
+} from "@/components/lesson-section-nav";
 import { extractSummary, summaryBody } from "@/lib/extract-summary";
+import { extractKeyTerms } from "@/lib/extract-terms";
 
 /* ── Callout type detection ───────────────────────────────────────── */
 
@@ -81,30 +88,22 @@ const markdownComponents: Components = {
       </blockquote>
     );
   },
+  h2({ children, ...rest }) {
+    // Build a slug from heading text for anchor linking
+    const text = extractText(children);
+    const slug = text
+      .toLowerCase()
+      .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || undefined;
+    return <h2 id={slug} {...rest}>{children}</h2>;
+  },
   hr() {
     return <hr />;
   },
   img({ src, alt }) {
-    if (!src) return null;
-    return (
-      <span className="block my-6 overflow-hidden rounded-xl border border-[#efe9e2] shadow-sm">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt=""
-          className="w-full h-auto object-cover"
-          loading="lazy"
-          onError={(e) => {
-            (e.target as HTMLImageElement).parentElement?.classList.add("hidden");
-          }}
-        />
-        {alt && (
-          <span className="block bg-[#fcfaf8] px-4 py-2 text-[11px] font-medium text-[var(--color-text-muted)] italic border-t border-[#efe9e2]">
-            {alt}
-          </span>
-        )}
-      </span>
-    );
+    return <LessonImage src={src} alt={alt} />;
   },
 };
 
@@ -235,6 +234,10 @@ export default function LessonPage({
         .trim()
     : lesson.content;
 
+  // Parse sections for navigator, extract key terms
+  const sections = parseSections(mainContent);
+  const keyTerms = extractKeyTerms(mainContent);
+
   function handleSignInToQuiz() {
     router.push(`/login?redirect=/lesson/${id}`);
   }
@@ -270,6 +273,9 @@ export default function LessonPage({
           </p>
         </div>
       )}
+
+      {/* Section navigator */}
+      {!showQuiz && <SectionNavigator sections={sections} />}
 
       {/* Lesson content — hidden while quiz is active to avoid selector collisions */}
       {!showQuiz && (
@@ -372,6 +378,26 @@ export default function LessonPage({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Key Terms card */}
+      {!showQuiz && keyTerms.length > 0 && (
+        <div className="content-fade-in-delayed rounded-2xl border border-[#efe9e2] bg-[var(--color-card)] p-5 shadow-sm" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+          <h3 className="mb-3 flex items-center gap-2 font-[family-name:var(--font-fraunces)] text-sm font-semibold text-[var(--color-text-primary)]">
+            <Bookmark className="h-3.5 w-3.5 text-[var(--color-accent)]" />
+            Key Terms
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {keyTerms.map((term) => (
+              <code
+                key={term}
+                className="rounded-md bg-[#f2ede8] px-2 py-0.5 text-xs font-medium text-[var(--color-text-primary)]"
+              >
+                {term}
+              </code>
+            ))}
+          </div>
         </div>
       )}
 
