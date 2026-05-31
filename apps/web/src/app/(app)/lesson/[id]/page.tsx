@@ -263,40 +263,53 @@ export default function LessonPage({
         </div>
       )}
 
-      {/* Visual References */}
-      {!showQuiz && lesson.sources && lesson.sources.some(s => s.imageUrls && s.imageUrls.length > 0) && (
-        <div className="content-fade-in-delayed rounded-2xl border border-[#efe9e2] bg-[var(--color-card)] p-5 shadow-sm" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-          <h3 className="mb-4 font-[family-name:var(--font-fraunces)] text-sm font-semibold text-[var(--color-text-primary)]">
-            Visual References
-          </h3>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {lesson.sources.flatMap((s, si) => (s.imageUrls || []).map((url, ii) => (
-              <a 
-                key={`${si}-${ii}`} 
-                href={url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="group relative aspect-video overflow-hidden rounded-lg border border-[#efe9e2]"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src={url} 
-                  alt={s.title} 
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="lazy"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).closest("a")?.remove();
-                  }}
-                />
-                <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
-                  <p className="truncate text-[10px] font-medium text-white">{s.title}</p>
-                </div>
-              </a>
-            )))}
+      {/* Visual References — deduplicated by URL */}
+      {!showQuiz && (() => {
+        const seenUrls = new Set<string>();
+        const images = (lesson.sources || []).flatMap(s =>
+          (s.imageUrls || [])
+            .filter(url => {
+              if (seenUrls.has(url)) return false;
+              seenUrls.add(url);
+              return true;
+            })
+            .map(url => ({ url, title: s.title }))
+        );
+        if (images.length === 0) return null;
+        return (
+          <div className="content-fade-in-delayed rounded-2xl border border-[#efe9e2] bg-[var(--color-card)] p-5 shadow-sm" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+            <h3 className="mb-4 font-[family-name:var(--font-fraunces)] text-sm font-semibold text-[var(--color-text-primary)]">
+              Visual References
+            </h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {images.map(({ url, title }) => (
+                <a 
+                  key={url} 
+                  href={url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="group relative aspect-video overflow-hidden rounded-lg border border-[#efe9e2]"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={url} 
+                    alt={title} 
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).closest("a")?.remove();
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                    <p className="truncate text-[10px] font-medium text-white">{title}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Sources */}
       {!showQuiz && lesson.sources && lesson.sources.length > 0 && (

@@ -11,6 +11,7 @@ import {
   learningProfileSchema,
   createWebSearchTool,
   parseLessonResponse,
+  injectImagesIntoLesson,
   type CurriculumPlan,
 } from "@bitebase/ai";
 import { auth } from "@bitebase/api";
@@ -362,10 +363,23 @@ export async function POST(req: Request) {
                 if (Array.isArray(results)) {
                   for (const r of results) {
                     if (Array.isArray(r.imageUrls)) {
-                      searchImageUrls.push(...r.imageUrls);
+                      for (const url of r.imageUrls) {
+                        // Avoid duplicate URLs
+                        if (!searchImageUrls.includes(url)) {
+                          searchImageUrls.push(url);
+                        }
+                      }
                     }
                   }
                 }
+              }
+
+              // Append image URLs to search context so the AI can see and use them
+              if (searchImageUrls.length > 0) {
+                searchContext += `\n\n---\nThe following relevant images are available. Include them in the lesson using standard markdown image syntax: ![description](url)\n`;
+                searchImageUrls.slice(0, 8).forEach((url, i) => {
+                  searchContext += `\n${i + 1}. ![Illustration ${i + 1}](${url})`;
+                });
               }
             } catch (err) {
               console.error(`[generate] search failed for "${meta.subsection.title}":`, err);
@@ -412,6 +426,15 @@ export async function POST(req: Request) {
               sources: [],
               quiz: { questions: [], passingScore: 70 },
             };
+          }
+
+          // Post-process: inject search images inline if the AI didn't include any
+          if (searchImageUrls.length > 0 && lessonData) {
+            const beforeContent = lessonData.content;
+            lessonData = injectImagesIntoLesson(lessonData, searchImageUrls, 4);
+            if (lessonData.content !== beforeContent) {
+              console.log(`[generate] injected ${(lessonData.content.match(/!\[.*?\]\(.*?\)/g) || []).length} image(s) into "${meta.subsection.title}"`);
+            }
           }
 
           // Attach search images to sources if the model didn't provide any or as additional context
