@@ -90,18 +90,38 @@ type TRPCMockData = {
   progress?: object | null;
   quizResult?: object | null;
   nextLesson?: object | null;
+  user?: object | null;
 };
 
 function resolveData(procedurePath: string, data: TRPCMockData): unknown {
-  const { curricula = [], lessons = [], lesson = null, quiz = null, progress = null, quizResult = null, nextLesson = null } = data;
+  const { curricula = [], lessons = [], lesson = null, quiz = null, progress = null, quizResult = null, nextLesson = null, user = null } = data;
+
+  // Auth / session
+  if (procedurePath === "public.getSession") {
+    // Use explicit user from test data, or default to the E2E test user
+    return user ?? { id: "playwright-test-user", name: "Test User", email: "test@playwright.dev", image: null };
+  }
+  if (procedurePath === "curriculum.getProfile") return null;
+
+  // Public browse
+  if (procedurePath === "public.listPublished") return curricula;
+  if (procedurePath === "public.getPublishedCurriculum") return curricula[0] ?? null;
+  if (procedurePath === "public.getPublishedLessons") return lessons;
+  if (procedurePath === "public.getPublishedLesson") return { lesson, quiz };
+
+  // Curriculum owner-only
   if (procedurePath === "curriculum.list") return curricula;
   if (procedurePath === "curriculum.get") return curricula[0] ?? null;
   if (procedurePath === "curriculum.getLessons") return lessons;
   if (procedurePath === "curriculum.getLesson") return { lesson, quiz, progress };
   if (procedurePath === "curriculum.submitQuiz") return quizResult;
   if (procedurePath === "curriculum.markLessonStarted") return null;
-  if (procedurePath === "curriculum.getProfile") return null;
   if (procedurePath === "curriculum.getNextLesson") return nextLesson ?? null;
+
+  // Progress procedures
+  if (procedurePath === "curriculum.getProgressForCurriculum") return progress ? [progress] : [];
+  if (procedurePath === "curriculum.getLessonProgress") return progress ?? null;
+
   return null;
 }
 
