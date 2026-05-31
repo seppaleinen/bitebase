@@ -1,5 +1,9 @@
 import { Tabs } from "expo-router";
-import { LayoutDashboard, BookOpen } from "lucide-react-native";
+import {
+  LayoutDashboard,
+  BookOpen,
+  Compass,
+} from "lucide-react-native";
 
 export default function AppTabsLayout() {
   return (
@@ -14,6 +18,15 @@ export default function AppTabsLayout() {
         },
       }}
     >
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: "Explore",
+          tabBarIcon: ({ color, size }) => (
+            <Compass color={color} size={size} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="dashboard"
         options={{

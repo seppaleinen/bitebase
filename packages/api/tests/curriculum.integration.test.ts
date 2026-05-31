@@ -124,6 +124,7 @@ const mockCurriculum = {
   totalEstimatedMinutes: 60,
   sections: [],
   generationStatus: "complete",
+  isPublished: true,
   createdAt: new Date(),
 };
 
@@ -143,6 +144,20 @@ const mockProfile = {
 };
 
 // ── Context helpers ───────────────────────────────────────────────────────────
+
+/** Returns a mock select chain where each call to .where() returns the next
+ *  array from `responses`. Used by tests that need sequential DB queries. */
+function makeSelectSequence(responses: unknown[][]) {
+  let call = 0;
+  return () => ({
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockImplementation(() => {
+      const result = responses[call] ?? [];
+      call++;
+      return Promise.resolve(result);
+    }),
+  });
+}
 
 function authedCtx() {
   return {
@@ -243,19 +258,6 @@ describe("curriculum.get", () => {
 
 describe("curriculum.submitQuiz", () => {
   beforeEach(() => vi.clearAllMocks());
-
-  // Each test configures its own mockDb.select sequence
-  function makeSelectSequence(responses: unknown[][]) {
-    let call = 0;
-    return () => ({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockImplementation(() => {
-        const result = responses[call] ?? [];
-        call++;
-        return Promise.resolve(result);
-      }),
-    });
-  }
 
   function makeWrite() {
     const chain = {
@@ -382,18 +384,6 @@ describe("curriculum.submitQuiz", () => {
 describe("curriculum.retryAndGetProfile", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  function makeSelectSequence(responses: unknown[][]) {
-    let call = 0;
-    return () => ({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockImplementation(() => {
-        const result = responses[call] ?? [];
-        call++;
-        return Promise.resolve(result);
-      }),
-    });
-  }
-
   function makeDelete() {
     return { where: vi.fn().mockResolvedValue(undefined) };
   }
@@ -448,18 +438,6 @@ describe("curriculum.retryAndGetProfile", () => {
 
 describe("curriculum.markLessonCompleted", () => {
   beforeEach(() => vi.clearAllMocks());
-
-  function makeSelectSequence(responses: unknown[][]) {
-    let call = 0;
-    return () => ({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockImplementation(() => {
-        const result = responses[call] ?? [];
-        call++;
-        return Promise.resolve(result);
-      }),
-    });
-  }
 
   function makeWrite() {
     return {
@@ -553,5 +531,140 @@ describe("curriculum.markLessonCompleted", () => {
     await expect(
       caller.curriculum.markLessonCompleted({ lessonId: "ghost-lesson" })
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+// ── publicRouter tests ────────────────────────────────────────────────────────
+
+describe("publicRouter", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("listPublished returns all published curricula ordered by newest", async () => {
+    const curricula = [
+      { ...mockCurriculum, id: "c1", createdAt: new Date("2026-05-30") },
+      { ...mockCurriculum, id: "c2", createdAt: new Date("2026-05-29") },
+    ];
+    // listPublished uses: select().from().where().orderBy()
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockResolvedValue(curricula),
+    });
+
+    const caller = appRouter.createCaller(anonCtx() as never);
+    const result = await caller.public.listPublished();
+    expect(result).toEqual(curricula);
+  });
+
+  it("getPublishedLesson returns lesson + quiz for a published curriculum", async () => {
+    const lesson = { ...mockLesson, id: "pub-lesson", curriculumId: MOCK_CURRICULUM_ID };
+    const curriculum = { ...mockCurriculum, id: MOCK_CURRICULUM_ID, isPublished: true };
+    const quiz = { ...mockQuiz, lessonId: "pub-lesson" };
+
+    mockDb.select.mockImplementation(makeSelectSequence([
+      [lesson],     // lessons lookup → found
+      [curriculum], // curriculum lookup → published
+      [quiz],       // quiz lookup → found
+    ]));
+
+    const caller = appRouter.createCaller(anonCtx() as never);
+    const result = await caller.public.getPublishedLesson({ lessonId: "pub-lesson" });
+    expect(result.lesson).toEqual(lesson);
+    expect(result.quiz).toEqual(quiz);
+  });
+
+  it("getPublishedLesson returns quiz null when no quiz exists", async () => {
+    const lesson = { ...mockLesson, id: "pub-lesson", curriculumId: MOCK_CURRICULUM_ID };
+    const curriculum = { ...mockCurriculum, id: MOCK_CURRICULUM_ID, isPublished: true };
+
+    mockDb.select.mockImplementation(makeSelectSequence([
+      [lesson],     // lessons lookup → found
+      [curriculum], // curriculum lookup → published
+      [],           // quiz lookup → not found
+    ]));
+
+    const caller = appRouter.createCaller(anonCtx() as never);
+    const result = await caller.public.getPublishedLesson({ lessonId: "pub-lesson" });
+    expect(result.lesson).toEqual(lesson);
+    expect(result.quiz).toBeNull();
+  });
+
+  it("getPublishedLesson throws NOT_FOUND when the parent curriculum is unpublished", async () => {
+    const lesson = { ...mockLesson, id: "unpub-lesson", curriculumId: MOCK_CURRICULUM_ID };
+    const curriculum = { ...mockCurriculum, id: MOCK_CURRICULUM_ID, isPublished: false };
+
+    mockDb.select.mockImplementation(makeSelectSequence([
+      [lesson],     // lessons lookup → found
+      [curriculum], // curriculum lookup → unpublished
+    ]));
+
+    const caller = appRouter.createCaller(anonCtx() as never);
+    await expect(
+      caller.public.getPublishedLesson({ lessonId: "unpub-lesson" })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("getPublishedLesson throws NOT_FOUND when the lesson does not exist", async () => {
+    mockDb.select.mockImplementation(makeSelectSequence([[]]));
+
+    const caller = appRouter.createCaller(anonCtx() as never);
+    await expect(
+      caller.public.getPublishedLesson({ lessonId: "ghost" })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+// ── Ownership guard: FORBIDDEN ───────────────────────────────────────────────
+
+describe("ownership guard", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("delete throws FORBIDDEN when curriculum exists but belongs to another user", async () => {
+    // Curriculum found but belongs to MOCK_USER_ID; caller is OTHER_USER_ID
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([mockCurriculum]),
+    });
+
+    const caller = appRouter.createCaller({
+      session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+      req: {} as Request,
+    } as never);
+
+    await expect(
+      caller.curriculum.delete({ id: MOCK_CURRICULUM_ID })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("delete throws NOT_FOUND when curriculum does not exist at all", async () => {
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([]),
+    });
+
+    const caller = appRouter.createCaller({
+      session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+      req: {} as Request,
+    } as never);
+
+    await expect(
+      caller.curriculum.delete({ id: "ghost" })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("retryAndGetProfile throws FORBIDDEN when curriculum belongs to another user", async () => {
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([mockCurriculum]),
+    });
+
+    const caller = appRouter.createCaller({
+      session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+      req: {} as Request,
+    } as never);
+
+    await expect(
+      caller.curriculum.retryAndGetProfile({ id: MOCK_CURRICULUM_ID })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

@@ -1,7 +1,8 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   Lock,
@@ -11,6 +12,10 @@ import {
   Loader2,
   BookOpen,
   ChevronRight,
+  RotateCcw,
+  Trash2,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { trpcReact } from "@/lib/trpc/provider";
 import { Progress, Badge } from "@bitebase/ui/web";
@@ -27,7 +32,10 @@ export default function CurriculumPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const { user } = useUser();
+  const utils = trpcReact.useUtils();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: curriculum, isLoading: loadingCurriculum } =
     trpcReact.public.getPublishedCurriculum.useQuery({ id });
@@ -39,6 +47,32 @@ export default function CurriculumPage({
       { curriculumId: id },
       { enabled: !!user }
     );
+
+  const deleteMutation = trpcReact.curriculum.delete.useMutation({
+    onSuccess: () => {
+      void utils.curriculum.list.invalidate();
+      router.push(user ? "/dashboard" : "/explore");
+    },
+  });
+
+  const retryMutation = trpcReact.curriculum.retryAndGetProfile.useMutation({
+    onSuccess: (result) => {
+      // Store profile data for the onboarding flow, same as dashboard does
+      if (typeof window !== "undefined") {
+        const data = {
+          topic: result.topic,
+          experienceLevel: result.experienceLevel,
+          goals: result.goals,
+          additionalContext: result.additionalContext,
+        };
+        sessionStorage.setItem("bitebase_onboard_retry_profile", JSON.stringify(data));
+        sessionStorage.setItem("bitebase_replace_curriculum_id", result.curriculumId);
+      }
+      router.push("/onboarding");
+    },
+  });
+
+  const isOwner = !!user && curriculum?.userId === user.id;
 
   if (loadingCurriculum || loadingLessons) {
     return (
@@ -227,6 +261,64 @@ export default function CurriculumPage({
           );
         })}
       </div>
+
+      {/* Owner controls */}
+      {isOwner && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <h3 className="mb-1 text-sm font-semibold text-gray-900">
+            Manage curriculum
+          </h3>
+          <p className="mb-4 text-xs text-gray-500">
+            Only you can see these options as the creator.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => retryMutation.mutate({ id })}
+              disabled={retryMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {retryMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="h-4 w-4" />
+              )}
+              Remake course
+            </button>
+
+            {!showDeleteConfirm ? (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
+                <span className="text-sm text-red-700">Delete forever?</span>
+                <button
+                  onClick={() => deleteMutation.mutate({ id })}
+                  disabled={deleteMutation.isPending}
+                  className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    "Confirm"
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="rounded-lg px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
