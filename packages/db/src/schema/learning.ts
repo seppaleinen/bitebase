@@ -90,6 +90,7 @@ export const lessons = pgTable("lessons", {
   order: integer("order").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   version: integer("version").notNull().default(1),
+  promptVersion: integer("prompt_version"),
 });
 
 export const quizzes = pgTable("quizzes", {

@@ -4,6 +4,7 @@ import { generateObject, generateText, NoObjectGeneratedError } from "ai";
 import type { z } from "zod";
 import {
   getModel,
+  PROMPT_VERSION,
   buildCurriculumSystemPrompt,
   buildLessonSystemPrompt,
   buildNarrativeThreads,
@@ -456,6 +457,7 @@ export async function POST(req: Request) {
             sources: finalSources,
             estimatedMinutes: lessonData.estimatedMinutes,
             order: meta.order,
+            promptVersion: PROMPT_VERSION,
           });
           await db.insert(quizzes).values({
             id: randomUUID(),

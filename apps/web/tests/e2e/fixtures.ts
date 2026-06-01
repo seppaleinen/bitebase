@@ -93,7 +93,7 @@ type TRPCMockData = {
   user?: object | null;
   categories?: { category: string; subcategories: string[] }[];
   admin?: {
-    listLessonVersions?: { detail: { lessonId: string; version: number; count: number }[]; rollup: { version: number; totalLessons: number; totalRows: number }[] };
+    listLessonVersions?: { detail: { lessonId: string; version: number; promptVersion: number | null; count: number }[]; rollup: { version: number; totalLessons: number; totalRows: number }[] };
     regenerateLesson?: { lessonId: string; newVersion: number };
     regenerateLessonsByVersion?: { lessonId: string; newVersion: number }[];
   };

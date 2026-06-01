@@ -1,5 +1,12 @@
 import type { LearningProfile } from "../schemas/index";
 
+/**
+ * Version identifier for the lesson generation prompt (buildLessonSystemPrompt).
+ * Bump this whenever the prompt template changes in a way that should
+ * trigger a lesson version increment on regeneration.
+ */
+export const PROMPT_VERSION = 1;
+
 export const ONBOARDING_SYSTEM_PROMPT = `You are BiteBase, a friendly learning assistant. Your only job is to collect 3 pieces of information through natural conversation, then emit a PROFILE line.
 
 The 3 fields you need:

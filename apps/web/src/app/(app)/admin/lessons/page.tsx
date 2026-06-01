@@ -168,7 +168,10 @@ export default function AdminLessonPage() {
                     Lesson ID
                   </th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                    Version
+                    Lesson version
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Prompt version
                   </th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                     Rows
@@ -180,23 +183,24 @@ export default function AdminLessonPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {detail.map((row) => (
-                  <tr key={`${row.lessonId}-${row.version}`} className="hover:bg-gray-50">
+                  <tr key={`${row.lessonId}-${row.version}-${row.promptVersion ?? "null"}`} className="hover:bg-gray-50">
                     <td className="px-4 py-2.5 font-mono text-xs text-gray-800">{row.lessonId}</td>
                     <td className="px-4 py-2.5 text-sm text-gray-800">{row.version}</td>
+                    <td className="px-4 py-2.5 text-sm text-gray-600">{row.promptVersion ?? "—"}</td>
                     <td className="px-4 py-2.5 text-sm text-gray-600">{row.count}</td>
                     <td className="px-4 py-2.5">
                       <button
                         onClick={() => handleRegenerate(row.lessonId)}
                         disabled={regeneratingId === row.lessonId}
                         className="flex items-center gap-1 rounded bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
-                        title={`Regenerate → v${row.version + 1}`}
+                        title="Regenerate this lesson"
                       >
                         {regeneratingId === row.lessonId ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <RefreshCw className="h-3.5 w-3.5" />
                         )}
-                        Regenerate (→ v{row.version + 1})
+                        Regenerate
                       </button>
                     </td>
                   </tr>

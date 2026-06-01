@@ -10,6 +10,7 @@ import { TRPCError } from "@trpc/server";
 import { randomUUID } from "crypto";
 import {
   getModel,
+  PROMPT_VERSION,
   buildLessonSystemPrompt,
   buildNarrativeThreads,
   createWebSearchTool,
@@ -164,14 +165,16 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
     if (injected.sources) lessonData.sources = injected.sources;
   }
 
-  // Update the existing lesson row – increment version
+  // Only bump the lesson version if the prompt has changed since it was last generated.
+  const promptChanged = lesson.promptVersion !== PROMPT_VERSION;
   await db
     .update(lessons)
     .set({
       content: lessonData.content,
       sources: lessonData.sources,
       estimatedMinutes: lessonData.estimatedMinutes,
-      version: lesson.version + 1,
+      version: promptChanged ? lesson.version + 1 : lesson.version,
+      promptVersion: PROMPT_VERSION,
     })
     .where(eq(lessons.id, lesson.id));
 
@@ -184,23 +187,26 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
     passingScore: lessonData.quiz.passingScore,
   });
 
-  return { lessonId: lesson.id, newVersion: lesson.version + 1 };
+  const newVersion = promptChanged ? lesson.version + 1 : lesson.version;
+  return { lessonId: lesson.id, newVersion };
 }
 
 export const adminRouter = router({
-  /** List each (lessonId, version) pair with a count of rows, plus a rollup grouped by version number. */
+  /** List each (lessonId, version, promptVersion) triple with a count of rows, plus a rollup grouped by version number. */
   listLessonVersions: protectedProcedure.query(async ({ ctx }) => {
     ensureAdmin(ctx.session.user.email);
-    const all = await db.select({ id: lessons.id, version: lessons.version }).from(lessons);
+    const all = await db
+      .select({ id: lessons.id, version: lessons.version, promptVersion: lessons.promptVersion })
+      .from(lessons);
 
-    // Per-pair detail
-    const detailMap = new Map<string, { lessonId: string; version: number; count: number }>();
+    // Per-pair detail – includes promptVersion so the UI can show which prompt version generated each row
+    const detailMap = new Map<string, { lessonId: string; version: number; promptVersion: number | null; count: number }>();
     // Rollup by version number
     const versionRollup = new Map<number, { version: number; totalLessons: number; totalRows: number }>();
 
     for (const l of all) {
-      const key = `${l.id}:${l.version}`;
-      const entry = detailMap.get(key) ?? { lessonId: l.id, version: l.version, count: 0 };
+      const key = `${l.id}:${l.version}:${l.promptVersion ?? "null"}`;
+      const entry = detailMap.get(key) ?? { lessonId: l.id, version: l.version, promptVersion: l.promptVersion, count: 0 };
       entry.count++;
       detailMap.set(key, entry);
 
