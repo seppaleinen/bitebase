@@ -211,4 +211,42 @@ describe("parseLessonResponse", () => {
       expect(result.quiz.questions[0].id).toBe("q1");
     });
   });
+
+  describe("repairJson — fixes common LLM JSON defects in quiz section", () => {
+    it("parses quiz JSON with trailing comma in array", () => {
+      const quizJson = `{"questions":[{"id":"q1","type":"multiple_choice","question":"Test?","options":["A","B","C","D",],"correctAnswer":"A","explanation":"OK"}],"passingScore":70}`;
+      const result = parseLessonResponse(buildLesson({ quiz: quizJson }));
+      expect(result.quiz.questions).toHaveLength(1);
+      expect(result.quiz.questions[0].id).toBe("q1");
+      expect(result.quiz.passingScore).toBe(70);
+    });
+
+    it("parses quiz JSON with trailing comma in object", () => {
+      const quizJson = `{"questions":[{"id":"q1","type":"multiple_choice","question":"Test?","options":["A","B","C","D"],"correctAnswer":"A","explanation":"OK",}],"passingScore":70}`;
+      const result = parseLessonResponse(buildLesson({ quiz: quizJson }));
+      expect(result.quiz.questions).toHaveLength(1);
+      expect(result.quiz.questions[0].id).toBe("q1");
+    });
+
+    it("parses quiz JSON truncated at the array boundary (missing final braces)", () => {
+      const quizJson = `{"questions":[{"id":"q1","type":"multiple_choice","question":"Test?","options":["A","B","C","D"],"correctAnswer":"A","explanation":"OK"}]`;
+      const result = parseLessonResponse(buildLesson({ quiz: quizJson }));
+      expect(result.quiz.questions).toHaveLength(1);
+      expect(result.quiz.questions[0].id).toBe("q1");
+    });
+
+    it("parses quiz JSON with extra trailing text after closing brace", () => {
+      const quizJson = `{"questions":[{"id":"q1","type":"multiple_choice","question":"Test?","options":["A","B","C","D"],"correctAnswer":"A","explanation":"OK"}],"passingScore":70} And here is some extra text the model added`;
+      const result = parseLessonResponse(buildLesson({ quiz: quizJson }));
+      expect(result.quiz.questions).toHaveLength(1);
+      expect(result.quiz.questions[0].id).toBe("q1");
+    });
+
+    it("parses quiz JSON with multiple defects: trailing comma + extra text", () => {
+      const quizJson = `{"questions":[{"id":"q1","type":"multiple_choice","question":"Test?","options":["A","B",],"correctAnswer":"A","explanation":"OK",}],"passingScore":70} The quiz above tests the core concepts.`;
+      const result = parseLessonResponse(buildLesson({ quiz: quizJson }));
+      expect(result.quiz.questions).toHaveLength(1);
+      expect(result.quiz.questions[0].id).toBe("q1");
+    });
+  });
 });

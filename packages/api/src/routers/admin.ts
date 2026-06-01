@@ -146,7 +146,10 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
       temperature,
     });
     const parsed = parseLessonResponse(text);
-    if (!parsed.content || parsed.content.trim().length < 200) throw new Error("Lesson content too short");
+    if (!parsed.content || parsed.content.trim().length < 200) {
+      console.error(`[admin] short content raw (first 600): ${(text || "<empty>").slice(0, 600)}`);
+      throw new Error(`Lesson content too short (${parsed.content?.trim().length ?? 0} chars)`);
+    }
     return parsed;
   }, 3, 1000, `admin regenerate lesson ${meta.subsection.title}`);
 

@@ -28,6 +28,62 @@ function fixJsonControlChars(text: string): string {
 }
 
 /**
+ * Attempt to repair common JSON issues from local LLM output.
+ * Tries increasingly aggressive strategies:
+ *   1. Fix trailing commas before ] and }
+ *   2. Complete truncated JSON by balancing braces/brackets
+ *   3. Strip trailing text after the JSON document ends
+ */
+function repairJson(raw: string): string {
+  // Step 1: remove trailing commas inside arrays/objects
+  let cleaned = raw.replace(/,\s*([}\]])/g, "$1");
+
+  // Step 2: try parsing after basic cleanup
+  try { JSON.parse(cleaned); return cleaned; } catch { /* continue */ }
+
+  // Step 3: count braces and try appending missing closing brackets
+  // Balance the nesting by counting { and } and [ and ]
+  let openBraces = 0;
+  let openBrackets = 0;
+  const chars = [...cleaned];
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (c === "{") openBraces++;
+    else if (c === "}") openBraces--;
+    else if (c === "[") openBrackets++;
+    else if (c === "]") openBrackets--;
+  }
+  if (openBraces > 0 || openBrackets > 0) {
+    // Append whatever closing brackets are needed
+    let completed = cleaned;
+    while (openBraces > 0) { completed += "}"; openBraces--; }
+    while (openBrackets > 0) { completed += "]"; openBrackets--; }
+    try { JSON.parse(completed); return completed; } catch { /* continue */ }
+  }
+
+  // Step 4: strip trailing text after the outermost } or ]
+  // by finding the last complete object boundary
+  let depth = 0;
+  let firstFullClose = -1;
+  for (let i = 0; i < cleaned.length; i++) {
+    if (cleaned[i] === "{") depth++;
+    if (cleaned[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        firstFullClose = i;
+        break;
+      }
+    }
+  }
+  if (firstFullClose > 0) {
+    const trimmed = cleaned.slice(0, firstFullClose + 1);
+    try { JSON.parse(trimmed); return trimmed; } catch { /* not valid */ }
+  }
+
+  return cleaned;
+}
+
+/**
  * Normalize model output: replace decorated or emoji-prefixed separator lines
  * with the standard ===LABEL=== format that the section parser expects.
  *
@@ -105,7 +161,9 @@ export function parseLessonResponse(text: string): {
   let quiz: { questions: QuizQuestion[]; passingScore: number } = { questions: [], passingScore: 70 };
   try {
     const quizJson = quizRaw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
-    const parsed = JSON.parse(fixJsonControlChars(quizJson));
+    const fixedCtrls = fixJsonControlChars(quizJson);
+    const repaired = repairJson(fixedCtrls);
+    const parsed = JSON.parse(repaired);
     if (parsed?.questions) {
       quiz = {
         questions: parsed.questions as QuizQuestion[],
@@ -113,8 +171,10 @@ export function parseLessonResponse(text: string): {
       };
     }
   } catch (err) {
-    console.warn("[parse-lesson] quiz parse failed — saving lesson without questions:", err instanceof Error ? err.message : err);
-    console.warn("[parse-lesson] raw quiz text:", quizRaw.slice(0, 300));
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[parse-lesson] quiz parse failed — saving lesson without questions:", err instanceof Error ? err.message : err);
+      console.warn("[parse-lesson] raw quiz text:", quizRaw.slice(0, 500));
+    }
   }
 
   // Parse sections within the content
