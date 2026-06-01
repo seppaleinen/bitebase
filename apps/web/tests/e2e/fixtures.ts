@@ -93,8 +93,12 @@ type TRPCMockData = {
   user?: object | null;
   categories?: { category: string; subcategories: string[] }[];
   admin?: {
-    listCurricula?: { id: string; title: string; totalLessons: number; createdAt: Date; versionSummary: { version: number; count: number }[] }[];
+    listCurricula?: {
+      curricula: { id: string; title: string; totalLessons: number; createdAt: Date; versionSummary: { version: number; count: number }[] }[];
+      versionRollup: { version: number; totalLessons: number; curriculaCount: number; curricula: string[] }[];
+    };
     regenerateCurriculum?: { curriculumId: string; lessonResults: { lessonId: string; newVersion: number }[] };
+    regenerateLessonsByVersion?: { lessonId: string; newVersion: number }[];
   };
 };
 
@@ -132,9 +136,11 @@ function resolveData(procedurePath: string, data: TRPCMockData): unknown {
   if (procedurePath === "curriculum.updateCategory") return null;
 
   // Admin
-  if (procedurePath === "admin.listCurricula") return data.admin?.listCurricula ?? [];
+  if (procedurePath === "admin.listCurricula") return data.admin?.listCurricula ?? { curricula: [], versionRollup: [] };
 
   if (procedurePath === "admin.regenerateCurriculum") return data.admin?.regenerateCurriculum ?? { curriculumId: "", lessonResults: [] };
+
+  if (procedurePath === "admin.regenerateLessonsByVersion") return data.admin?.regenerateLessonsByVersion ?? [];
 }
 
 /**

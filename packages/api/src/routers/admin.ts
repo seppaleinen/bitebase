@@ -245,7 +245,23 @@ export const adminRouter = router({
         .sort((a, b) => a.version - b.version),
     }));
 
-    return curriculaList;
+    // Compute a global version rollup across ALL lessons
+    const globalVersionMap = new Map<number, { version: number; totalLessons: number; curriculaCount: number; curricula: string[] }>();
+    for (const c of curriculaList) {
+      for (const vs of c.versionSummary) {
+        let entry = globalVersionMap.get(vs.version);
+        if (!entry) {
+          entry = { version: vs.version, totalLessons: 0, curriculaCount: 0, curricula: [] };
+          globalVersionMap.set(vs.version, entry);
+        }
+        entry.totalLessons += vs.count;
+        entry.curriculaCount++;
+        entry.curricula.push(c.title);
+      }
+    }
+    const versionRollup = Array.from(globalVersionMap.values()).sort((a, b) => a.version - b.version);
+
+    return { curricula: curriculaList, versionRollup };
   }),
 
   /** Regenerate all lessons within a curriculum. Returns results for each lesson. */
@@ -273,5 +289,25 @@ export const adminRouter = router({
       }
 
       return { curriculumId: input.curriculumId, lessonResults: results };
+    }),
+
+  /** Regenerate all lessons at a given version number. Returns array of results. */
+  regenerateLessonsByVersion: protectedProcedure
+    .input(z.object({ version: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      ensureAdmin(ctx.session.user.email);
+      const all = await db
+        .select({ id: lessons.id, version: lessons.version })
+        .from(lessons)
+        .where(eq(lessons.version, input.version));
+      const lessonIds = [...new Set(all.map((l) => l.id))];
+      const results: { lessonId: string; newVersion: number }[] = [];
+      for (const lessonId of lessonIds) {
+        const result = await regenerateSingleLesson(lessonId);
+        results.push(result);
+        // Brief pause between lessons to avoid hammering the AI endpoint
+        await new Promise((res) => setTimeout(res, 500));
+      }
+      return results;
     }),
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Loader2, RefreshCw, BookOpen, CheckCircle, AlertCircle, Hash } from "lucide-react";
+import { Loader2, RefreshCw, BookOpen, CheckCircle, AlertCircle, Hash, Layers } from "lucide-react";
 import { trpcReact } from "@/lib/trpc/provider";
 
 // ── Lightweight inline toast ──────────────────────────────────────────────────
@@ -45,8 +45,8 @@ function VersionBadge({ version, count }: { version: number; count: number }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AdminCurriculaPage() {
-  const { data: curricula, isLoading, refetch } = trpcReact.admin.listCurricula.useQuery();
-  const regenerateMut = trpcReact.admin.regenerateCurriculum.useMutation({
+  const { data, isLoading, refetch } = trpcReact.admin.listCurricula.useQuery();
+  const regenerateCurrMut = trpcReact.admin.regenerateCurriculum.useMutation({
     onSuccess: (res) => {
       const total = res.lessonResults.length;
       const bumped = res.lessonResults.filter((r) => r.newVersion > 0).length;
@@ -60,8 +60,18 @@ export default function AdminCurriculaPage() {
       addToast(err.message || "Regenerate failed", "error");
     },
   });
+  const regenerageVersionMut = trpcReact.admin.regenerateLessonsByVersion.useMutation({
+    onSuccess: (results) => {
+      addToast(`Regenerated ${results.length} lesson(s) by version`, "success");
+      void refetch();
+    },
+    onError: (err) => {
+      addToast(err.message || "Version regenerate failed", "error");
+    },
+  });
 
-  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [regeneratingCurrId, setRegeneratingCurrId] = useState<string | null>(null);
+  const [regeneratingVersion, setRegeneratingVersion] = useState<number | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const addToast = useCallback((message: string, type: "success" | "error") => {
@@ -73,16 +83,30 @@ export default function AdminCurriculaPage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, [setToasts]);
 
-  const handleRegenerate = async (curriculumId: string) => {
-    setRegeneratingId(curriculumId);
+  const handleRegenerateCurriculum = async (curriculumId: string) => {
+    setRegeneratingCurrId(curriculumId);
     try {
-      await regenerateMut.mutateAsync({ curriculumId });
+      await regenerateCurrMut.mutateAsync({ curriculumId });
     } catch {
       // errors handled by onError
     } finally {
-      setRegeneratingId(null);
+      setRegeneratingCurrId(null);
     }
   };
+
+  const handleRegenerateVersion = async (version: number) => {
+    setRegeneratingVersion(version);
+    try {
+      await regenerageVersionMut.mutateAsync({ version });
+    } catch {
+      // errors handled by onError
+    } finally {
+      setRegeneratingVersion(null);
+    }
+  };
+
+  const curricula = data?.curricula ?? [];
+  const versionRollup = data?.versionRollup ?? [];
 
   return (
     <div className="p-6">
@@ -100,42 +124,31 @@ export default function AdminCurriculaPage() {
         </div>
       )}
 
-      {/* ── Curriculum list ────────────────────────────────────────────── */}
-      {!isLoading && curricula && curricula.length > 0 && (
-        <div className="space-y-4">
-          {curricula.map((c) => (
-            <div
-              key={c.id}
-              className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-lg font-semibold text-gray-900">{c.title}</h2>
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <BookOpen className="h-4 w-4" />
-                      {c.totalLessons} lesson{c.totalLessons !== 1 ? "s" : ""}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      Created {new Date(c.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {/* Version badges */}
-                  {c.versionSummary.length > 0 && (
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      {c.versionSummary.map((v) => (
-                        <VersionBadge key={v.version} version={v.version} count={v.count} />
-                      ))}
-                    </div>
-                  )}
+      {/* ── Version rollup cards ──────────────────────────────────────── */}
+      {!isLoading && versionRollup.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-3 text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <Layers className="h-5 w-5 text-violet-500" />
+            Group by version
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {versionRollup.map((v) => (
+              <div
+                key={v.version}
+                className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+              >
+                <div className="mb-2 flex items-baseline justify-between">
+                  <span className="text-lg font-bold text-gray-900">Version {v.version}</span>
+                  <span className="text-sm text-gray-500">
+                    {v.totalLessons} lesson{v.totalLessons !== 1 ? "s" : ""} across {v.curriculaCount} curriculum / curricula
+                  </span>
                 </div>
                 <button
-                  onClick={() => handleRegenerate(c.id)}
-                  disabled={regeneratingId === c.id}
-                  className="flex shrink-0 items-center gap-1.5 rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
-                  title="Regenerate all lessons in this curriculum"
+                  onClick={() => handleRegenerateVersion(v.version)}
+                  disabled={regeneratingVersion === v.version}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
                 >
-                  {regeneratingId === c.id ? (
+                  {regeneratingVersion === v.version ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Regenerating…
@@ -143,18 +156,77 @@ export default function AdminCurriculaPage() {
                   ) : (
                     <>
                       <RefreshCw className="h-4 w-4" />
-                      Regenerate
+                      Regenerate all v{v.version}
                     </>
                   )}
                 </button>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Curriculum list ────────────────────────────────────────────── */}
+      {!isLoading && curricula.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-violet-500" />
+            Group by curriculum
+          </h2>
+          <div className="space-y-4">
+            {curricula.map((c) => (
+              <div
+                key={c.id}
+                className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-lg font-semibold text-gray-900">{c.title}</h3>
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <BookOpen className="h-4 w-4" />
+                        {c.totalLessons} lesson{c.totalLessons !== 1 ? "s" : ""}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        Created {new Date(c.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {/* Version badges */}
+                    {c.versionSummary.length > 0 && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {c.versionSummary.map((v) => (
+                          <VersionBadge key={v.version} version={v.version} count={v.count} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleRegenerateCurriculum(c.id)}
+                    disabled={regeneratingCurrId === c.id}
+                    className="flex shrink-0 items-center gap-1.5 rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                    title="Regenerate all lessons in this curriculum"
+                  >
+                    {regeneratingCurrId === c.id ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Regenerating…
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4" />
+                        Regenerate
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* ── Empty state ────────────────────────────────────────────────── */}
-      {!isLoading && curricula && curricula.length === 0 && (
+      {!isLoading && curricula.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 py-16 text-center">
           <BookOpen className="mb-3 h-10 w-10 text-gray-300" />
           <p className="text-lg font-medium text-gray-700">No curricula found</p>
