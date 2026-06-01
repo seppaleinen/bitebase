@@ -1,11 +1,12 @@
 // Admin router – limited to specific admin user (davidbaeriksson@gmail.com)
-// Provides utilities to list lesson version statistics and to regenerate a lesson (creates a new version).
+// Provides curriculum-level management: list all curricula with lesson version summaries,
+// and regenerate all lessons within a curriculum.
 
 import { z } from "zod";
 import { db, lessons, curricula, learningProfiles, quizzes } from "@bitebase/db";
 import { protectedProcedure, router } from "../trpc";
 import { generateText } from "ai";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { randomUUID } from "crypto";
 import {
@@ -192,59 +193,85 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
 }
 
 export const adminRouter = router({
-  /** List each (lessonId, version, promptVersion) triple with a count of rows, plus a rollup grouped by version number. */
-  listLessonVersions: protectedProcedure.query(async ({ ctx }) => {
+  /** List all curricula with lesson version summaries. */
+  listCurricula: protectedProcedure.query(async ({ ctx }) => {
     ensureAdmin(ctx.session.user.email);
-    const all = await db
-      .select({ id: lessons.id, version: lessons.version, promptVersion: lessons.promptVersion })
-      .from(lessons);
 
-    // Per-pair detail – includes promptVersion so the UI can show which prompt version generated each row
-    const detailMap = new Map<string, { lessonId: string; version: number; promptVersion: number | null; count: number }>();
-    // Rollup by version number
-    const versionRollup = new Map<number, { version: number; totalLessons: number; totalRows: number }>();
+    // Get all curricula joined with lessons to derive version info
+    const rows = await db
+      .select({
+        id: curricula.id,
+        title: curricula.title,
+        userId: curricula.userId,
+        createdAt: curricula.createdAt,
+        lessonVersion: lessons.version,
+      })
+      .from(curricula)
+      .leftJoin(lessons, eq(lessons.curriculumId, curricula.id))
+      .orderBy(sql`${curricula.createdAt} DESC`);
 
-    for (const l of all) {
-      const key = `${l.id}:${l.version}:${l.promptVersion ?? "null"}`;
-      const entry = detailMap.get(key) ?? { lessonId: l.id, version: l.version, promptVersion: l.promptVersion, count: 0 };
-      entry.count++;
-      detailMap.set(key, entry);
+    // Group by curriculum
+    const curriculumMap = new Map<
+      string,
+      { id: string; title: string; createdAt: Date; totalLessons: number; versionCounts: Map<number, number> }
+    >();
 
-      const rollup = versionRollup.get(l.version) ?? { version: l.version, totalLessons: 0, totalRows: 0 };
-      rollup.totalLessons++;
-      rollup.totalRows++;
-      versionRollup.set(l.version, rollup);
+    for (const row of rows) {
+      let entry = curriculumMap.get(row.id);
+      if (!entry) {
+        entry = {
+          id: row.id,
+          title: row.title,
+          createdAt: row.createdAt,
+          totalLessons: 0,
+          versionCounts: new Map(),
+        };
+        curriculumMap.set(row.id, entry);
+      }
+      if (row.lessonVersion !== null) {
+        entry.totalLessons++;
+        const current = entry.versionCounts.get(row.lessonVersion) ?? 0;
+        entry.versionCounts.set(row.lessonVersion, current + 1);
+      }
     }
 
-    return {
-      detail: Array.from(detailMap.values()),
-      rollup: Array.from(versionRollup.values()).sort((a, b) => a.version - b.version),
-    };
+    const curriculaList = Array.from(curriculumMap.values()).map((c) => ({
+      id: c.id,
+      title: c.title,
+      totalLessons: c.totalLessons,
+      createdAt: c.createdAt,
+      versionSummary: Array.from(c.versionCounts.entries())
+        .map(([version, count]) => ({ version, count }))
+        .sort((a, b) => a.version - b.version),
+    }));
+
+    return curriculaList;
   }),
 
-  /** Regenerate a single lesson, storing the new content as a new version. */
-  regenerateLesson: protectedProcedure
-    .input(z.object({ lessonId: z.string() }))
+  /** Regenerate all lessons within a curriculum. Returns results for each lesson. */
+  regenerateCurriculum: protectedProcedure
+    .input(z.object({ curriculumId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       ensureAdmin(ctx.session.user.email);
-      return regenerateSingleLesson(input.lessonId);
-    }),
 
-  /** Regenerate all lessons at a given version number. Returns array of results. */
-  regenerateLessonsByVersion: protectedProcedure
-    .input(z.object({ version: z.number() }))
-    .mutation(async ({ ctx, input }) => {
-      ensureAdmin(ctx.session.user.email);
-      const all = await db
-        .select({ id: lessons.id, version: lessons.version })
+      const allLessons = await db
+        .select({ id: lessons.id })
         .from(lessons)
-        .where(eq(lessons.version, input.version));
-      const lessonIds = [...new Set(all.map((l) => l.id))];
-      const results: { lessonId: string; newVersion: number }[] = [];
-      for (const lessonId of lessonIds) {
-        const result = await regenerateSingleLesson(lessonId);
-        results.push(result);
+        .where(eq(lessons.curriculumId, input.curriculumId))
+        .orderBy(lessons.order);
+
+      if (allLessons.length === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "No lessons found for this curriculum" });
       }
-      return results;
+
+      const results: { lessonId: string; newVersion: number }[] = [];
+      for (const l of allLessons) {
+        const result = await regenerateSingleLesson(l.id);
+        results.push(result);
+        // Brief pause between lessons to avoid hammering the AI endpoint
+        await new Promise((res) => setTimeout(res, 500));
+      }
+
+      return { curriculumId: input.curriculumId, lessonResults: results };
     }),
 });
