@@ -67,11 +67,18 @@ function normalizeSeparators(text: string): string {
  * Throws if the CONTENT section is missing; quiz/sources parse failures are
  * swallowed and return safe defaults so a partial lesson is still saved.
  */
+export interface LessonSection {
+  title: string;
+  markdown: string;
+  image?: string;
+}
+
 export function parseLessonResponse(text: string): {
   content: string;
   estimatedMinutes: number;
   sources: { title: string; url: string; imageUrls?: string[] }[];
   quiz: { questions: QuizQuestion[]; passingScore: number };
+  sections: LessonSection[];
 } {
   const normalized = normalizeSeparators(text);
 
@@ -110,7 +117,35 @@ export function parseLessonResponse(text: string): {
     console.warn("[parse-lesson] raw quiz text:", quizRaw.slice(0, 300));
   }
 
+  // Parse sections within the content
+  function parseSections(raw: string): LessonSection[] {
+    const sections: LessonSection[] = [];
+    const sectionRe = /===SECTION===\s*([\s\S]*?)===ENDSECTION===/gi;
+    let match: RegExpExecArray | null;
+    while ((match = sectionRe.exec(raw)) !== null) {
+      const block = match[1].trim();
+      // Extract title (first markdown heading)
+      const titleMatch = block.match(/^#\s+(.*)$/m);
+      const title = titleMatch ? titleMatch[1].trim() : "Untitled Section";
+      // Extract optional image URL
+      const imageMatch = block.match(/===IMAGE===\s*([\s\S]*?)\s*(?===|$)/i);
+      const image = imageMatch ? imageMatch[1].trim() : undefined;
+      // Remove the image block from markdown
+      const markdown = block.replace(/===IMAGE===\s*[\s\S]*$/i, "").trim();
+      sections.push({ title, markdown, image });
+    }
+    // Fallback: if no sections found, treat whole content as one section
+    if (sections.length === 0) {
+      const titleMatch = raw.match(/^#\s+(.*)$/m);
+      const title = titleMatch ? titleMatch[1].trim() : "Lesson";
+      sections.push({ title, markdown: raw.trim() });
+    }
+    return sections;
+  }
+
   if (!content) throw new Error("No ===CONTENT=== section found in lesson response");
 
-  return { content, estimatedMinutes, sources, quiz };
+  const sections = parseSections(content);
+
+  return { content, estimatedMinutes, sources, quiz, sections };
 }

@@ -89,6 +89,7 @@ export const lessons = pgTable("lessons", {
   estimatedMinutes: integer("estimated_minutes").notNull(),
   order: integer("order").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  version: integer("version").notNull().default(1),
 });
 
 export const quizzes = pgTable("quizzes", {

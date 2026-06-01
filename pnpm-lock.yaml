@@ -272,9 +272,9 @@ importers:
 
   packages/api:
     dependencies:
-      '@bitebase/db':
+      '@bitebase/ai':
         specifier: workspace:*
-        version: link:../db
+        version: link:../ai
       '@trpc/server':
         specifier: ^11.1.2
         version: 11.17.0(typescript@5.9.3)

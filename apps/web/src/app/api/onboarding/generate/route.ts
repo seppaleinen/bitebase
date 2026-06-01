@@ -359,7 +359,7 @@ export async function POST(req: Request) {
               searchContext = searchResults;
 
               // Collect image URLs from tool results
-              const searchToolResult = toolResults.find((r) => r.toolName === "webSearch");
+              const searchToolResult = (toolResults as Array<{toolName: string; result: unknown}>).find((r) => r.toolName === "webSearch");
               if (searchToolResult && typeof searchToolResult.result === "object" && searchToolResult.result !== null) {
                 const results = (searchToolResult.result as { results?: { imageUrls?: string[] }[] }).results;
                 if (Array.isArray(results)) {
@@ -427,6 +427,7 @@ export async function POST(req: Request) {
               estimatedMinutes: 5,
               sources: [],
               quiz: { questions: [], passingScore: 70 },
+              sections: [],
             };
           }
 

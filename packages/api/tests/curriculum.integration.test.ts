@@ -40,10 +40,19 @@ const { mockDb } = vi.hoisted(() => {
   return { mockDb };
 });
 
-vi.mock("@bitebase/db", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@bitebase/db")>();
-  return { ...actual, db: mockDb };
-});
+vi.mock("@bitebase/db", () => ({
+  db: mockDb,
+  // Export dummy tables to satisfy imports (they are only used for typing)
+  curricula: {},
+  lessons: {},
+  progress: {},
+  quizzes: {},
+  learningProfiles: {},
+  users: {},
+  sessions: {},
+  accounts: {},
+  verifications: {},
+}));
 
 // Also mock better-auth so it doesn't try to connect to the DB at import time
 vi.mock("better-auth", () => ({
@@ -54,6 +63,26 @@ vi.mock("better-auth", () => ({
 }));
 vi.mock("better-auth/adapters/drizzle", () => ({
   drizzleAdapter: vi.fn(() => ({})),
+}));
+
+// Mock AI utilities used by admin router
+vi.mock("@bitebase/ai", () => ({
+  getModel: () => ({ model: "mock-model" }),
+  buildLessonSystemPrompt: () => "",
+  buildNarrativeThreads: () => [],
+  createWebSearchTool: () => null,
+  parseLessonResponse: () => ({
+    content: "# Mock Lesson",
+    estimatedMinutes: 5,
+    sources: [],
+    quiz: { questions: [], passingScore: 70 },
+    sections: [],
+  }),
+  injectImagesIntoLesson: (lesson) => lesson,
+}));
+
+vi.mock("ai", () => ({
+  generateText: async () => ({ text: "", toolResults: [] }),
 }));
 
 import { appRouter } from "../src/router";

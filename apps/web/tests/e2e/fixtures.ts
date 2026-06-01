@@ -92,6 +92,7 @@ type TRPCMockData = {
   nextLesson?: object | null;
   user?: object | null;
   categories?: { category: string; subcategories: string[] }[];
+  admin?: { listLessonVersions?: any[]; regenerateLesson?: any };
 };
 
 function resolveData(procedurePath: string, data: TRPCMockData): unknown {
@@ -127,7 +128,8 @@ function resolveData(procedurePath: string, data: TRPCMockData): unknown {
   // Category
   if (procedurePath === "curriculum.updateCategory") return null;
 
-  return null;
+    if (procedurePath === "admin.listLessonVersions") return data.admin?.listLessonVersions ?? [];
+    if (procedurePath === "admin.regenerateLesson") return data.admin?.regenerateLesson ?? null;
 }
 
 /**

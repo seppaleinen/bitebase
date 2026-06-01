@@ -98,6 +98,13 @@ Write a comprehensive, engaging lesson in Markdown that:
 - Is well-structured with clear headings
 - Ends with a brief summary of key takeaways
 - Must be at least 400 words of lesson content
+- Must include 3-6 structured sections. For each section output the following literal markers (no extra spaces or emojis):
+===SECTION===
+# Section Title
+<markdown content for this section>
+===IMAGE===
+<URL of a relevant, copyright-free image (omit this block if no image)>
+===ENDSECTION===
 - Must include at least 3 separate markdown sections (##) with explanatory paragraphs
 - Must include at least one practical example with concrete demonstrations (e.g. phrases with translations, code snippets, step-by-step walkthroughs)
 

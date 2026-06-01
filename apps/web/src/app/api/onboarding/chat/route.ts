@@ -42,10 +42,10 @@ export async function POST(req: Request) {
     system: systemPrompt,
     messages,
     temperature: 0.7,
-    onError({ error }) {
+    onError({ error }: { error: unknown }) {
       console.error("[onboarding/chat] streamText error:", error);
     },
-    onStepFinish({ finishReason, usage }) {
+    onStepFinish({ finishReason, usage }: { finishReason: unknown; usage: unknown }) {
       if (process.env.NODE_ENV !== "production") {
         console.log("[onboarding/chat] step:", { finishReason, usage });
       }

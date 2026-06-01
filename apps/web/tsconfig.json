@@ -15,9 +15,10 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"],
+      "@bitebase/*": [
+        "../../packages/*/src/index.ts"
+      ],
     },
     "incremental": true
   },
