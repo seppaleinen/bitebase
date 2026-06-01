@@ -155,7 +155,7 @@ bitebase/
 ## How it works
 
 1. **Onboarding** — Chat with BiteBase. It asks about your topic, experience level, goals, and available time.
-2. **Curriculum generation** — The AI generates a structured lesson plan with sections and subsections.
+2. **Curriculum generation** — The AI generates a structured lesson plan with sections, subsections, and automatically classifies each curriculum into a broad `category` and a more specific `subcategory` (owner‑editable).
 3. **Content generation** — For each subsection, the AI optionally searches the web (Tavily), then writes a markdown lesson and a quiz.
 4. **Learning** — Work through lessons in order. Each lesson is unlocked after passing the previous quiz (≥70%).
 5. **Progress** — Your scores, streaks, and completion are tracked per user.
