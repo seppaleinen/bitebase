@@ -13,6 +13,7 @@ import {
   Circle,
   ChevronLeft,
   ChevronRight,
+  Tag,
 } from "lucide-react-native";
 import { trpcReact } from "@/lib/trpc-provider";
 import type { CurriculumSection } from "@bitebase/db";
@@ -61,6 +62,15 @@ export default function CurriculumScreen() {
           <Text className="font-semibold text-gray-900" numberOfLines={1}>
             {curriculum.title}
           </Text>
+          {curriculum.category && (
+            <View className="mt-0.5 flex-row items-center gap-1">
+              <Tag color="#9ca3af" size={11} />
+              <Text className="text-xs text-gray-400" numberOfLines={1}>
+                {curriculum.category}
+                {curriculum.subcategory ? ` · ${curriculum.subcategory}` : ""}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 

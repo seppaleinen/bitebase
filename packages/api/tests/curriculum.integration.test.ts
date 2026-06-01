@@ -534,6 +534,56 @@ describe("curriculum.markLessonCompleted", () => {
   });
 });
 
+// ── curriculum.updateCategory ─────────────────────────────────────────────────
+
+describe("curriculum.updateCategory", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("updates category and subcategory for the owner", async () => {
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([mockCurriculum]),
+    });
+    const write = {
+      set: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue(undefined),
+    };
+    mockDb.update.mockReturnValue(write);
+
+    const caller = appRouter.createCaller(authedCtx() as never);
+    await caller.curriculum.updateCategory({
+      curriculumId: MOCK_CURRICULUM_ID,
+      category: "Technology",
+      subcategory: "Web Development",
+    });
+
+    expect(mockDb.update).toHaveBeenCalled();
+    expect(write.set).toHaveBeenCalledWith({
+      category: "Technology",
+      subcategory: "Web Development",
+    });
+  });
+
+  it("throws FORBIDDEN when curriculum belongs to another user", async () => {
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([mockCurriculum]),
+    });
+
+    const caller = appRouter.createCaller({
+      session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+      req: {} as Request,
+    } as never);
+
+    await expect(
+      caller.curriculum.updateCategory({
+        curriculumId: MOCK_CURRICULUM_ID,
+        category: "Science",
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+});
+
 // ── publicRouter tests ────────────────────────────────────────────────────────
 
 describe("publicRouter", () => {
@@ -554,6 +604,39 @@ describe("publicRouter", () => {
     const caller = appRouter.createCaller(anonCtx() as never);
     const result = await caller.public.listPublished();
     expect(result).toEqual(curricula);
+  });
+
+  it("listPublished filters by category", async () => {
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockResolvedValue([{ ...mockCurriculum, category: "Tech" }]),
+    });
+
+    const caller = appRouter.createCaller(anonCtx() as never);
+    const result = await caller.public.listPublished({ category: "Tech" });
+    expect(result).toHaveLength(1);
+    expect((result[0] as { category: string }).category).toBe("Tech");
+  });
+
+  it("listCategories returns grouped categories", async () => {
+    // listCategories uses: select() with specific fields, so mock the full chain
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([
+        { category: "Tech", subcategory: "Web" },
+        { category: "Tech", subcategory: "Mobile" },
+        { category: "Science", subcategory: "Physics" },
+      ]),
+    });
+
+    const caller = appRouter.createCaller(anonCtx() as never);
+    const result = await caller.public.listCategories();
+    // Results preserve DB order (Tech appears first in mock data)
+    expect(result).toEqual([
+      { category: "Tech", subcategories: ["Mobile", "Web"] },
+      { category: "Science", subcategories: ["Physics"] },
+    ]);
   });
 
   it("getPublishedLesson returns lesson + quiz for a published curriculum", async () => {

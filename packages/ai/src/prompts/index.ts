@@ -37,10 +37,20 @@ Design a curriculum that:
 
 Create 4-7 main sections, each with 2-4 subsections. Make it engaging and practical.
 
+Also choose a broad **category** and specific **subcategory** that best describe this curriculum. For example:
+- "Technology" / "Web Development" — for web dev, programming, frameworks
+- "Science" / "Physics" — for physics, chemistry, biology, math
+- "Arts & Humanities" / "Music Theory" — for art, music, history, philosophy, literature
+- "Business" / "Marketing" — for entrepreneurship, finance, marketing, management
+- "Languages" / "Spanish" — for language learning
+- "Lifestyle" / "Cooking" — for hobbies, fitness, cooking, photography
+Pick whatever fits best — if nothing fits, invent a suitable category.
+
 IMPORTANT — JSON field requirements:
 - Every section must have: id (e.g. "section-1"), title, description, estimatedMinutes (integer), order (0-based integer), subsections array
 - Every subsection must have: id (e.g. "sub-1-a"), title, description, order (0-based integer)
-- sections[0].order = 0, sections[1].order = 1, etc. — same for subsections within each section`;
+- sections[0].order = 0, sections[1].order = 1, etc. — same for subsections within each section
+- Include a "category" and "subcategory" field at the top level (strings)`;
 }
 
 export function buildLessonSystemPrompt(

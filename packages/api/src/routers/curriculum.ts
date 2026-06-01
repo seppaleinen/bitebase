@@ -13,6 +13,12 @@ import { eq, and, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { randomUUID } from "crypto";
 
+const categorySchema = z.object({
+  curriculumId: z.string(),
+  category: z.string().min(1, "Category is required"),
+  subcategory: z.string().optional(),
+});
+
 export const curriculumRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     return db
@@ -367,6 +373,28 @@ export const curriculumRouter = router({
         .where(eq(learningProfiles.id, curriculum.profileId));
 
       return profile ?? null;
+    }),
+
+  /** Update the category/subcategory for a curriculum (owner only). */
+  updateCategory: protectedProcedure
+    .input(categorySchema)
+    .mutation(async ({ ctx, input }) => {
+      const [curriculum] = await db
+        .select()
+        .from(curricula)
+        .where(eq(curricula.id, input.curriculumId));
+      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
+      if (curriculum.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      await db
+        .update(curricula)
+        .set({
+          category: input.category,
+          subcategory: input.subcategory || null,
+        })
+        .where(eq(curricula.id, input.curriculumId));
     }),
 
   /** Fetch a learning profile so the caller can re-trigger generation with the

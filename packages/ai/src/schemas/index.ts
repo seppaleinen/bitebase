@@ -16,6 +16,11 @@ export const learningProfileSchema = z.object({
 
 export type LearningProfile = z.infer<typeof learningProfileSchema>;
 
+export const categorySchema = z.object({
+  category: z.string().describe("Broad category for this curriculum (e.g. Technology, Science, Arts, Business, Languages, Lifestyle, Personal Development)"),
+  subcategory: z.string().describe("Specific subcategory within the category (e.g. Web Development, Physics, Music Theory, Marketing, Spanish)"),
+});
+
 export const subsectionSchema = z.object({
   id: z.string().catch("sub-0").describe("Short unique slug, e.g. 'sub-1-a', 'sub-2-b'"),
   title: z.string(),
@@ -41,6 +46,8 @@ export const curriculumPlanSchema = z.object({
     .coerce.number()
     .catch(60)
     .describe("Total estimated learning time in minutes"),
+  category: z.string().catch("").describe("Broad category for this curriculum (e.g. Technology, Science, Arts, Business, Languages, Lifestyle, Personal Development)"),
+  subcategory: z.string().catch("").describe("Specific subcategory within the category (e.g. Web Development, Physics, Music Theory, Marketing, Spanish)"),
   sections: z
     .array(sectionSchema)
     .min(1)

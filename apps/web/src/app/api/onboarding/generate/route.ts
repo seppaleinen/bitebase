@@ -299,6 +299,8 @@ export async function POST(req: Request) {
           description: curriculumPlan.description,
           totalEstimatedMinutes: curriculumPlan.totalEstimatedMinutes,
           sections: curriculumPlan.sections,
+          category: curriculumPlan.category || null,
+          subcategory: curriculumPlan.subcategory || null,
           generationStatus: "generating",
         });
 

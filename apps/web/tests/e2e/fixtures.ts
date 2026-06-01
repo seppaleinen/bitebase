@@ -91,6 +91,7 @@ type TRPCMockData = {
   quizResult?: object | null;
   nextLesson?: object | null;
   user?: object | null;
+  categories?: { category: string; subcategories: string[] }[];
 };
 
 function resolveData(procedurePath: string, data: TRPCMockData): unknown {
@@ -104,6 +105,7 @@ function resolveData(procedurePath: string, data: TRPCMockData): unknown {
   if (procedurePath === "curriculum.getProfile") return null;
 
   // Public browse
+  if (procedurePath === "public.listCategories") return data.categories ?? [];
   if (procedurePath === "public.listPublished") return curricula;
   if (procedurePath === "public.getPublishedCurriculum") return curricula[0] ?? null;
   if (procedurePath === "public.getPublishedLessons") return lessons;
@@ -121,6 +123,9 @@ function resolveData(procedurePath: string, data: TRPCMockData): unknown {
   // Progress procedures
   if (procedurePath === "curriculum.getProgressForCurriculum") return progress ? [progress] : [];
   if (procedurePath === "curriculum.getLessonProgress") return progress ?? null;
+
+  // Category
+  if (procedurePath === "curriculum.updateCategory") return null;
 
   return null;
 }

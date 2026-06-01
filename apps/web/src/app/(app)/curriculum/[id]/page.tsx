@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -16,6 +16,9 @@ import {
   Trash2,
   AlertTriangle,
   X,
+  Tag,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { trpcReact } from "@/lib/trpc/provider";
 import { Progress, Badge } from "@bitebase/ui/web";
@@ -24,6 +27,132 @@ import type { CurriculumSection } from "@bitebase/db";
 function useUser() {
   const { data, isLoading } = trpcReact.public.getSession.useQuery();
   return { user: data ?? null, isLoading };
+}
+
+/** Inline category editor for curriculum owners. */
+function CategoryEditor({
+  curriculumId,
+  currentCategory,
+  currentSubcategory,
+}: {
+  curriculumId: string;
+  currentCategory: string;
+  currentSubcategory: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [category, setCategory] = useState(currentCategory);
+  const [subcategory, setSubcategory] = useState(currentSubcategory);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const utils = trpcReact.useUtils();
+
+  const { data: categories } = trpcReact.public.listCategories.useQuery();
+  const updateMutation = trpcReact.curriculum.updateCategory.useMutation({
+    onSuccess: () => {
+      void utils.public.listPublished.invalidate();
+      void utils.public.getPublishedCurriculum.invalidate({ id: curriculumId });
+      void utils.public.listCategories.invalidate();
+      setEditing(false);
+    },
+  });
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => {
+          setCategory(currentCategory);
+          setSubcategory(currentSubcategory);
+          setEditing(true);
+        }}
+        className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-xs text-white/80 hover:bg-white/30"
+        aria-label="Edit category"
+      >
+        <Pencil className="h-3 w-3" />
+        Edit
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <input
+        ref={inputRef}
+        type="text"
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        placeholder="Category"
+        list="category-suggestions"
+        className="w-32 rounded-lg border border-white/30 bg-white/20 px-2 py-1 text-xs text-white placeholder-white/50 outline-none focus:border-white/60"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && category.trim()) {
+            updateMutation.mutate({
+              curriculumId,
+              category: category.trim(),
+              subcategory: subcategory.trim() || undefined,
+            });
+          }
+          if (e.key === "Escape") setEditing(false);
+        }}
+      />
+      <input
+        type="text"
+        value={subcategory}
+        onChange={(e) => setSubcategory(e.target.value)}
+        placeholder="Subcategory"
+        className="w-32 rounded-lg border border-white/30 bg-white/20 px-2 py-1 text-xs text-white placeholder-white/50 outline-none focus:border-white/60"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && category.trim()) {
+            updateMutation.mutate({
+              curriculumId,
+              category: category.trim(),
+              subcategory: subcategory.trim() || undefined,
+            });
+          }
+          if (e.key === "Escape") setEditing(false);
+        }}
+      />
+      <button
+        onClick={() => {
+          if (category.trim()) {
+            updateMutation.mutate({
+              curriculumId,
+              category: category.trim(),
+              subcategory: subcategory.trim() || undefined,
+            });
+          }
+        }}
+        disabled={updateMutation.isPending || !category.trim()}
+        className="inline-flex items-center gap-1 rounded-lg bg-white/20 px-2 py-1 text-xs text-white hover:bg-white/30 disabled:opacity-50"
+        aria-label="Save category"
+      >
+        {updateMutation.isPending ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <Check className="h-3 w-3" />
+        )}
+        Save
+      </button>
+      <button
+        onClick={() => setEditing(false)}
+        className="rounded-lg px-2 py-1 text-xs text-white/60 hover:text-white/80"
+        aria-label="Cancel"
+      >
+        <X className="h-3 w-3" />
+      </button>
+
+      {/* Datalist for category suggestions */}
+      {categories && categories.length > 0 && (
+        <datalist id="category-suggestions">
+          {categories.map((cat) => (
+            <option key={cat.category} value={cat.category} />
+          ))}
+        </datalist>
+      )}
+    </div>
+  );
 }
 
 export default function CurriculumPage({
@@ -113,7 +242,25 @@ export default function CurriculumPage({
             <span className="text-sm font-medium opacity-80">Curriculum</span>
           </div>
           <h1 className="mb-2 text-2xl font-bold">{curriculum.title}</h1>
-          <p className="mb-4 text-sm opacity-80">{curriculum.description}</p>
+          <p className="text-sm opacity-80">{curriculum.description}</p>
+
+          {/* Category badge */}
+          {curriculum.category && (
+            <div className="mb-4 mt-2 flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-0.5 text-xs font-medium text-white">
+                <Tag className="h-3 w-3" />
+                {curriculum.category}
+                {curriculum.subcategory && ` · ${curriculum.subcategory}`}
+              </span>
+              {isOwner && (
+                <CategoryEditor
+                  curriculumId={curriculum.id}
+                  currentCategory={curriculum.category ?? ""}
+                  currentSubcategory={curriculum.subcategory ?? ""}
+                />
+              )}
+            </div>
+          )}
 
           {user ? (
             <div className="flex items-center gap-6">
