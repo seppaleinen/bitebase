@@ -92,7 +92,7 @@ type TRPCMockData = {
   nextLesson?: object | null;
   user?: object | null;
   categories?: { category: string; subcategories: string[] }[];
-  admin?: { listLessonVersions?: any[]; regenerateLesson?: any };
+  admin?: { listLessonVersions?: { lessonId: string; version: number; count: number }[]; regenerateLesson?: { lessonId: string; newVersion: number } };
 };
 
 function resolveData(procedurePath: string, data: TRPCMockData): unknown {
