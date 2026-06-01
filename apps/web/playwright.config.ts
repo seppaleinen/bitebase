@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3001",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -18,12 +18,14 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  // Start Next.js dev server automatically if not already running
+  // Start an isolated Next.js dev server on port 3001 so E2E tests don't
+  // interfere with a dev server already running on port 3000.
+  // Override with PLAYWRIGHT_BASE_URL to use an existing server.
   webServer: process.env.SKIP_WEB_SERVER
     ? undefined
     : {
-        command: "rm -rf apps/web/.next && pnpm dev",
-        url: "http://localhost:3000",
+        command: "pnpm --filter @bitebase/web dev --port 3001",
+        url: "http://localhost:3001",
         reuseExistingServer: true,
         timeout: 120_000,
       },
