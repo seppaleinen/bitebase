@@ -104,10 +104,11 @@ jobs:
             type=semver,pattern={{version}},value=${{ needs.version.outputs.new_tag }}
             type=sha,format=short
 
-      - name: Build and push
+      - name: Build and push runner image
         uses: docker/build-push-action@v6
         with:
           context: .
+          target: runner
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
@@ -116,8 +117,34 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
-      - name: Image digest
-        run: echo "Pushed ${{ steps.meta.outputs.tags }}"
+      # ── Build & push migrations image (builder stage) ────────────────────
+      - name: Extract migration image metadata
+        id: meta-migrate
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-migrate
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ needs.version.outputs.new_tag }}
+            type=semver,pattern={{version}},value=${{ needs.version.outputs.new_tag }}
+            type=sha,format=short
+
+      - name: Build and push migrations image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: builder
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta-migrate.outputs.tags }}
+          labels: ${{ steps.meta-migrate.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-migrate:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-migrate:buildcache,mode=max
+
+      - name: Image digests
+        run: |
+          echo "Runner image:    ${{ steps.meta.outputs.tags }}"
+          echo "Migrations image: ${{ steps.meta-migrate.outputs.tags }}"
 
   # ── Create GitHub Release with auto-generated changelog ───────────────────
   github-release:
