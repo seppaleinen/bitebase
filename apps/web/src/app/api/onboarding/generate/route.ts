@@ -15,6 +15,7 @@ import {
   injectImagesIntoLesson,
   type CurriculumPlan,
 } from "@bitebase/ai";
+import { generateTtsAudio } from "@bitebase/ai/lib/tts";
 import { auth } from "@bitebase/api";
 import {
   db,
@@ -342,6 +343,7 @@ export async function POST(req: Request) {
           .join("\n");
 
         const narrativeThreads = buildNarrativeThreads(curriculumPlan);
+        const isLanguageCourse = curriculumPlan.category === "Languages";
 
         const tasks = allLessonMeta.map((meta) => async () => {
           send("lesson_started", { title: meta.subsection.title });
@@ -407,6 +409,7 @@ export async function POST(req: Request) {
                   meta.order + 1,
                   allLessonMeta.length,
                   narrativeThreads[meta.order],
+                  isLanguageCourse,
                 ),
                 prompt: `Write the complete lesson about "${meta.subsection.title}" for the section "${meta.section.title}".`,
                 temperature,
@@ -429,6 +432,7 @@ export async function POST(req: Request) {
               sources: [],
               quiz: { questions: [], passingScore: 70 },
               sections: [],
+              vocabulary: [],
             };
           }
 
@@ -438,6 +442,34 @@ export async function POST(req: Request) {
             lessonData = injectImagesIntoLesson(lessonData, searchImageUrls, 4);
             if (lessonData.content !== beforeContent) {
               console.log(`[generate] injected ${(lessonData.content.match(/!\[.*?\]\(.*?\)/g) || []).length} image(s) into "${meta.subsection.title}"`);
+            }
+          }
+
+          // Generate TTS audio for vocabulary items (language courses only)
+          const audioClips: Array<{
+            word: string;
+            language: string;
+            pronunciation: string;
+            definition: string;
+            audioDataUrl: string;
+            durationMs: number;
+          }> = [];
+          if (isLanguageCourse && lessonData.vocabulary && lessonData.vocabulary.length > 0) {
+            for (const item of lessonData.vocabulary) {
+              const result = await generateTtsAudio(item.word, item.language);
+              if (result) {
+                audioClips.push({
+                  word: item.word,
+                  language: item.language,
+                  pronunciation: item.pronunciation,
+                  definition: item.definition,
+                  audioDataUrl: result.audioDataUrl,
+                  durationMs: result.durationMs,
+                });
+              }
+            }
+            if (audioClips.length > 0) {
+              console.log(`[generate] generated ${audioClips.length} audio clip(s) for "${meta.subsection.title}"`);
             }
           }
 
@@ -458,6 +490,7 @@ export async function POST(req: Request) {
             estimatedMinutes: lessonData.estimatedMinutes,
             order: meta.order,
             promptVersion: PROMPT_VERSION,
+            audioClips,
           });
           await db.insert(quizzes).values({
             id: randomUUID(),

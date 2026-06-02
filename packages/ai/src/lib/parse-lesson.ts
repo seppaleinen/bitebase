@@ -92,7 +92,7 @@ function repairJson(raw: string): string {
  *   2. Decorated standard labels (e.g. "=== ⏰ MINUTES ===") → "===MINUTES==="
  */
 function normalizeSeparators(text: string): string {
-  const standardLabels = new Set(["CONTENT", "MINUTES", "SOURCES", "QUIZ"]);
+  const standardLabels = new Set(["CONTENT", "MINUTES", "SOURCES", "QUIZ", "VOCABULARY"]);
 
   // Phase 1: fix decorated standard separators (emoji or text between === and label)
   for (const label of standardLabels) {
@@ -114,13 +114,14 @@ function normalizeSeparators(text: string): string {
 /**
  * Parse a lesson response in separator format into structured data.
  *
- * The model writes four delimited sections:
+ * The model writes delimited sections:
  *   ===CONTENT=== — markdown lesson body
  *   ===MINUTES=== — estimated reading time (integer)
  *   ===SOURCES=== — JSON array of { title, url }
  *   ===QUIZ===    — JSON object with { questions, passingScore }
+ *   ===VOCABULARY=== — JSON array of vocab items (language courses only, optional)
  *
- * Throws if the CONTENT section is missing; quiz/sources parse failures are
+ * Throws if the CONTENT section is missing; quiz/sources/vocabulary parse failures are
  * swallowed and return safe defaults so a partial lesson is still saved.
  */
 export interface LessonSection {
@@ -129,12 +130,20 @@ export interface LessonSection {
   image?: string;
 }
 
+export type VocabItem = {
+  word: string;
+  language: string;
+  pronunciation: string;
+  definition: string;
+};
+
 export function parseLessonResponse(text: string): {
   content: string;
   estimatedMinutes: number;
   sources: { title: string; url: string; imageUrls?: string[] }[];
   quiz: { questions: QuizQuestion[]; passingScore: number };
   sections: LessonSection[];
+  vocabulary: VocabItem[];
 } {
   const normalized = normalizeSeparators(text);
 
@@ -147,6 +156,7 @@ export function parseLessonResponse(text: string): {
   const minutesRaw = section("MINUTES");
   const sourcesRaw = section("SOURCES");
   const quizRaw = section("QUIZ");
+  const vocabRaw = section("VOCABULARY");
 
   const estimatedMinutes = Math.max(1, parseInt(minutesRaw) || 10);
 
@@ -174,6 +184,25 @@ export function parseLessonResponse(text: string): {
     if (process.env.NODE_ENV !== "production") {
       console.warn("[parse-lesson] quiz parse failed — saving lesson without questions:", err instanceof Error ? err.message : err);
       console.warn("[parse-lesson] raw quiz text:", quizRaw.slice(0, 500));
+    }
+  }
+
+  // Parse vocabulary section (language courses)
+  let vocabulary: VocabItem[] = [];
+  if (vocabRaw) {
+    try {
+      const parsed = JSON.parse(vocabRaw);
+      if (Array.isArray(parsed)) {
+        vocabulary = parsed.filter(
+          (v: unknown): v is VocabItem =>
+            typeof v === "object" && v !== null &&
+            typeof (v as VocabItem).word === "string" &&
+            typeof (v as VocabItem).language === "string" &&
+            typeof (v as VocabItem).pronunciation === "string"
+        );
+      }
+    } catch {
+      // Ignore malformed vocabulary — non-language lessons omit it entirely
     }
   }
 
@@ -207,5 +236,5 @@ export function parseLessonResponse(text: string): {
 
   const sections = parseSections(content);
 
-  return { content, estimatedMinutes, sources, quiz, sections };
+  return { content, estimatedMinutes, sources, quiz, sections, vocabulary };
 }

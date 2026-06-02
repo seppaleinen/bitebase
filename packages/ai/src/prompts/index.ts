@@ -69,6 +69,7 @@ export function buildLessonSystemPrompt(
   lessonPosition: number,
   totalLessons: number,
   narrativeHistory = "",
+  isLanguageCourse = false,
 ): string {
   const narrativeSection = narrativeHistory
     ? `\nNarrative context (the learning journey so far):\n---\n${narrativeHistory}\n---\n`
@@ -136,8 +137,19 @@ Quiz question rules — read carefully:
 - For multiple_choice: all 4 options must be plausible but only one correct; options should relate to the lesson topic
 - The explanation must state why the correct answer is right, referencing the lesson content
 
+${isLanguageCourse ? `
+This is a LANGUAGE course — include a ===VOCABULARY=== section after ===SOURCES=== with a JSON array of vocabulary items from this lesson. Each item must have:
+  - "word": the word in the target language (e.g. "Buon giorno")
+  - "language": BCP-47 tag (e.g. "it-IT")
+  - "pronunciation": phonetic guide (e.g. "bwon johr-noh")
+  - "definition": English meaning (e.g. "Good morning / Good day")
+Example:
+===VOCABULARY===
+[{"word":"Buon giorno","language":"it-IT","pronunciation":"bwon johr-noh","definition":"Good morning / Good day"}]
+If no vocabulary is taught in this specific lesson, omit ===VOCABULARY=== entirely.` : ""}
+
 !!! CRITICAL — DO NOT CHANGE THE SEPARATOR TEXTS !!!
-Respond using EXACTLY this format. The separator lines (===CONTENT===, ===MINUTES===, ===SOURCES===, ===QUIZ===) must be written LITERALLY — no emoji, no extra words, no extra equals signs, no modification. These are machine-parsed markers, not headings.
+Respond using EXACTLY this format. The separator lines (===CONTENT===, ===MINUTES===, ===SOURCES===, ===QUIZ===${isLanguageCourse ? ", ===VOCABULARY===" : ""}) must be written LITERALLY — no emoji, no extra words, no extra equals signs, no modification. These are machine-parsed markers, not headings.
 
 ===CONTENT===
 <write the full markdown lesson here — you MAY use emoji in the ## headings and blockquotes INSIDE this section. Use ![alt](url) for images.>

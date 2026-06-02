@@ -7,7 +7,8 @@
     "./client": "./src/client.ts",
     "./prompts": "./src/prompts/index.ts",
     "./tools": "./src/tools/index.ts",
-    "./schemas": "./src/schemas/index.ts"
+    "./schemas": "./src/schemas/index.ts",
+    "./lib/tts": "./src/lib/tts.ts"
   },
   "scripts": {
     "test": "vitest run",

@@ -29,6 +29,7 @@ import {
 } from "@/components/lesson-section-nav";
 import { extractSummary, summaryBody } from "@/lib/extract-summary";
 import { extractKeyTerms } from "@/lib/extract-terms";
+import { VocabularySection } from "@/components/audio-player";
 
 /* ── Callout type detection ───────────────────────────────────────── */
 
@@ -308,6 +309,11 @@ export default function LessonPage({
           </div>
         );
       })()}
+
+      {/* Vocabulary & Pronunciation — audio clips from language courses */}
+      {!showQuiz && lesson.audioClips && lesson.audioClips.length > 0 && (
+        <VocabularySection clips={lesson.audioClips} />
+      )}
 
       {/* Visual References — deduplicated by URL */}
       {!showQuiz && (() => {

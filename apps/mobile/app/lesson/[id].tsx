@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import Markdown from "react-native-markdown-display";
 import { trpcReact } from "@/lib/trpc-provider";
 import { Image } from "expo-image";
+import { VocabularySection } from "@/components/audio-player";
 
 export default function LessonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -141,6 +142,13 @@ export default function LessonScreen() {
             >
               {lesson.content}
             </Markdown>
+
+            {/* Vocabulary & Pronunciation — audio clips from language courses */}
+            {lesson.audioClips && lesson.audioClips.length > 0 && (
+              <View className="mt-6">
+                <VocabularySection clips={lesson.audioClips as Array<{word: string; language: string; pronunciation: string; definition: string; audioDataUrl: string; durationMs: number}>} />
+              </View>
+            )}
 
             {/* Visual References */}
             {lesson.sources && lesson.sources.some(s => s.imageUrls && s.imageUrls.length > 0) && (

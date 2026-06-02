@@ -91,6 +91,19 @@ export const lessons = pgTable("lessons", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   version: integer("version").notNull().default(1),
   promptVersion: integer("prompt_version"),
+  audioClips: jsonb("audio_clips")
+    .$type<
+      Array<{
+        word: string;
+        language: string;
+        pronunciation: string;
+        definition: string;
+        audioDataUrl: string;
+        durationMs: number;
+      }>
+    >()
+    .notNull()
+    .default([]),
 });
 
 export const quizzes = pgTable("quizzes", {

@@ -9,3 +9,4 @@ export type { ChatMessage, ExtractedProfile } from "./lib/extract-profile";
 export { buildNarrativeThreads } from "./lib/narrative-thread";
 export { injectImagesIntoContent, injectImagesIntoLesson } from "./lib/inject-images";
 export type { LessonImage } from "./lib/inject-images";
+
