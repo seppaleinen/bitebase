@@ -7,21 +7,12 @@ metadata:
   labels:
     {{- include "bitebase.labels" . | nindent 4 }}
   annotations:
-    {{- if .Values.ingress.certManager.enabled }}
-    cert-manager.io/cluster-issuer: {{ .Values.ingress.certManager.clusterIssuer | quote }}
-    {{- end }}
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
   {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className }}
-  {{- end }}
-  {{- if .Values.ingress.tls }}
-  tls:
-    - hosts:
-        - {{ .Values.ingress.hostname | quote }}
-      secretName: {{ include "bitebase.fullname" . }}-tls
   {{- end }}
   rules:
     - host: {{ .Values.ingress.hostname | quote }}

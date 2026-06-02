@@ -40,6 +40,10 @@ config:
   ollamaBaseUrl: "http://ollama:11434/v1"
   ollamaModel: "llama3.2"
   nodeEnv: "production"
+  # Optional: max parallel lesson generations (default 3)
+  lessonGenerationConcurrency: "3"
+  # Optional: self-hosted SearXNG URL for web search (empty = disabled)
+  searxngBaseUrl: ""
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
 # Option A (recommended): reference a pre-existing secret created by your

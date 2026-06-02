@@ -16,3 +16,5 @@ data:
   OLLAMA_MODEL: {{ .Values.config.ollamaModel | quote }}
   NODE_ENV: {{ .Values.config.nodeEnv | quote }}
   PORT: "3000"
+  LESSON_GENERATION_CONCURRENCY: {{ .Values.config.lessonGenerationConcurrency | quote }}
+  SEARXNG_BASE_URL: {{ .Values.config.searxngBaseUrl | quote }}

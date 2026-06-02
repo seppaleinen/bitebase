@@ -73,6 +73,11 @@ spec:
                 secretKeyRef:
                   name: {{ include "bitebase.secretName" . }}
                   key: TAVILY_API_KEY
+            - name: OLLAMA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bitebase.secretName" . }}
+                  key: OLLAMA_API_KEY
 
           {{- with .Values.livenessProbe }}
           livenessProbe:
