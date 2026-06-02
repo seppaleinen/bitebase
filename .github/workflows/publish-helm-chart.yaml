@@ -84,18 +84,13 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/bitebase-migrate:buildcache,mode=max
 
       # ── Package & push Helm chart ──────────────────────────────────────────
-      - name: Add bitnami repo (for postgresql subchart)
-        run: helm repo add bitnami https://charts.bitnami.com/bitnami
-
-      - name: Update chart dependencies
-        run: helm dependency update helm/bitebase
-
       - name: Lint chart
         run: helm lint helm/bitebase
 
-      - name: Package chart
+      - name: Package chart (with dependency update)
         run: |
           helm package helm/bitebase \
+            --dependency-update \
             --version "${{ steps.chart.outputs.version }}" \
             --app-version "${{ steps.chart.outputs.app_version }}" \
             --destination /tmp/helm-packages

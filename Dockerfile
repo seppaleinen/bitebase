@@ -67,17 +67,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-RUN addgroup --system --gid 1000 nodejs \
- && adduser  --system --uid 1000 nextjs
-
+# node:22-alpine already has a 'node' user with UID/GID 1000
+# — reuse it rather than creating a conflicting nextjs user.
 # Next.js standalone output — self-contained node server
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=node:node /app/apps/web/.next/standalone ./
 # Static assets (CSS, JS chunks, images)
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static      ./apps/web/.next/static
+COPY --from=builder --chown=node:node /app/apps/web/.next/static      ./apps/web/.next/static
 # Public directory
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public             ./apps/web/public
+COPY --from=builder --chown=node:node /app/apps/web/public             ./apps/web/public
 
-USER nextjs
+USER node
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
