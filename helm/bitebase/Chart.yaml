@@ -18,10 +18,6 @@ keywords:
 maintainers:
   - name: BiteBase
 
-# Optional bundled PostgreSQL (bitnami). Enable via --set postgresql.enabled=true
-# for dev/staging. Disable and point externalDatabase.url at a managed DB for prod.
-dependencies:
-  - name: postgresql
-    version: "16.x.x"
-    repository: https://charts.bitnami.com/bitnami
-    condition: postgresql.enabled
+# Optional bundled PostgreSQL: add bitnami/postgresql as a dependency if you
+# want a built-in database. The chart works without it — set postgresql.enabled
+# to false (default) and provide DATABASE_URL via secrets or existingSecret.

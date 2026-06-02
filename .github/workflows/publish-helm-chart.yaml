@@ -46,10 +46,9 @@ jobs:
       - name: Lint chart
         run: helm lint helm/bitebase
 
-      - name: Package chart (with dependency update)
+      - name: Package chart
         run: |
           helm package helm/bitebase \
-            --dependency-update \
             --version "${{ steps.chart.outputs.version }}" \
             --app-version "${{ steps.chart.outputs.version }}" \
             --destination /tmp/helm-packages
