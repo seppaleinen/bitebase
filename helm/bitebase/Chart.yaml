@@ -2,22 +2,17 @@ apiVersion: v2
 name: bitebase
 description: BiteBase — personalized AI micro-learning platform
 type: application
-
 # Chart version — bumped automatically by the helm-release workflow
-version: 0.1.0
-
+version: 0.1.1
 # appVersion tracks the Docker image tag deployed by this chart version.
 # Set to the specific release tag (e.g. "v1.2.3") when pinning.
 appVersion: "0.1.0"
-
 keywords:
   - learning
   - ai
   - education
-
 maintainers:
   - name: BiteBase
-
 # Optional bundled PostgreSQL: add bitnami/postgresql as a dependency if you
 # want a built-in database. The chart works without it — set postgresql.enabled
 # to false (default) and provide DATABASE_URL via secrets or existingSecret.
