@@ -1,6 +1,7 @@
 # Version control
 .git
 .gitignore
+.github/
 
 # Dependencies (rebuilt inside Docker)
 node_modules
@@ -9,6 +10,9 @@ node_modules
 # Build outputs
 .next
 **/dist
+
+# Turbo cache (709MB — never needed for builds)
+.turbo
 **/.turbo
 
 # Dev environment
@@ -32,6 +36,26 @@ Thumbs.db
 *.swp
 *.swo
 
-# Docs (not needed at runtime)
+# Docs & agent files (not needed at runtime)
 *.md
 !README.md
+AGENTS.md
+LICENSE
+
+# Git hooks
+.husky/
+
+# Agent config
+.opencode/
+
+# Compose / orchestration
+docker-compose*.yml
+helm/
+k8s/
+
+# Static assets & dev scripts
+screenshots/
+scripts/
+
+# Global type declarations
+global.d.ts
