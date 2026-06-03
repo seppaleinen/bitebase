@@ -52,9 +52,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 # DATABASE_URL is not needed at build time (client is lazy-initialised).
-# If you use NEXT_PUBLIC_* vars they must be ARGs here:
-# ARG NEXT_PUBLIC_SOMETHING
-# ENV NEXT_PUBLIC_SOMETHING=$NEXT_PUBLIC_SOMETHING
+# NEXT_PUBLIC_* vars must be ARGs + ENVs here so they are inlined during build:
+#   docker build --build-arg NEXT_PUBLIC_APP_URL=https://example.com ...
+#
+# When unset, Better Auth's client falls back to window.location.origin
+# at runtime (same-origin API calls work without it).
+ARG NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
 RUN pnpm --filter @bitebase/web build
 
