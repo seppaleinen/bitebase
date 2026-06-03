@@ -57,26 +57,35 @@ jobs:
           tag_prefix: "v"
           release_branches: main
 
-  # ── Build & push Docker image ──────────────────────────────────────────────
-  docker:
-    name: Build & push Docker image
+  # ── Build Docker images per platform (native runners) ──────────────────
+  # Each architecture builds on its native runner — no QEMU emulation.
+  # amd64 uses ubuntu-latest (x86_64); arm64 uses ubuntu-24.04-arm (Graviton).
+  # Images are pushed with platform-suffixed tags and later merged into
+  # multi-arch manifests by the docker-merge job.
+  docker-build:
+    name: Build (${{ matrix.platform }})
     needs: version
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            suffix: amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            suffix: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write   # needed to push to GHCR
 
     env:
       REGISTRY: ghcr.io
-      # ghcr.io/<owner>/<repo-name>  —  GitHub lowercases this automatically
       IMAGE_NAME: ${{ github.repository }}
 
     steps:
       - uses: actions/checkout@v4
-
-      # Set up QEMU for multi-platform builds (arm64 for Apple Silicon / Graviton)
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -88,20 +97,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Produces tags:
-      #   ghcr.io/<owner>/<repo>:latest
-      #   ghcr.io/<owner>/<repo>:v1.2.3
-      #   ghcr.io/<owner>/<repo>:1.2.3
-      #   ghcr.io/<owner>/<repo>:<git-sha-short>
       - name: Extract image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # We only need labels from this step; tags are set inline below
+          flavor: |
+            latest=false
           tags: |
-            type=raw,value=latest
-            type=raw,value=${{ needs.version.outputs.new_tag }}
-            type=semver,pattern={{version}},value=${{ needs.version.outputs.new_tag }}
             type=sha,format=short
 
       - name: Build and push runner image
@@ -110,24 +114,14 @@ jobs:
           context: .
           target: runner
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # Cache layers between runs using the registry itself
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
-
-      # ── Build & push migrations image (builder stage) ────────────────────
-      - name: Extract migration image metadata
-        id: meta-migrate
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-migrate
+          platforms: ${{ matrix.platform }}
           tags: |
-            type=raw,value=latest
-            type=raw,value=${{ needs.version.outputs.new_tag }}
-            type=semver,pattern={{version}},value=${{ needs.version.outputs.new_tag }}
-            type=sha,format=short
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.suffix }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.version.outputs.new_tag }}-${{ matrix.suffix }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}-${{ matrix.suffix }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push migrations image
         uses: docker/build-push-action@v6
@@ -135,21 +129,75 @@ jobs:
           context: .
           target: builder
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta-migrate.outputs.tags }}
-          labels: ${{ steps.meta-migrate.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-migrate:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-migrate:buildcache,mode=max
+          platforms: ${{ matrix.platform }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-migrate:latest-${{ matrix.suffix }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-migrate:${{ needs.version.outputs.new_tag }}-${{ matrix.suffix }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-migrate:${{ github.sha }}-${{ matrix.suffix }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Merge platform-specific images into multi-arch manifests ──────────────
+  docker-merge:
+    name: Merge multi-arch manifests
+    needs: [version, docker-build]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
+      TAG: ${{ needs.version.outputs.new_tag }}
+
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifests
+        run: |
+          set -euo pipefail
+
+          # ── Runner image tags ──
+          #   ghcr.io/<owner>/<repo>:latest
+          #   ghcr.io/<owner>/<repo>:v0.19.7
+          #   ghcr.io/<owner>/<repo>:0.19.7        (semver, no v prefix)
+          #   ghcr.io/<owner>/<repo>:sha-e3370af
+          docker buildx imagetools create \
+            -t $REGISTRY/$IMAGE_NAME:latest \
+            -t $REGISTRY/$IMAGE_NAME:$TAG \
+            -t $REGISTRY/$IMAGE_NAME:${TAG#v} \
+            -t $REGISTRY/$IMAGE_NAME:sha-${{ github.sha }} \
+            $REGISTRY/$IMAGE_NAME:latest-amd64 \
+            $REGISTRY/$IMAGE_NAME:latest-arm64
+
+          # ── Migrations image tags ──
+          #   ghcr.io/<owner>/<repo>-migrate:latest
+          #   ghcr.io/<owner>/<repo>-migrate:v0.19.7
+          #   ghcr.io/<owner>/<repo>-migrate:0.19.7
+          #   ghcr.io/<owner>/<repo>-migrate:sha-e3370af
+          docker buildx imagetools create \
+            -t $REGISTRY/$IMAGE_NAME-migrate:latest \
+            -t $REGISTRY/$IMAGE_NAME-migrate:$TAG \
+            -t $REGISTRY/$IMAGE_NAME-migrate:${TAG#v} \
+            -t $REGISTRY/$IMAGE_NAME-migrate:sha-${{ github.sha }} \
+            $REGISTRY/$IMAGE_NAME-migrate:latest-amd64 \
+            $REGISTRY/$IMAGE_NAME-migrate:latest-arm64
 
       - name: Image digests
         run: |
-          echo "Runner image:    ${{ steps.meta.outputs.tags }}"
-          echo "Migrations image: ${{ steps.meta-migrate.outputs.tags }}"
+          echo "Runner image:    $REGISTRY/$IMAGE_NAME:$TAG"
+          echo "Migrations image: $REGISTRY/$IMAGE_NAME-migrate:$TAG"
 
   # ── Create GitHub Release with auto-generated changelog ───────────────────
   github-release:
     name: Create GitHub Release
-    needs: [version, docker]
+    needs: [version, docker-merge]
     runs-on: ubuntu-latest
     permissions:
       contents: write
