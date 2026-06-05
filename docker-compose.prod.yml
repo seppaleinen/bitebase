@@ -79,6 +79,7 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-davidbaeriksson@gmail.com}
+      SITE_URL: ${SITE_URL:-http://localhost:3000}
       NODE_ENV: production
     depends_on:
       db:

@@ -45,6 +45,8 @@ config:
   # Optional: self-hosted SearXNG URL for web search (empty = disabled)
   searxngBaseUrl: ""
   adminEmail: "davidbaeriksson@gmail.com"
+  # Canonical site URL (used for sitemap, canonical links, OG image URLs)
+  siteUrl: "https://bitebase.example.com"
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
 # Option A (recommended): reference a pre-existing secret created by your
