@@ -293,11 +293,18 @@ export async function POST(req: Request) {
         );
 
         curriculumId = randomUUID();
+        // Generate a kebab-case slug from the title
+        const slug = curriculumPlan.title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+
         await db.insert(curricula).values({
           id: curriculumId,
           userId: session.user.id,
           profileId,
           title: curriculumPlan.title,
+          slug,
           description: curriculumPlan.description,
           totalEstimatedMinutes: curriculumPlan.totalEstimatedMinutes,
           sections: curriculumPlan.sections,

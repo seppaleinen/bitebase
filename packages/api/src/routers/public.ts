@@ -149,4 +149,18 @@ export const publicRouter = router({
 
       return { lesson, quiz: quiz ?? null };
     }),
+
+  /** Get a single published curriculum by its slug (for pSEO /learn/[topic] routes). */
+  getByTopicSlug: publicProcedure
+    .input(z.object({ slug: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const [curriculum] = await db
+        .select()
+        .from(curricula)
+        .where(eq(curricula.slug, input.slug));
+      if (!curriculum || !curriculum.isPublished) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return curriculum;
+    }),
 });

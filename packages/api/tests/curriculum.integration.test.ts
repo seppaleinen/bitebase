@@ -724,6 +724,45 @@ describe("publicRouter", () => {
       caller.public.getPublishedLesson({ lessonId: "ghost" })
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
+
+  it("getByTopicSlug returns a published curriculum by slug", async () => {
+    const curriculum = { ...mockCurriculum, id: "slug-test", slug: "learn-typescript", isPublished: true };
+
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([curriculum]),
+    });
+
+    const caller = appRouter.createCaller(anonCtx() as never);
+    const result = await caller.public.getByTopicSlug({ slug: "learn-typescript" });
+    expect(result).toEqual(curriculum);
+  });
+
+  it("getByTopicSlug throws NOT_FOUND when slug does not exist", async () => {
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([]),
+    });
+
+    const caller = appRouter.createCaller(anonCtx() as never);
+    await expect(
+      caller.public.getByTopicSlug({ slug: "nonexistent" })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("getByTopicSlug throws NOT_FOUND when curriculum is unpublished", async () => {
+    const curriculum = { ...mockCurriculum, id: "unpub-slug", slug: "unpublished-topic", isPublished: false };
+
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([curriculum]),
+    });
+
+    const caller = appRouter.createCaller(anonCtx() as never);
+    await expect(
+      caller.public.getByTopicSlug({ slug: "unpublished-topic" })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
 });
 
 // ── Ownership guard: FORBIDDEN ───────────────────────────────────────────────

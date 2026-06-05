@@ -57,6 +57,7 @@ export const curricula = pgTable("curricula", {
     .notNull()
     .references(() => learningProfiles.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
   description: text("description").notNull(),
   totalEstimatedMinutes: integer("total_estimated_minutes").notNull(),
   sections: jsonb("sections").$type<CurriculumSection[]>().notNull(),
