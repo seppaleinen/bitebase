@@ -109,10 +109,22 @@ async function scoreWithLlama(
   const modelName = process.env.OLLAMA_MODEL || "llama3.2";
   const apiKey = process.env.OLLAMA_API_KEY || "";
 
+  // Normalize both strings for comparison (case-insensitive, trim whitespace)
+  const normalizedExpected = expected.toLowerCase().trim();
+  const normalizedTranscribed = transcribed.toLowerCase().trim();
+
+  // If ASR transcribed something close enough (case-insensitive match), give a generous score
+  const isCloseMatch = normalizedExpected === normalizedTranscribed;
+
   const prompt = `You are a language pronunciation coach. Rate this pronunciation attempt on a scale of 0-10.
 
 Expected phrase (correct pronunciation): "${expected}"
 User's attempt (transcribed by ASR): "${transcribed}"
+
+IMPORTANT: ASR (automatic speech recognition) is imperfect. Be lenient with minor differences:
+- Case differences (e.g., "Buon Giorno" vs "buongiorno") should NOT penalize heavily
+- Extra spaces or minor phonetic variations are acceptable
+- If the transcription is close enough to be understandable, give a score of 7 or above
 
 Respond with ONLY a JSON object. No extra text, no markdown, no explanation outside the JSON:
 {
