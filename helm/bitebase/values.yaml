@@ -44,6 +44,7 @@ config:
   lessonGenerationConcurrency: "3"
   # Optional: self-hosted SearXNG URL for web search (empty = disabled)
   searxngBaseUrl: ""
+  adminEmail: "davidbaeriksson@gmail.com"
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
 # Option A (recommended): reference a pre-existing secret created by your
@@ -167,7 +168,7 @@ ollama:
   enabled: false
   image:
     repository: ollama/ollama
-    tag: latest
+    tag: 0.5.13
     pullPolicy: IfNotPresent
   service:
     port: 11434

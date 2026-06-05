@@ -9,6 +9,59 @@ const nextConfig: NextConfig = {
   // Disable the dev indicator button so it doesn't interfere with Playwright
   // selectors that match button names containing "Next".
   devIndicators: false,
+
+  // Security headers applied to all routes
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              // Allow loading fonts from self (self-hosted) and Google Fonts CDN fallback
+              "font-src 'self' https://fonts.gstatic.com",
+              // Allow loading styles from self and inline styles (Next.js injects inline styles)
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              // Allow loading images from self, data: URIs, and external sources (lesson images)
+              "img-src 'self' data: https: http:",
+              // Allow connecting to self, Ollama API, and WebSocket for HMR in dev
+              "connect-src 'self' http://localhost:* ws://localhost:*",
+              // Allow scripts from self only (Next.js uses self-only scripts)
+              "script-src 'self'",
+              // Allow manifest and workers
+              "manifest-src 'self'",
+              // Block all frames
+              "frame-src 'none'",
+              // Block all object/embed
+              "object-src 'none'",
+              // Restrict base URIs
+              "base-uri 'self'",
+              // Restrict form actions
+              "form-action 'self'",
+            ].join("; "),
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

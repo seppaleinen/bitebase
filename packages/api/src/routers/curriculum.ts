@@ -118,7 +118,7 @@ export const curriculumRouter = router({
     .input(
       z.object({
         lessonId: z.string(),
-        answers: z.record(z.string(), z.string()),
+        answers: z.record(z.string(), z.string().max(500, "Answer too long (max 500 chars)")),
       })
     )
     .mutation(async ({ ctx, input }) => {

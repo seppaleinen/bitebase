@@ -50,6 +50,7 @@ jobs:
       BETTER_AUTH_TRUSTED_ORIGINS: http://localhost:3000
       OLLAMA_BASE_URL: http://localhost:11434/v1
       OLLAMA_MODEL: llama3.2
+      ADMIN_EMAIL: davidbaeriksson@gmail.com
 
     steps:
       - uses: actions/checkout@v4

@@ -18,3 +18,4 @@ data:
   PORT: "3000"
   LESSON_GENERATION_CONCURRENCY: {{ .Values.config.lessonGenerationConcurrency | quote }}
   SEARXNG_BASE_URL: {{ .Values.config.searxngBaseUrl | quote }}
+  ADMIN_EMAIL: {{ .Values.config.adminEmail | quote }}

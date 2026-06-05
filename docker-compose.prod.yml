@@ -20,7 +20,7 @@ services:
 
   # ── PostgreSQL ───────────────────────────────────────────────────────────────
   db:
-    image: postgres:16-alpine
+    image: postgres:16.4-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: bitebase
@@ -37,7 +37,7 @@ services:
   # ── Ollama (local LLM) ────────────────────────────────────────────────────────
   # On first start: docker compose -f docker-compose.prod.yml exec ollama ollama pull llama3.2
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.5.13
     restart: unless-stopped
     volumes:
       - ollama_data:/root/.ollama
@@ -78,6 +78,7 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434/v1
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-davidbaeriksson@gmail.com}
       NODE_ENV: production
     depends_on:
       db:

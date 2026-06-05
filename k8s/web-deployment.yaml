@@ -81,6 +81,11 @@ spec:
                 configMapKeyRef:
                   name: bitebase-config
                   key: PORT
+            - name: ADMIN_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: bitebase-config
+                  key: ADMIN_EMAIL
 
             # Secrets
             - name: DATABASE_URL

@@ -8,5 +8,6 @@ data:
   BETTER_AUTH_TRUSTED_ORIGINS: "https://bitebase.example.com"
   OLLAMA_BASE_URL: "http://ollama:11434/v1"
   OLLAMA_MODEL: "llama3.2"
+  ADMIN_EMAIL: "davidbaeriksson@gmail.com"
   NODE_ENV: "production"
   PORT: "3000"

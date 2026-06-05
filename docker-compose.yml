@@ -18,7 +18,7 @@ services:
 
   # ── PostgreSQL ───────────────────────────────────────────────────────────────
   db:
-    image: postgres:16-alpine
+    image: postgres:16.4-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: bitebase
@@ -41,7 +41,7 @@ services:
   # GPU support (NVIDIA): uncomment the `deploy` block below and ensure the
   # NVIDIA Container Toolkit is installed on your machine.
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.5.13
     restart: unless-stopped
     ports:
       - "11434:11434"

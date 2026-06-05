@@ -1,0 +1,63 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Dependabot — automated dependency updates
+#
+# Upgrades npm packages weekly and Docker base images weekly.
+# Dependabot opens PRs automatically; CI gates catch breaking changes.
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: 2
+updates:
+  # ── npm (pnpm) ─────────────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Stockholm"
+    # Group non-major updates into a single PR to reduce noise
+    groups:
+      production-deps:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-deps:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore major version bumps (evaluate manually)
+    ignore:
+      - dependency-type: "production"
+        update-types:
+          - "major"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+
+  # ── Docker ─────────────────────────────────────────────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Stockholm"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # ── GitHub Actions ─────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Stockholm"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"

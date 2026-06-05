@@ -36,11 +36,33 @@ async function withRetry<T>(fn: (attempt: number) => Promise<T>, maxAttempts: nu
 }
 
 
-/** Helper to ensure the caller is the designated admin */
+/** Helper to ensure the caller is the designated admin.
+ *  Reads from ADMIN_EMAIL env var; defaults to davidbaeriksson@gmail.com for backward compat. */
 function ensureAdmin(email: string) {
-  const ADMIN_EMAIL = "davidbaeriksson@gmail.com";
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "davidbaeriksson@gmail.com";
   if (email !== ADMIN_EMAIL) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+  }
+}
+
+// ── Simple in-memory rate limiter for expensive admin operations ────────────
+// Prevents hammering of regenerate endpoints. Uses a sliding window per user.
+// For distributed deployments, replace with Redis-based rate limiting.
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(userId: string, maxRequests: number, windowMs: number): void {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + windowMs });
+    return;
+  }
+  entry.count++;
+  if (entry.count > maxRequests) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: `Rate limit exceeded. Max ${maxRequests} requests per ${windowMs / 1000}s window.`,
+    });
   }
 }
 
@@ -196,6 +218,7 @@ export const adminRouter = router({
   /** List all curricula with lesson version summaries. */
   listCurricula: protectedProcedure.query(async ({ ctx }) => {
     ensureAdmin(ctx.session.user.email);
+    checkRateLimit(ctx.session.user.id, 30, 60_000); // 30 reads per minute
 
     // Get all curricula joined with lessons to derive version info
     const rows = await db
@@ -269,6 +292,7 @@ export const adminRouter = router({
     .input(z.object({ curriculumId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       ensureAdmin(ctx.session.user.email);
+      checkRateLimit(ctx.session.user.id, 2, 60_000); // 2 regenerations per minute (expensive AI calls)
 
       const allLessons = await db
         .select({ id: lessons.id })
@@ -296,6 +320,7 @@ export const adminRouter = router({
     .input(z.object({ version: z.number() }))
     .mutation(async ({ ctx, input }) => {
       ensureAdmin(ctx.session.user.email);
+      checkRateLimit(ctx.session.user.id, 2, 60_000); // 2 regenerations per minute (expensive AI calls)
       const all = await db
         .select({ id: lessons.id, version: lessons.version })
         .from(lessons)
