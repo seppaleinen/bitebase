@@ -31,8 +31,8 @@ Create dynamic, server-rendered landing pages for every topic in our database to
     - [x] If topic missing $\rightarrow$ show "Generate [Topic] Course" placeholder + CTA.
 
 ### Phase 3: Crawlability (The Connection)
-- [ ] **3.1 Dynamic Sitemap**: Update `apps/web/src/app/sitemap.ts` to include `/learn/[slug]` entries.
-- [ ] **3.2 Canonicalization**: Ensure self-referencing canonical URLs are set.
+- [x] **3.1 Dynamic Sitemap**: Updated `apps/web/src/app/sitemap.ts` to include `/learn/[slug]` entries from DB.
+- [x] **3.2 Canonicalization**: Self-referencing canonical URLs set via `generateMetadata` alternates.
 
 ---
 
