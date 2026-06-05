@@ -4,6 +4,7 @@ import { Brain, BookOpen, Zap, Trophy, ArrowRight, Sparkles } from "lucide-react
 import { auth } from "@bitebase/api";
 import { headers, cookies } from "next/headers";
 import LandingNav from "@/components/landing-nav";
+import { JsonLd } from "@/components/json-ld";
 
 export const metadata: Metadata = {
   title: "BiteBase — AI-Powered Personalized Learning",
@@ -41,6 +42,29 @@ export default async function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-indigo-50">
       <LandingNav isLoggedIn={isLoggedIn} />
+
+      {/* WebApplication structured data */}
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          name: "BiteBase",
+          url: process.env.SITE_URL ?? "https://bitebase.labb.site",
+          description:
+            "Tell BiteBase what you want to learn, and it builds a personalized, quiz-filled curriculum just for you.",
+          applicationCategory: "EducationalApplication",
+          operatingSystem: "Web",
+          offers: {
+            "@type": "Offer",
+            price: "0",
+            priceCurrency: "USD",
+          },
+          author: {
+            "@type": "Person",
+            name: "David Eriksson",
+          },
+        }}
+      />
 
       {/* FAQPage structured data for AI answer engines */}
       <script

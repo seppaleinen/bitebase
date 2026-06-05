@@ -21,6 +21,7 @@ import {
   Check,
 } from "lucide-react";
 import { trpcReact } from "@/lib/trpc/provider";
+import { JsonLd } from "@/components/json-ld";
 import { Progress, Badge } from "@bitebase/ui/web";
 import type { CurriculumSection } from "@bitebase/db";
 
@@ -226,6 +227,59 @@ export default function CurriculumPage({
 
   return (
     <main className="space-y-8">
+      {/* Structured data for search engines + AI answer engines */}
+      {curriculum && (
+        <>
+          <JsonLd
+            data={{
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: "Home",
+                  item: process.env.SITE_URL ?? "https://bitebase.labb.site",
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: "Explore",
+                  item: `${
+                    process.env.SITE_URL ?? "https://bitebase.labb.site"
+                  }/explore`,
+                },
+                {
+                  "@type": "ListItem",
+                  position: 3,
+                  name: curriculum.title,
+                },
+              ],
+            }}
+          />
+          <JsonLd
+            data={{
+              "@context": "https://schema.org",
+              "@type": "Course",
+              name: curriculum.title,
+              description: curriculum.description,
+              provider: {
+                "@type": "Organization",
+                name: "BiteBase",
+                url: process.env.SITE_URL ?? "https://bitebase.labb.site",
+              },
+              numberOfLessons: lessonsData?.length ?? 0,
+              timeRequired: `PT${Math.round(curriculum.totalEstimatedMinutes)}M`,
+              hasCourseInstance: {
+                "@type": "CourseInstance",
+                courseMode: "online",
+                courseWorkload: `PT${Math.round(curriculum.totalEstimatedMinutes)}M`,
+              },
+            }}
+          />
+        </>
+      )}
+
       {/* Back + header */}
       <div>
         <Link

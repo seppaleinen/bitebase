@@ -20,6 +20,7 @@ import {
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { trpcReact } from "@/lib/trpc/provider";
+import { JsonLd } from "@/components/json-ld";
 import { Badge } from "@bitebase/ui/web";
 import QuizSection from "@/components/quiz-section";
 import { LessonImage } from "@/components/lesson-image";
@@ -245,6 +246,65 @@ export default function LessonPage({
 
   return (
     <main className="mx-auto max-w-3xl space-y-6">
+      {/* Structured data for search engines + AI answer engines */}
+      {lesson && (
+        <>
+          <JsonLd
+            data={{
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: "Home",
+                  item: process.env.SITE_URL ?? "https://bitebase.labb.site",
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: "Explore",
+                  item: `${
+                    process.env.SITE_URL ?? "https://bitebase.labb.site"
+                  }/explore`,
+                },
+                {
+                  "@type": "ListItem",
+                  position: 3,
+                  name: curriculum?.title ?? "Curriculum",
+                  item: `${
+                    process.env.SITE_URL ?? "https://bitebase.labb.site"
+                  }/curriculum/${lesson.curriculumId}`,
+                },
+                {
+                  "@type": "ListItem",
+                  position: 4,
+                  name: lesson.title,
+                },
+              ],
+            }}
+          />
+          <JsonLd
+            data={{
+              "@context": "https://schema.org",
+              "@type": "LearningResource",
+              name: lesson.title,
+              description: lesson.content?.slice(0, 300) ?? "",
+              timeRequired: `PT${lesson.estimatedMinutes}M`,
+              isPartOf: curriculum
+                ? {
+                    "@type": "Course",
+                    name: curriculum.title,
+                    url: `${
+                      process.env.SITE_URL ?? "https://bitebase.labb.site"
+                    }/curriculum/${lesson.curriculumId}`,
+                  }
+                : undefined,
+            }}
+          />
+        </>
+      )}
+
       <ReadingProgress />
 
       {/* Back nav */}
