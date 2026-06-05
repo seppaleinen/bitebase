@@ -26,6 +26,7 @@ export const metadata: Metadata = {
     title: "BiteBase — Bite-sized Learning Powered by AI",
     description:
       "Tell BiteBase what you want to learn, and it builds a personalized, quiz-filled curriculum just for you.",
+    images: "/opengraph-image",
   },
   robots: {
     index: true,

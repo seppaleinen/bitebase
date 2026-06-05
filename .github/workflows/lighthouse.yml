@@ -1,0 +1,56 @@
+name: Lighthouse CI
+
+on:
+  schedule:
+    # Weekly: Sunday at 06:00 UTC
+    - cron: "0 6 * * 0"
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "URLs to audit (space-separated)"
+        required: false
+        default: "https://bitebase.labb.site https://bitebase.labb.site/explore https://bitebase.labb.site/login https://bitebase.labb.site/register"
+
+jobs:
+  lighthouse:
+    name: Lighthouse Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Install Lighthouse CI
+        run: pnpm add -g @lhci/cli
+
+      - name: Run Lighthouse
+        run: |
+          if [ -n "${{ github.event.inputs.urls }}" ]; then
+            lhci collect --url="${{ github.event.inputs.urls }}"
+          else
+            lhci collect --url="https://bitebase.labb.site" \
+                         --url="https://bitebase.labb.site/explore" \
+                         --url="https://bitebase.labb.site/login" \
+                         --url="https://bitebase.labb.site/register" \
+                         --url="https://bitebase.labb.site/robots.txt" \
+                         --url="https://bitebase.labb.site/sitemap.xml"
+          fi
+          lhci assert || true  # Don't fail the build on score drops
+          lhci upload
+
+      - name: Upload Lighthouse report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/
+          retention-days: 14
