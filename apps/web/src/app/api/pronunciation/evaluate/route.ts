@@ -113,9 +113,6 @@ async function scoreWithLlama(
   const normalizedExpected = expected.toLowerCase().trim();
   const normalizedTranscribed = transcribed.toLowerCase().trim();
 
-  // If ASR transcribed something close enough (case-insensitive match), give a generous score
-  const isCloseMatch = normalizedExpected === normalizedTranscribed;
-
   const prompt = `You are a language pronunciation coach. Rate this pronunciation attempt on a scale of 0-10.
 
 Expected phrase (correct pronunciation): "${expected}"
