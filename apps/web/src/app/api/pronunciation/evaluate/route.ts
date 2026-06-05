@@ -109,10 +109,6 @@ async function scoreWithLlama(
   const modelName = process.env.OLLAMA_MODEL || "llama3.2";
   const apiKey = process.env.OLLAMA_API_KEY || "";
 
-  // Normalize both strings for comparison (case-insensitive, trim whitespace)
-  const normalizedExpected = expected.toLowerCase().trim();
-  const normalizedTranscribed = transcribed.toLowerCase().trim();
-
   const prompt = `You are a language pronunciation coach. Rate this pronunciation attempt on a scale of 0-10.
 
 Expected phrase (correct pronunciation): "${expected}"
