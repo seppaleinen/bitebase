@@ -12,6 +12,15 @@ const nextConfig: NextConfig = {
 
   // Security headers applied to all routes
   async headers() {
+    // In dev mode, Next.js needs 'unsafe-inline' and 'unsafe-eval' for HMR,
+    // React Refresh, and source maps (eval-source-map). In production the
+    // bundled scripts are loaded from same-origin static files, so 'self' is
+    // sufficient. We cannot use strict CSP in dev without breaking hydration.
+    const isDev = process.env.NODE_ENV === "development";
+    const scriptSrc = isDev
+      ? "'self' 'unsafe-inline' 'unsafe-eval'"
+      : "'self'";
+
     return [
       {
         source: "/(.*)",
@@ -28,8 +37,8 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: https: http:",
               // Allow connecting to self, Ollama API, and WebSocket for HMR in dev
               "connect-src 'self' http://localhost:* ws://localhost:*",
-              // Allow scripts from self only (Next.js uses self-only scripts)
-              "script-src 'self'",
+              // Scripts: permissive in dev for HMR, strict in production
+              `script-src ${scriptSrc}`,
               // Allow manifest and workers
               "manifest-src 'self'",
               // Block all frames

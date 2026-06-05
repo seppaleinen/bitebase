@@ -55,5 +55,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // DB not available during build — serve static entries only
   }
 
+  // Add /learn/[slug] pages for every published curriculum
+  try {
+    const curriculumRows = await db
+      .select({ slug: curricula.slug })
+      .from(curricula)
+      .where(eq(curricula.isPublished, true))
+      .orderBy(curricula.slug);
+
+    for (const row of curriculumRows) {
+      entries.push({
+        url: `${baseUrl}/learn/${encodeURIComponent(row.slug)}`,
+        lastModified: new Date(),
+        changeFrequency: "weekly",
+        priority: 0.6,
+      });
+    }
+  } catch {
+    // DB not available during build — serve static entries only
+  }
+
   return entries;
 }
