@@ -17,9 +17,6 @@ const nextConfig: NextConfig = {
     // bundled scripts are loaded from same-origin static files, so 'self' is
     // sufficient. We cannot use strict CSP in dev without breaking hydration.
     const isDev = process.env.NODE_ENV === "development";
-    const scriptSrc = isDev
-      ? "'self' 'unsafe-inline' 'unsafe-eval'"
-      : "'self'";
 
     return [
       {
@@ -38,8 +35,8 @@ const nextConfig: NextConfig = {
               // Allow connecting to self, Ollama API, and WebSocket for HMR in dev
               "connect-src 'self' http://localhost:* ws://localhost:*",
               // Scripts: permissive in dev for HMR, in production we need 'unsafe-inline'
-      // because Next.js injects __NEXT_DATA__ as an inline script, and we use
-      // dangerouslySetInnerHTML for JSON-LD structured data.
+              // because Next.js injects __NEXT_DATA__ as an inline script, and we use
+              // dangerouslySetInnerHTML for JSON-LD structured data.
               `script-src ${isDev ? "'self' 'unsafe-inline' 'unsafe-eval'" : "'self' 'unsafe-inline'"}`,
               // Allow manifest and workers
               "manifest-src 'self'",
