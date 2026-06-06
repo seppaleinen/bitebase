@@ -37,8 +37,10 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: https: http:",
               // Allow connecting to self, Ollama API, and WebSocket for HMR in dev
               "connect-src 'self' http://localhost:* ws://localhost:*",
-              // Scripts: permissive in dev for HMR, strict in production
-              `script-src ${scriptSrc}`,
+              // Scripts: permissive in dev for HMR, in production we need 'unsafe-inline'
+      // because Next.js injects __NEXT_DATA__ as an inline script, and we use
+      // dangerouslySetInnerHTML for JSON-LD structured data.
+              `script-src ${isDev ? "'self' 'unsafe-inline' 'unsafe-eval'" : "'self' 'unsafe-inline'"}`,
               // Allow manifest and workers
               "manifest-src 'self'",
               // Block all frames
