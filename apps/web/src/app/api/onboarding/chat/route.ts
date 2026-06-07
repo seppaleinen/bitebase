@@ -37,20 +37,34 @@ export async function POST(req: Request) {
     console.log("[onboarding/chat] state:", collectedSummary);
   }
 
-  const result = streamText({
-    model: getModel(),
-    system: systemPrompt,
-    messages,
-    temperature: 0.7,
-    onError({ error }: { error: unknown }) {
-      console.error("[onboarding/chat] streamText error:", error);
-    },
-    onStepFinish({ finishReason, usage }: { finishReason: unknown; usage: unknown }) {
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[onboarding/chat] step:", { finishReason, usage });
-      }
-    },
-  });
+  let result: Awaited<ReturnType<typeof streamText>>;
+  try {
+    result = streamText({
+      model: getModel(),
+      system: systemPrompt,
+      messages,
+      temperature: 0.7,
+    });
+  } catch (err) {
+    // Initial connection failure — throw before any bytes are sent to the client.
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[onboarding/chat] streamText init failed:", msg);
+    return new Response("Unable to connect to the AI model. Please check your connection and try again.", { status: 502 });
+  }
 
-  return result.toDataStreamResponse();
+  // Vercel AI SDK returns a DataStreamResponse even when streaming fails at the network level.
+  // The body is null if no data was ever produced (e.g., auth rejected before first token).
+  const response = result.toDataStreamResponse();
+  if (!response.body) {
+    console.error("[onboarding/chat] streamText returned empty body — LLM connection failed");
+    return new Response("The AI model stopped responding. Please try again.", { status: 502 });
+  }
+
+  // Also check for non-OK status codes after streaming started (e.g., auth rejected mid-stream).
+  if (response.status >= 400) {
+    console.error("[onboarding/chat] streamText returned non-OK status:", response.status);
+    return new Response("The AI model rejected the request. Please check your connection and try again.", { status: 502 });
+  }
+
+  return response;
 }
