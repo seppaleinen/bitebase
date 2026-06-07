@@ -29,23 +29,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Install Lighthouse CI
-        run: pnpm add -g @lhci/cli
-
       - name: Run Lighthouse
         run: |
           if [ -n "${{ github.event.inputs.urls }}" ]; then
-            lhci collect --url="${{ github.event.inputs.urls }}"
+            npx @lhci/cli@latest collect --url="${{ github.event.inputs.urls }}"
           else
-            lhci collect --url="https://bitebase.labb.site" \
-                         --url="https://bitebase.labb.site/explore" \
-                         --url="https://bitebase.labb.site/login" \
-                         --url="https://bitebase.labb.site/register" \
-                         --url="https://bitebase.labb.site/robots.txt" \
-                         --url="https://bitebase.labb.site/sitemap.xml"
+            npx @lhci/cli@latest collect \
+              --url="https://bitebase.labb.site" \
+              --url="https://bitebase.labb.site/explore" \
+              --url="https://bitebase.labb.site/login" \
+              --url="https://bitebase.labb.site/register" \
+              --url="https://bitebase.labb.site/robots.txt" \
+              --url="https://bitebase.labb.site/sitemap.xml"
           fi
-          lhci assert || true  # Don't fail the build on score drops
-          lhci upload
+          npx @lhci/cli@latest assert || true  # Don't fail the build on score drops
+          npx @lhci/cli@latest upload
 
       - name: Upload Lighthouse report
         uses: actions/upload-artifact@v4
