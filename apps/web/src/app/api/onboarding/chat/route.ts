@@ -23,6 +23,14 @@ async function readFirstChunk(
 }
 
 export async function POST(req: Request) {
+  // Unconditional log to verify this version is running (always fires regardless of NODE_ENV).
+  try {
+    const body = await req.clone().json();
+    console.error("[onboarding/chat] ROUTE HIT — NODE_ENV:", process.env.NODE_ENV, "messages_count:", body?.messages?.length ?? "?");
+  } catch {
+    console.error("[onboarding/chat] ROUTE HIT — NODE_ENV:", process.env.NODE_ENV);
+  }
+
   const isTest =
     process.env.NODE_ENV !== "production" &&
     req.headers.get("cookie")?.includes(TEST_COOKIE);
