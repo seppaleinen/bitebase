@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { generateObject, generateText, NoObjectGeneratedError } from "ai";
+import { generateText } from "ai";
 import type { z } from "zod";
 import {
   getModel,
@@ -148,10 +148,10 @@ interface GenerateJsonParams {
 }
 
 /**
- * Wraps `generateObject` with retry logic.
- * On `NoObjectGeneratedError`, logs the raw model text and attempts to parse
- * and validate it manually before giving up — a "repair" pass that handles
- * cases where the model produced valid JSON that just barely missed the schema.
+ * Wraps `generateText` with retry logic. Uses raw text mode (not json_object)
+ * because LLM Studio / LiteLLM endpoints only support `text` and `json_schema` —
+ * they reject `json_object`. We parse the raw model output ourselves and validate
+ * against the Zod schema before returning.
  */
 async function generateJsonObject<T>(
   params: GenerateJsonParams,
@@ -162,37 +162,26 @@ async function generateJsonObject<T>(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const { object } = await generateObject({ ...params, schema });
-      return object as T;
+      const { text } = await generateText({ ...params, mode: "text" });
+      if (!text?.trim()) {
+        throw new Error("Model returned empty response");
+      }
+      const parsed = extractJson(text);
+      const result = schema.safeParse(parsed);
+      if (result.success) {
+        return result.data;
+      }
+      console.error(`[generate] attempt ${attempt}/${maxAttempts} schema validation failed.`);
+      console.error(`[generate] raw text (first 800 chars): ${text.slice(0, 800)}`);
+      console.error(`[generate] Zod errors:`, JSON.stringify(result.error.format()).slice(0, 600));
     } catch (err) {
       lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[generate] attempt ${attempt}/${maxAttempts} failed: ${msg}`);
+    }
 
-      if (NoObjectGeneratedError.isInstance(err)) {
-        const rawText = err.text ?? "";
-        console.error(`[generate] attempt ${attempt}/${maxAttempts} schema mismatch.`);
-        console.error(`[generate] finishReason: ${err.finishReason}`);
-        console.error(`[generate] cause: ${err.cause instanceof Error ? err.cause.message : err.cause}`);
-        console.error(`[generate] raw text (first 800 chars): ${rawText.slice(0, 800)}`);
-
-        // Repair pass: try parsing the raw text ourselves
-        try {
-          const parsed = extractJson(rawText);
-          const result = schema.safeParse(parsed);
-          if (result.success) {
-            console.warn(`[generate] repair pass succeeded on attempt ${attempt}`);
-            return result.data;
-          }
-          console.error(`[generate] repair pass Zod errors:`, JSON.stringify(result.error.format()).slice(0, 600));
-        } catch (parseErr) {
-          console.error(`[generate] repair pass parse failed:`, parseErr instanceof Error ? parseErr.message : parseErr);
-        }
-      } else {
-        console.error(`[generate] attempt ${attempt}/${maxAttempts} failed:`, err instanceof Error ? err.message : err);
-      }
-
-      if (attempt < maxAttempts) {
-        await new Promise((res) => setTimeout(res, 1000 * attempt));
-      }
+    if (attempt < maxAttempts) {
+      await new Promise((res) => setTimeout(res, 1000 * attempt));
     }
   }
 
