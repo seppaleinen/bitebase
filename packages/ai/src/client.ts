@@ -47,71 +47,89 @@ let modelWarmedUp = false;
  * real inference request.
  *
  * LLM Studio in headless mode (`lms serve`) does NOT auto-load models on
- * the first API call — the request hangs or fails. This function:
+ * the first API call — the request fails with "No models loaded". This function:
  *
- *  1. Lists available models via GET /v1/models (best-effort).
- *  2. Sends a minimal 1-token chat completion to force model loading.
+ *  1. Lists available models via GET /api/v1/models (LLM Studio endpoint).
+ *  2. If none are loaded, POSTs to /api/v1/models/load to trigger loading.
  *
  * Subsequent calls in the same process are no-ops.
  */
 export async function ensureModelLoaded(): Promise<void> {
   if (modelWarmedUp) return;
 
-  const modelId = process.env.OLLAMA_MODEL ?? "llama3.2";
-  const baseURL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434/v1";
+  const ollamaBaseURL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434/v1";
 
-  console.log(`[ai] Ensuring model "${modelId}" is loaded…`);
+  console.log(`[ai] Ensuring AI model is loaded…`);
 
-  // 1. Check /v1/models (best-effort; many providers don't expose this)
-  try {
-    const res = await fetch(`${baseURL}/models`, {
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (res.ok) {
-      const data = (await res.json()) as {
-        data?: Array<{ id: string }>;
-      };
-      const models = data?.data ?? [];
-      const found = models.some((m) => m.id === modelId);
-      if (found) {
-        console.log(`[ai] Model "${modelId}" is registered`);
-      } else {
-        console.warn(
-          `[ai] Model "${modelId}" not in /v1/models list`,
-          models.length ? `(available: ${models.map((m) => m.id).join(", ")})` : "(empty list)",
-        );
-      }
-    }
-  } catch {
-    // /v1/models is non-standard — skip silently.
+  // Only apply to LLM Studio — Ollama auto-loads on first request.
+  // Detect by checking if the base URL targets LLM Studio's default port.
+  const isLLMStudio = ollamaBaseURL.includes("1234");
+  if (!isLLMStudio) {
+    console.log(`[ai] Running against Ollama (${ollamaBaseURL}), model warm-up is handled by the server`);
+    modelWarmedUp = true;
+    return;
   }
 
-  // 2. Warm-up: send a minimal chat completion to trigger model loading.
+  // Derive the LLM Studio management API origin from the OpenAI-compatible base URL.
+  //   OLLAMA_BASE_URL = http://localhost:1234/v1
+  //   management root  = http://localhost:1234/api/v1
+  const origin = ollamaBaseURL.replace(/\/v1\/?$/, "");
+
+  // Step 1: Check whether any models are currently loaded.
   try {
-    const warmRes = await fetch(`${baseURL}/chat/completions`, {
+    const res = await fetch(`${origin}/api/v1/models`, {
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) {
+      console.warn(`[ai] Failed to list LLM Studio models (${res.status}), skipping load`);
+      modelWarmedUp = true;
+      return;
+    }
+
+    const body = (await res.json()) as {
+      models: Array<{ type?: string; key: string; loaded_instances?: unknown[] }>;
+    };
+    const models = body.models ?? [];
+    const totalLoaded = models.reduce(
+      (sum, m) => sum + (Array.isArray(m.loaded_instances) ? (m.loaded_instances.length as number) : 0),
+      0,
+    );
+
+    if (totalLoaded > 0) {
+      console.log(`[ai] ${totalLoaded} model(s) already loaded in LLM Studio`);
+      modelWarmedUp = true;
+      return;
+    }
+
+    // Step 2: Find an unloaded LLM model and load it.
+    const candidate = models.find(
+      (m) => m.type === "llm" && Array.isArray(m.loaded_instances) && m.loaded_instances.length === 0,
+    );
+
+    if (!candidate) {
+      console.warn(`[ai] No unloaded LLM models found in LLM Studio`);
+      modelWarmedUp = true;
+      return;
+    }
+
+    console.log(`[ai] Loading "${candidate.key}" via /api/v1/models/load…`);
+
+    const loadRes = await fetch(`${origin}/api/v1/models/load`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: modelId,
-        messages: [{ role: "user", content: "Hi" }],
-        max_tokens: 1,
-        temperature: 0,
-      }),
-      signal: AbortSignal.timeout(60_000),
+      body: JSON.stringify({ model: candidate.key }),
+      signal: AbortSignal.timeout(300_000), // models can take a while to load
     });
 
-    if (warmRes.ok) {
-      console.log(`[ai] Model "${modelId}" loaded successfully`);
+    if (loadRes.ok) {
+      console.log(`[ai] Model "${candidate.key}" loaded successfully`);
     } else {
-      const body = await warmRes.text().catch(() => "unknown");
-      console.warn(
-        `[ai] Model warm-up returned ${warmRes.status}: ${body.slice(0, 200)}`,
-      );
+      const errBody = await loadRes.text().catch(() => "unknown");
+      console.warn(`[ai] Model load returned ${loadRes.status}: ${errBody.slice(0, 200)}`);
     }
   } catch (err) {
     console.warn(
-      `[ai] Model warm-up failed (proceeding anyway):`,
-      err instanceof Error ? err.message : String(err),
+      `[ai] Model load check failed (${err instanceof Error ? err.message : String(err)}), skipping warm-up`,
     );
   }
 
