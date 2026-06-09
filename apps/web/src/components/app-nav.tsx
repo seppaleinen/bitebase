@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Brain, LayoutDashboard, LogOut, Plus, Compass, Shield } from "lucide-react";
+import { Brain, LayoutDashboard, LogOut, Plus, Compass, Shield, Settings } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 interface AppNavProps {
@@ -55,10 +55,16 @@ export default function AppNav({ user }: AppNavProps) {
             </Link>
           )}
           {user?.email === "davidbaeriksson@gmail.com" && (
-            <Link href="/admin/lessons" className={linkClass("/admin/lessons")}>
-              <Shield className="h-4 w-4" />
-              Admin
-            </Link>
+            <>
+              <Link href="/admin/lessons" className={linkClass("/admin/lessons")}>
+                <Shield className="h-4 w-4" />
+                Admin
+              </Link>
+              <Link href="/admin/settings" className={linkClass("/admin/settings")}>
+                <Settings className="h-4 w-4" />
+                Settings
+              </Link>
+            </>
           )}
         </div>
 

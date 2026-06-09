@@ -3,7 +3,7 @@
 // and regenerate all lessons within a curriculum.
 
 import { z } from "zod";
-import { db, lessons, curricula, learningProfiles, quizzes } from "@bitebase/db";
+import { db, lessons, curricula, learningProfiles, quizzes, modelSettings } from "@bitebase/db";
 import { protectedProcedure, router } from "../trpc";
 import { generateText } from "ai";
 import { eq, sql } from "drizzle-orm";
@@ -11,6 +11,7 @@ import { TRPCError } from "@trpc/server";
 import { randomUUID } from "crypto";
 import {
   getModel,
+  ensureModelLoaded,
   PROMPT_VERSION,
   buildLessonSystemPrompt,
   buildNarrativeThreads,
@@ -18,6 +19,9 @@ import {
   parseLessonResponse,
   injectImagesIntoLesson,
 } from "@bitebase/ai";
+
+// Runtime model config — DB overrides → env vars → undefined (code defaults apply).
+import { getEffectiveModelConfig } from "../lib/model-config";
 
 async function withRetry<T>(fn: (attempt: number) => Promise<T>, maxAttempts: number, delayMs: number, label = "task"): Promise<T> {
   let lastError: unknown;
@@ -114,12 +118,17 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
     includeImages: true,
   });
 
+  // Ensure the AI model is loaded (LLM Studio headless does not auto-load).
+  await ensureModelLoaded();
+
   // Gather search context & images
   let searchContext = "";
   const searchImageUrls: string[] = [];
   if (searchTool) {
     try {
+      const effectiveConfig = await getEffectiveModelConfig();
       const { text: searchResults, toolResults } = await generateText({
+        ...effectiveConfig,
         model: getModel(),
         tools: { webSearch: searchTool },
         prompt: `Search for comprehensive information about "${meta.subsection.title}" in the context of ${profile.topic} for a ${profile.experienceLevel} learner. Search for the most relevant and educational content.`,
@@ -154,7 +163,9 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
   // Generate lesson content with retry logic
   const lessonData = await withRetry(async (attempt) => {
     const temperature = Math.min(0.7 + (attempt - 1) * 0.15, 1.0);
+    const effectiveConfig = await getEffectiveModelConfig();
     const { text } = await generateText({
+      ...effectiveConfig,
       model: getModel(),
       system: buildLessonSystemPrompt(
         safeProfile,
@@ -335,4 +346,78 @@ export const adminRouter = router({
       }
       return results;
     }),
+
+  /** Read/write runtime model configuration (admin-managed overrides for env vars). */
+  modelSettings: router({
+    /** Return current DB settings with effective (DB→env→code-default) values. */
+    get: protectedProcedure.query(async ({ ctx }) => {
+      ensureAdmin(ctx.session.user.email);
+
+      const row = await db
+        .select()
+        .from(modelSettings)
+        .where(eq(modelSettings.id, "default"))
+        .limit(1)
+        .then((rows) => rows[0] ?? null);
+
+      return {
+        // Raw DB values (null = use env/code default)
+        temperature: row?.temperature ?? null,
+        maxTokens: row?.maxTokens ?? null,
+        topP: row?.topP ?? null,
+        // Effective values for display
+        effectiveTemperature:
+          row?.temperature ??
+          (process.env.OLLAMA_TEMPERATURE
+            ? parseFloat(process.env.OLLAMA_TEMPERATURE)
+            : 0.7),
+        effectiveMaxTokens:
+          row?.maxTokens ??
+          (process.env.OLLAMA_MAX_TOKENS
+            ? parseInt(process.env.OLLAMA_MAX_TOKENS, 10)
+            : null),
+        effectiveTopP:
+          row?.topP ??
+          (process.env.OLLAMA_TOP_P
+            ? parseFloat(process.env.OLLAMA_TOP_P)
+            : null),
+      };
+    }),
+
+    /** Persist model config overrides. Pass `null` to clear a DB override. */
+    update: protectedProcedure
+      .input(
+        z.object({
+          temperature: z.number().min(0).max(2).nullable(),
+          maxTokens: z.number().int().min(1).nullable(),
+          topP: z.number().min(0).max(1).nullable(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        ensureAdmin(ctx.session.user.email);
+
+        await db
+          .insert(modelSettings)
+          .values({
+            id: "default",
+            temperature: input.temperature,
+            maxTokens: input.maxTokens,
+            topP: input.topP,
+            updatedAt: new Date(),
+            updatedBy: ctx.session.user.email,
+          })
+          .onConflictDoUpdate({
+            target: modelSettings.id,
+            set: {
+              temperature: input.temperature,
+              maxTokens: input.maxTokens,
+              topP: input.topP,
+              updatedAt: new Date(),
+              updatedBy: ctx.session.user.email,
+            },
+          });
+
+        return { success: true };
+      }),
+  }),
 });

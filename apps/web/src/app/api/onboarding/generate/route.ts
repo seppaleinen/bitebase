@@ -4,6 +4,7 @@ import { generateText } from "ai";
 import type { z } from "zod";
 import {
   getModel,
+  ensureModelLoaded,
   PROMPT_VERSION,
   buildCurriculumSystemPrompt,
   buildLessonSystemPrompt,
@@ -16,7 +17,7 @@ import {
   type CurriculumPlan,
 } from "@bitebase/ai";
 import { generateTtsAudio } from "@bitebase/ai/lib/tts";
-import { auth } from "@bitebase/api";
+import { auth, getEffectiveModelConfig } from "@bitebase/api";
 import {
   db,
   learningProfiles,
@@ -145,6 +146,8 @@ interface GenerateJsonParams {
   prompt: string;
   mode?: "json" | "tool" | "auto";
   temperature?: number;
+  maxTokens?: number;
+  topP?: number;
 }
 
 /**
@@ -162,7 +165,10 @@ async function generateJsonObject<T>(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const { text } = await generateText({ ...params, mode: "text" });
+      const { text } = await generateText({
+        ...params,
+        mode: "text",
+      });
       if (!text?.trim()) {
         throw new Error("Model returned empty response");
       }
@@ -268,6 +274,14 @@ export async function POST(req: Request) {
           additionalContext: profile.additionalContext,
         });
 
+        send("status", { message: "Loading AI model..." });
+
+        // Ensure the AI model is loaded (LLM Studio headless does not auto-load).
+        await ensureModelLoaded();
+
+        // Fetch runtime model config (DB overrides → env vars → code defaults).
+        const effectiveConfig = await getEffectiveModelConfig();
+
         send("status", { message: "Designing your curriculum..." });
 
         const curriculumPlan = await generateJsonObject<CurriculumPlan>(
@@ -276,7 +290,9 @@ export async function POST(req: Request) {
             mode: "json",
             system: buildCurriculumSystemPrompt(profile),
             prompt: `Create a personalized curriculum for learning ${profile.topic} for a ${profile.experienceLevel} learner.`,
-            temperature: 0.7,
+            temperature: effectiveConfig.temperature ?? 0.7,
+            maxTokens: effectiveConfig.maxTokens,
+            topP: effectiveConfig.topP,
           },
           curriculumPlanSchema
         );
@@ -354,6 +370,8 @@ export async function POST(req: Request) {
                 prompt: `Search for comprehensive information about "${meta.subsection.title}" in the context of ${profile.topic} for a ${profile.experienceLevel} learner. Search for the most relevant and educational content.`,
                 maxSteps: 3,
                 temperature: 0.3,
+                maxTokens: effectiveConfig.maxTokens,
+                topP: effectiveConfig.topP,
               });
               searchContext = searchResults;
 
@@ -392,7 +410,8 @@ export async function POST(req: Request) {
           let lessonData: Awaited<ReturnType<typeof parseLessonResponse>> | null = null;
           try {
             lessonData = await withRetry(async (attempt) => {
-              const temperature = Math.min(0.7 + (attempt - 1) * 0.15, 1.0);
+              const baseTemp = effectiveConfig.temperature ?? 0.7;
+              const temperature = Math.min(baseTemp + (attempt - 1) * 0.15, 1.0);
               const { text } = await generateText({
                 model: getModel(),
                 system: buildLessonSystemPrompt(

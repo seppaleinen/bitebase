@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { streamText } from "ai";
-import { getModel, ONBOARDING_SYSTEM_PROMPT } from "@bitebase/ai";
-import { auth } from "@bitebase/api";
+import { getModel, ensureModelLoaded, ONBOARDING_SYSTEM_PROMPT } from "@bitebase/ai";
+import { auth, getEffectiveModelConfig } from "@bitebase/api";
 import { extractCollectedFields, type ChatMessage } from "@/lib/onboarding-state";
 
 const TEST_COOKIE = "__playwright_test__=1";
@@ -56,6 +56,11 @@ export async function POST(req: Request) {
     console.log("[onboarding/chat] messages:", messages.length, "state:", collectedSummary);
   }
 
+  // Ensure the AI model is loaded (LLM Studio headless does not auto-load).
+  await ensureModelLoaded();
+
+  const effectiveConfig = await getEffectiveModelConfig();
+
   let result: Awaited<ReturnType<typeof streamText>>;
   try {
     result = streamText({
@@ -63,6 +68,7 @@ export async function POST(req: Request) {
       system: systemPrompt,
       messages,
       temperature: 0.7,
+      ...effectiveConfig,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
