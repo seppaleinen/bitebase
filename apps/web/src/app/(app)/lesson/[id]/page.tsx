@@ -245,7 +245,7 @@ export default function LessonPage({
   }
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6">
+    <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6">
       {/* Structured data for search engines + AI answer engines */}
       {lesson && (
         <>

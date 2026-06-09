@@ -353,6 +353,8 @@ Test files:
 
 **Docker build and root tsconfig** — `apps/web/tsconfig.json` extends the root `tsconfig.json`, but `turbo prune` does not include root-level configs in its output. The `Dockerfile` explicitly copies `tsconfig.json` from the pruner stage into the builder stage. If you restructure the build, keep this copy or the build will fail with `TS5083: Cannot read file '/app/tsconfig.json'`.
 
+**Do not edit existing Drizzle migration files** — every `.sql` file under `packages/db/drizzle/` is immutable once committed. To change the schema, edit `packages/db/src/schema/` and run `pnpm db:generate` to produce a new migration. Old migrations must never be modified retroactively.
+
 **Do not add time-commitment fields** — `availableMinutesPerDay` was deliberately removed from `learningProfiles`, the onboarding prompt, the `finalizeProfileTool`, and all UI. The app is exploratory; do not reintroduce any concept of daily time limits or session duration.
 
 ---

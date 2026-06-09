@@ -39,9 +39,9 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-slate-50">
       <AppNav user={session?.user ?? null} />
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
+      <main className="flex flex-1 flex-col">{children}</main>
     </div>
   );
 }

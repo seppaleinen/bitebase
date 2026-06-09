@@ -226,6 +226,7 @@ export default function CurriculumPage({
     totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
   return (
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
     <main className="space-y-8">
       {/* Structured data for search engines + AI answer engines */}
       {curriculum && (
@@ -521,5 +522,6 @@ export default function CurriculumPage({
         </div>
       )}
     </main>
+    </div>
   );
 }

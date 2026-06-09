@@ -45,7 +45,8 @@ function DashboardContent() {
   const hasCurricula = curricula && curricula.length > 0;
 
   return (
-    <main className="space-y-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+      <main className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -121,6 +122,7 @@ function DashboardContent() {
         </div>
       )}
     </main>
+    </div>
   );
 }
 

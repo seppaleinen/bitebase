@@ -664,7 +664,7 @@ export default function OnboardingPage() {
 
   if (sessionLoading) {
     return (
-      <main className="flex h-screen items-center justify-center bg-gradient-to-br from-violet-50 via-white to-indigo-50">
+      <main className="flex flex-1 items-center justify-center bg-gradient-to-br from-violet-50 via-white to-indigo-50">
         <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
       </main>
     );
@@ -675,7 +675,7 @@ export default function OnboardingPage() {
   // GateOrChat fetches curricula and short-circuits to the chat when there are
   // no active curricula, so first-time users see the chat immediately.
   return (
-    <main className="flex h-screen flex-col bg-gradient-to-br from-violet-50 via-white to-indigo-50">
+    <main className="flex flex-1 flex-col bg-gradient-to-br from-violet-50 via-white to-indigo-50">
       {/* Header */}
       <div className="border-b border-white/50 bg-white/80 backdrop-blur-sm px-6 py-4">
         <div className="mx-auto flex max-w-2xl items-center gap-3">
