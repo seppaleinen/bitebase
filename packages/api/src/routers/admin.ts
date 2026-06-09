@@ -126,7 +126,7 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
   const searchImageUrls: string[] = [];
   if (searchTool) {
     try {
-      const effectiveConfig = await getEffectiveModelConfig();
+      const effectiveConfig = await getEffectiveModelConfig(process.env.OLLAMA_MODEL ?? "llama3.2");
       const { text: searchResults, toolResults } = await generateText({
         ...effectiveConfig,
         model: getModel(),
@@ -163,7 +163,7 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
   // Generate lesson content with retry logic
   const lessonData = await withRetry(async (attempt) => {
     const temperature = Math.min(0.7 + (attempt - 1) * 0.15, 1.0);
-    const effectiveConfig = await getEffectiveModelConfig();
+    const effectiveConfig = await getEffectiveModelConfig(process.env.OLLAMA_MODEL ?? "llama3.2");
     const { text } = await generateText({
       ...effectiveConfig,
       model: getModel(),
@@ -347,71 +347,66 @@ export const adminRouter = router({
       return results;
     }),
 
-  /** Read/write runtime model configuration (admin-managed overrides for env vars). */
+  /** Read/write per-model runtime config (JSONB). */
   modelSettings: router({
-    /** Return current DB settings with effective (DB→env→code-default) values. */
-    get: protectedProcedure.query(async ({ ctx }) => {
+    /** List all model config rows. */
+    list: protectedProcedure.query(async ({ ctx }) => {
       ensureAdmin(ctx.session.user.email);
 
-      const row = await db
-        .select()
+      const rows = await db
+        .select({
+          modelKey: modelSettings.modelKey,
+          config: modelSettings.config,
+          updatedAt: modelSettings.updatedAt,
+          updatedBy: modelSettings.updatedBy,
+        })
         .from(modelSettings)
-        .where(eq(modelSettings.id, "default"))
-        .limit(1)
-        .then((rows) => rows[0] ?? null);
+        .orderBy(modelSettings.modelKey);
 
-      return {
-        // Raw DB values (null = use env/code default)
-        temperature: row?.temperature ?? null,
-        maxTokens: row?.maxTokens ?? null,
-        topP: row?.topP ?? null,
-        // Effective values for display
-        effectiveTemperature:
-          row?.temperature ??
-          (process.env.OLLAMA_TEMPERATURE
-            ? parseFloat(process.env.OLLAMA_TEMPERATURE)
-            : 0.7),
-        effectiveMaxTokens:
-          row?.maxTokens ??
-          (process.env.OLLAMA_MAX_TOKENS
-            ? parseInt(process.env.OLLAMA_MAX_TOKENS, 10)
-            : null),
-        effectiveTopP:
-          row?.topP ??
-          (process.env.OLLAMA_TOP_P
-            ? parseFloat(process.env.OLLAMA_TOP_P)
-            : null),
-      };
+      return { models: rows };
     }),
 
-    /** Persist model config overrides. Pass `null` to clear a DB override. */
+    /** Upsert one model config row. `config` is a JSON string from the textarea. */
     update: protectedProcedure
       .input(
         z.object({
-          temperature: z.number().min(0).max(2).nullable(),
-          maxTokens: z.number().int().min(1).nullable(),
-          topP: z.number().min(0).max(1).nullable(),
+          modelKey: z.string().min(1),
+          config: z.string(), // raw JSON from textarea
         }),
       )
       .mutation(async ({ ctx, input }) => {
         ensureAdmin(ctx.session.user.email);
 
+        // Validate that config is parseable JSON.
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(input.config);
+        } catch {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid JSON in config",
+          });
+        }
+
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Config must be a JSON object",
+          });
+        }
+
         await db
           .insert(modelSettings)
           .values({
-            id: "default",
-            temperature: input.temperature,
-            maxTokens: input.maxTokens,
-            topP: input.topP,
+            modelKey: input.modelKey,
+            config: parsed as Record<string, unknown>,
             updatedAt: new Date(),
             updatedBy: ctx.session.user.email,
           })
           .onConflictDoUpdate({
-            target: modelSettings.id,
+            target: modelSettings.modelKey,
             set: {
-              temperature: input.temperature,
-              maxTokens: input.maxTokens,
-              topP: input.topP,
+              config: parsed as Record<string, unknown>,
               updatedAt: new Date(),
               updatedBy: ctx.session.user.email,
             },

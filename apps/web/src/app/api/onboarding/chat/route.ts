@@ -59,7 +59,8 @@ export async function POST(req: Request) {
   // Ensure the AI model is loaded (LLM Studio headless does not auto-load).
   await ensureModelLoaded();
 
-  const effectiveConfig = await getEffectiveModelConfig();
+  const modelKey = process.env.OLLAMA_MODEL ?? "llama3.2";
+  const effectiveConfig = await getEffectiveModelConfig(modelKey);
 
   let result: Awaited<ReturnType<typeof streamText>>;
   try {

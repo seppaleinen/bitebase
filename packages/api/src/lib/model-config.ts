@@ -1,53 +1,58 @@
 import { db, modelSettings } from "@bitebase/db";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 
 /**
- * Effective model configuration resolved from three tiers:
+ * Effective model configuration resolved from multiple tiers:
  *
- *   1. DB settings  (admin UI — overrides everything when set)
- *   2. Env var       (startup-time configuration)
- *   3. Code default  (only returned when neither DB nor env var is set)
+ *   1. DB row matching the given modelKey
+ *   2. DB row with key `"default"` (catch-all)
+ *   3. Env vars (`OLLAMA_TEMPERATURE`, `OLLAMA_MAX_TOKENS`, `OLLAMA_TOP_P`)
+ *   4. Code defaults (built into each AI SDK call)
  *
- * Returns the config keys the caller can spread into any AI SDK call.
+ * Returns a flat config object that can be spread into any AI SDK call.
  */
-export interface EffectiveModelConfig {
-  temperature?: number;
-  maxTokens?: number;
-  topP?: number;
-}
-
-export async function getEffectiveModelConfig(): Promise<EffectiveModelConfig> {
-  const config: EffectiveModelConfig = {};
+export async function getEffectiveModelConfig(
+  modelKey?: string,
+): Promise<Record<string, unknown>> {
+  const key = modelKey || process.env.OLLAMA_MODEL || "llama3.2";
 
   try {
-    const row = await db
+    // Prefer exact key, fall back to "default" row.
+    const rows = await db
       .select()
       .from(modelSettings)
-      .where(eq(modelSettings.id, "default"))
-      .limit(1)
-      .then((rows) => rows[0] ?? null);
+      .where(
+        or(eq(modelSettings.modelKey, key), eq(modelSettings.modelKey, "default")),
+      )
+      .limit(2);
 
-    // Resolve each key: DB → env var → leave undefined
-    if (row?.temperature != null) {
-      config.temperature = row.temperature;
-    } else if (process.env.OLLAMA_TEMPERATURE) {
-      config.temperature = parseFloat(process.env.OLLAMA_TEMPERATURE);
+    const exactRow = rows.find((r: { modelKey: string }) => r.modelKey === key);
+    const defaultRow = rows.find((r: { modelKey: string }) => r.modelKey === "default");
+
+    // Merge: exact row wins over default row, env vars fill in gaps.
+    const dbConfig: Record<string, unknown> = {};
+
+    if (defaultRow?.config && typeof defaultRow.config === "object") {
+      Object.assign(dbConfig, defaultRow.config);
+    }
+    if (exactRow?.config && typeof exactRow.config === "object") {
+      Object.assign(dbConfig, exactRow.config);
     }
 
-    if (row?.maxTokens != null) {
-      config.maxTokens = row.maxTokens;
-    } else if (process.env.OLLAMA_MAX_TOKENS) {
-      config.maxTokens = parseInt(process.env.OLLAMA_MAX_TOKENS, 10);
+    // Env var overrides for legacy keys
+    if (process.env.OLLAMA_TEMPERATURE && dbConfig.temperature === undefined) {
+      dbConfig.temperature = parseFloat(process.env.OLLAMA_TEMPERATURE);
+    }
+    if (process.env.OLLAMA_MAX_TOKENS && dbConfig.maxTokens === undefined) {
+      dbConfig.maxTokens = parseInt(process.env.OLLAMA_MAX_TOKENS, 10);
+    }
+    if (process.env.OLLAMA_TOP_P && dbConfig.topP === undefined) {
+      dbConfig.topP = parseFloat(process.env.OLLAMA_TOP_P);
     }
 
-    if (row?.topP != null) {
-      config.topP = row.topP;
-    } else if (process.env.OLLAMA_TOP_P) {
-      config.topP = parseFloat(process.env.OLLAMA_TOP_P);
-    }
+    return dbConfig;
   } catch {
-    // DB not available — skip, caller falls back to code defaults
+    // DB not available — skip, caller falls back to code defaults.
+    return {};
   }
-
-  return config;
 }

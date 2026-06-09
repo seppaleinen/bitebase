@@ -280,7 +280,8 @@ export async function POST(req: Request) {
         await ensureModelLoaded();
 
         // Fetch runtime model config (DB overrides → env vars → code defaults).
-        const effectiveConfig = await getEffectiveModelConfig();
+        const modelKey = process.env.OLLAMA_MODEL ?? "llama3.2";
+        const effectiveConfig = await getEffectiveModelConfig(modelKey);
 
         send("status", { message: "Designing your curriculum..." });
 
@@ -290,9 +291,9 @@ export async function POST(req: Request) {
             mode: "json",
             system: buildCurriculumSystemPrompt(profile),
             prompt: `Create a personalized curriculum for learning ${profile.topic} for a ${profile.experienceLevel} learner.`,
-            temperature: effectiveConfig.temperature ?? 0.7,
-            maxTokens: effectiveConfig.maxTokens,
-            topP: effectiveConfig.topP,
+            temperature: (effectiveConfig.temperature as number | undefined) ?? 0.7,
+            maxTokens: effectiveConfig.maxTokens as number | undefined,
+            topP: effectiveConfig.topP as number | undefined,
           },
           curriculumPlanSchema
         );
@@ -370,8 +371,8 @@ export async function POST(req: Request) {
                 prompt: `Search for comprehensive information about "${meta.subsection.title}" in the context of ${profile.topic} for a ${profile.experienceLevel} learner. Search for the most relevant and educational content.`,
                 maxSteps: 3,
                 temperature: 0.3,
-                maxTokens: effectiveConfig.maxTokens,
-                topP: effectiveConfig.topP,
+                maxTokens: effectiveConfig.maxTokens as number | undefined,
+                topP: effectiveConfig.topP as number | undefined,
               });
               searchContext = searchResults;
 
@@ -410,7 +411,7 @@ export async function POST(req: Request) {
           let lessonData: Awaited<ReturnType<typeof parseLessonResponse>> | null = null;
           try {
             lessonData = await withRetry(async (attempt) => {
-              const baseTemp = effectiveConfig.temperature ?? 0.7;
+              const baseTemp = (effectiveConfig.temperature as number | undefined) ?? 0.7;
               const temperature = Math.min(baseTemp + (attempt - 1) * 0.15, 1.0);
               const { text } = await generateText({
                 model: getModel(),
