@@ -67,7 +67,7 @@ const calloutIconColor: Record<string, string> = {
   tip: "text-amber-600",
   warning: "text-red-500",
   definition: "text-blue-600",
-  deepdive: "text-violet-600",
+  deepdive: "text-accent",
   success: "text-emerald-600",
 };
 
@@ -131,7 +131,7 @@ function ReadingProgress() {
       aria-valuenow={progress}
       aria-valuemin={0}
       aria-valuemax={100}
-      className="fixed left-0 top-0 h-1 bg-violet-600 transition-all"
+      className="fixed left-0 top-0 h-1 bg-accent transition-all"
       style={{ width: `${progress}%` }}
     />
   );
@@ -195,7 +195,7 @@ export default function LessonPage({
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-accent/60" />
       </div>
     );
   }

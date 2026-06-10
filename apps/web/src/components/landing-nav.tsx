@@ -22,10 +22,10 @@ export default function LandingNav({ isLoggedIn, onLogout }: LandingNavProps) {
     <nav className="sticky top-0 z-50 border-b border-white/50 bg-white/80 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent">
             <Brain className="h-5 w-5 text-white" />
           </div>
-          <span className="text-xl font-bold text-gray-900">BiteBase</span>
+          <span className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>BiteBase</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -33,7 +33,7 @@ export default function LandingNav({ isLoggedIn, onLogout }: LandingNavProps) {
             <>
               <Link
                 href="/dashboard"
-                className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}
               >
                 View dashboard
               </Link>
@@ -49,13 +49,13 @@ export default function LandingNav({ isLoggedIn, onLogout }: LandingNavProps) {
             <>
               <Link
                 href="/login"
-                className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}
               >
                 Sign in
               </Link>
               <Link
                 href="/register"
-                className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+                className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent-dark"
               >
                 Get started free
               </Link>

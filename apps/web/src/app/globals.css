@@ -4,15 +4,26 @@
 
 @layer base {
   :root {
-    --color-bg-warm: #faf7f4;
+    --color-bg-warm: #f5f0eb;
+    --color-bg-subtle: #ede7e0;
     --color-card: #ffffff;
+    --color-card-hover: #fcfaf8;
     --color-text-primary: #2d2419;
     --color-text-body: #4a3f35;
     --color-text-muted: #8a7f73;
     --color-accent: #c75146;
+    --color-accent-dark: #a84036;
     --color-accent-light: #f0d9d6;
-    --color-secondary: #7a9c8c;
+    --color-accent-subtle: #f8edea;
+    --color-secondary: #6b8f7f;
     --color-secondary-light: #e3ede8;
+    --color-secondary-subtle: #f0f5f2;
+    --color-border: #e5ddd4;
+    --color-border-light: #efe9e2;
+    --color-border-subtle: #f5f0eb;
+    --shadow-card: 0 1px 3px rgba(45, 36, 25, 0.06), 0 1px 2px rgba(45, 36, 25, 0.04);
+    --shadow-card-hover: 0 4px 12px rgba(45, 36, 25, 0.08), 0 2px 4px rgba(45, 36, 25, 0.04);
+    --shadow-elevated: 0 8px 24px rgba(45, 36, 25, 0.1), 0 2px 6px rgba(45, 36, 25, 0.05);
   }
 
   * {
@@ -39,8 +50,16 @@
   h6 {
     font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
     color: var(--color-text-primary);
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-weight: 620;
+    letter-spacing: -0.015em;
+  }
+
+  h1 { font-weight: 700; letter-spacing: -0.02em; }
+  h2 { font-weight: 660; letter-spacing: -0.018em; }
+
+  ::selection {
+    background-color: var(--color-accent-light);
+    color: var(--color-text-primary);
   }
 }
 
@@ -55,6 +74,48 @@
     z-index: 50;
     transition: width 80ms linear;
     border-radius: 0 2px 2px 0;
+  }
+
+  /* ── Card styles ──────────────────────────────────────────────────────── */
+  .card {
+    background: var(--color-card);
+    border: 1px solid var(--color-border-light);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .card-hover {
+    cursor: pointer;
+  }
+
+  .card-hover:hover {
+    background: var(--color-card-hover);
+    border-color: var(--color-accent-light);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* ── Tag / badge styles ───────────────────────────────────────────────── */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.25;
+    font-family: var(--font-literata), Georgia, "Times New Roman", serif;
+  }
+
+  .tag-accent {
+    background: var(--color-accent-subtle);
+    color: var(--color-accent-dark);
+  }
+
+  .tag-secondary {
+    background: var(--color-secondary-subtle);
+    color: var(--color-secondary);
   }
 
   /* ── Warm editorial prose ─────────────────────────────────────────────── */

@@ -39,7 +39,7 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col" style={{ backgroundColor: 'var(--color-bg-warm)' }}>
       <AppNav user={session?.user ?? null} />
       <main className="flex flex-1 flex-col">{children}</main>
     </div>

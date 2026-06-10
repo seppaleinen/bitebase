@@ -172,7 +172,7 @@ export default async function LearnTopicPage({ params }: Props) {
               </div>
               <div className="bg-white rounded-xl p-6 shadow-md">
                 <h3 className="font-semibold text-slate-900 mb-2">
-                  AI-Powered
+                  AI-Generated
                 </h3>
                 <p className="text-slate-600 text-sm">
                   Personalized content tailored to your experience level.
@@ -230,7 +230,7 @@ export default async function LearnTopicPage({ params }: Props) {
               </div>
               <div className="bg-white rounded-xl p-6 shadow-md">
                 <h3 className="font-semibold text-slate-900 mb-2">
-                  AI-Powered
+                  AI-Generated
                 </h3>
                 <p className="text-slate-600 text-sm">
                   Personalized content tailored to your experience level.

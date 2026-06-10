@@ -101,16 +101,16 @@ function WhatsNextScreen({
         {nextLesson ? (
           <Link
             href={`/lesson/${nextLesson.id}`}
-            className="flex items-center gap-4 rounded-2xl border-2 border-violet-200 bg-violet-50 p-4 transition-all hover:border-violet-400 hover:bg-violet-100"
+            className="flex items-center gap-4 rounded-2xl border-2 border-accent-light bg-accent-subtle p-4 transition-all hover:border-accent hover:bg-accent-light"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent">
               <ArrowRight className="h-5 w-5 text-white" />
             </div>
             <div className="flex-1 text-left">
-              <p className="text-xs font-medium text-violet-500">Continue with</p>
-              <p className="font-semibold text-violet-900">{nextLesson.title}</p>
+              <p className="text-xs font-medium text-accent-dark">Continue with</p>
+              <p className="font-semibold text-accent-dark">{nextLesson.title}</p>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-violet-400" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-accent" />
           </Link>
         ) : (
           <div className="flex items-center gap-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4">
@@ -129,7 +129,7 @@ function WhatsNextScreen({
         {/* Go deeper on the same topic */}
         <Link
           href={`/onboarding?prompt=${deeperTopicParam}`}
-          className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 transition-all hover:border-violet-200 hover:bg-violet-50"
+          className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 transition-all hover:border-accent-light hover:bg-accent-subtle"
         >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100">
             <Sparkles className="h-5 w-5 text-indigo-600" />
@@ -146,7 +146,7 @@ function WhatsNextScreen({
         {/* Related topic suggestion */}
         <Link
           href={`/onboarding?prompt=${relatedTopicParam}`}
-          className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 transition-all hover:border-violet-200 hover:bg-violet-50"
+          className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 transition-all hover:border-accent-light hover:bg-accent-subtle"
         >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
             <BookOpen className="h-5 w-5 text-amber-600" />
@@ -163,7 +163,7 @@ function WhatsNextScreen({
         {/* Start something completely new */}
         <Link
           href="/onboarding"
-          className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 transition-all hover:border-violet-200 hover:bg-violet-50"
+          className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 transition-all hover:border-accent-light hover:bg-accent-subtle"
         >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
             <Plus className="h-5 w-5 text-gray-600" />
@@ -409,7 +409,7 @@ export default function QuizSection({
           className="h-1.5 w-full rounded-full bg-gray-100"
         >
           <div
-            className="h-1.5 rounded-full bg-violet-600 transition-all"
+            className="h-1.5 rounded-full bg-accent transition-all"
             style={{ width: `${((currentQ + 1) / quiz.questions.length) * 100}%` }}
           />
         </div>
@@ -434,8 +434,8 @@ export default function QuizSection({
                   aria-pressed={isSelected}
                   className={`w-full rounded-xl border px-4 py-3 text-left text-sm transition-all ${
                     isSelected
-                      ? "border-violet-400 bg-violet-50 text-violet-700 ring-2 ring-violet-200"
-                      : "border-gray-200 bg-white text-gray-700 hover:border-violet-200 hover:bg-violet-50"
+                      ? "border-accent bg-accent-subtle text-accent-dark ring-2 ring-accent-light"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-accent-light hover:bg-accent-subtle"
                   }`}
                 >
                   <span className="mr-3 font-semibold">{label}.</span>
@@ -451,7 +451,7 @@ export default function QuizSection({
             onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
             aria-label={`Answer for: ${currentQuestion.question}`}
             placeholder="Type your answer..."
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
           />
         )}
       </div>
@@ -469,7 +469,7 @@ export default function QuizSection({
         <button
           onClick={handleNext}
           disabled={!currentAnswer || submitQuiz.isPending}
-          className="flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
+          className="flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-60"
         >
           {submitQuiz.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />

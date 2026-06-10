@@ -37,7 +37,7 @@ function DashboardContent() {
   if (sessionLoading || curriculaLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-accent/60" />
       </div>
     );
   }
@@ -60,7 +60,7 @@ function DashboardContent() {
         {hasCurricula && (
           <Link
             href="/onboarding"
-            className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+            className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent-dark"
             aria-label="Create a new course"
           >
             <Plus className="h-4 w-4" />
@@ -92,9 +92,9 @@ function DashboardContent() {
 
       {/* Empty state */}
       {!hasCurricula && (
-        <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white py-20 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-50">
-            <BookOpen className="h-8 w-8 text-violet-400" />
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-light">
+            <BookOpen className="h-8 w-8 text-accent" />
           </div>
           <h3 className="mb-2 text-lg font-semibold text-gray-900">
             No courses yet
@@ -105,7 +105,7 @@ function DashboardContent() {
           </p>
           <Link
             href="/onboarding"
-            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700"
+            className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent-dark"
           >
             <Sparkles className="h-4 w-4" />
             Create my first course
@@ -243,8 +243,8 @@ function CurriculumCard({
   const cardContent = (
     <>
       <div className="mb-4 flex items-start justify-between gap-2">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100">
-          <BookOpen className="h-5 w-5 text-violet-600" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-light">
+          <BookOpen className="h-5 w-5 text-accent" />
         </div>
           {isGenerating && (
             <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
@@ -262,7 +262,7 @@ function CurriculumCard({
         )}
       </div>
 
-      <h3 className="mb-1 font-semibold text-gray-900 line-clamp-2 group-hover:text-violet-700">
+      <h3 className="mb-1 font-semibold text-gray-900 line-clamp-2 group-hover:text-accent-dark">
         {curriculum.title}
       </h3>
       <p className="mb-4 text-xs text-gray-500 line-clamp-2">
@@ -297,7 +297,7 @@ function CurriculumCard({
                 onClick={handleRetry}
                 disabled={isMutating}
                 aria-label="Retry course generation"
-                className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-violet-600 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-accent py-1.5 text-xs font-medium text-white hover:bg-accent-dark transition-colors disabled:opacity-50"
               >
                 {isRetrying && <Loader2 className="h-3 w-3 animate-spin" />}
                 {isRetrying ? "Starting..." : "Try again"}
@@ -348,7 +348,7 @@ function CurriculumCard({
                   onClick={handleRedo}
                   disabled={isMutating}
                   aria-label="Remake course"
-                  className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-violet-200 hover:text-violet-600 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-accent-light hover:text-accent transition-colors disabled:opacity-50"
                 >
                   {isRedoing ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -396,7 +396,7 @@ function CurriculumCard({
         }
       }}
       aria-label={`Open ${curriculum.title}`}
-      className="group block cursor-pointer rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-violet-200 hover:shadow-md"
+      className="group block cursor-pointer p-5 card card-hover"
     >
       {cardContent}
     </div>
