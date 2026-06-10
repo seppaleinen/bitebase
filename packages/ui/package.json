@@ -1,7 +1,9 @@
 {
   "name": "@bitebase/ui",
   "version": "0.1.0",
-  "private": true,
+  "scripts": {
+    "test": "vitest run"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./web": "./src/web/index.ts",
@@ -13,9 +15,13 @@
     "tailwind-merge": "^3.3.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.1.4",
+    "jsdom": "^29.1.1",
     "react": "^19.1.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.8"
   },
   "peerDependencies": {
     "react": "^18 || ^19"

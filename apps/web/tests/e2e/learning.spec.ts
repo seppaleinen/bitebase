@@ -410,3 +410,177 @@ test.describe("Quiz engine", () => {
     await expect(page.getByText("Correct: JavaScript")).toBeVisible();
   });
 });
+
+// ── Curriculum page ────────────────────────────────────────────────────────────
+
+const mockCategory = "TypeScript";
+const mockFullCurriculum = {
+  id: "curr-1",
+  userId: "playwright-test-user",
+  profileId: "prof-1",
+  title: "Intro to TypeScript",
+  description: "A complete TypeScript curriculum for beginners.",
+  totalEstimatedMinutes: 120,
+  category: mockCategory,
+  subcategory: "Basics",
+  sections: [
+    {
+      id: "sec-1",
+      title: "Getting Started",
+      description: "TypeScript fundamentals",
+      estimatedMinutes: 30,
+      order: 0,
+      subsections: [
+        { id: "sub-1", title: "Types and Interfaces", description: "Learn TS types", order: 0 },
+        { id: "sub-2", title: "Functions", description: "Function signatures", order: 1 },
+      ],
+    },
+    {
+      id: "sec-2",
+      title: "Advanced Topics",
+      description: "Generics and beyond",
+      estimatedMinutes: 45,
+      order: 1,
+      subsections: [
+        { id: "sub-3", title: "Generics", description: "Generic types", order: 0 },
+      ],
+    },
+  ],
+  generationStatus: "complete",
+  createdAt: new Date().toISOString(),
+};
+
+const mockCurriculumLessons = [
+  {
+    id: "lesson-1", curriculumId: "curr-1", sectionId: "sec-1", subsectionId: "sub-1",
+    title: "Types and Interfaces", content: "", sources: [], estimatedMinutes: 15, order: 0,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "lesson-2", curriculumId: "curr-1", sectionId: "sec-1", subsectionId: "sub-2",
+    title: "Functions", content: "", sources: [], estimatedMinutes: 15, order: 1,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "lesson-3", curriculumId: "curr-1", sectionId: "sec-2", subsectionId: "sub-3",
+    title: "Generics", content: "", sources: [], estimatedMinutes: 15, order: 2,
+    createdAt: new Date().toISOString(),
+  },
+];
+
+const mockCurriculumProgress = {
+  id: "prog-1", userId: "playwright-test-user", lessonId: "lesson-1",
+  status: "completed" as const, quizScore: 100, quizPassed: true, quizAttempts: 1,
+  completedAt: new Date().toISOString(), lastAccessedAt: new Date().toISOString(),
+};
+
+const mockCurriculumProgressWithAvailable = [
+  mockCurriculumProgress,
+  {
+    id: "prog-2", userId: "playwright-test-user", lessonId: "lesson-2",
+    status: "available" as const, quizScore: null, quizPassed: null, quizAttempts: 0,
+    completedAt: null, lastAccessedAt: new Date().toISOString(),
+  },
+];
+
+test.describe("Curriculum page", () => {
+  test("renders title, description, and sections", async ({ page }) => {
+    await setTestSession(page);
+    await mockTRPC(page, {
+      curricula: [mockFullCurriculum],
+      lessons: mockCurriculumLessons,
+      progress: null,
+    });
+    await page.goto("/curriculum/curr-1");
+
+    await expect(page.getByRole("heading", { name: "Intro to TypeScript" })).toBeVisible();
+    await expect(page.getByText("A complete TypeScript curriculum for beginners.")).toBeVisible();
+    await expect(page.getByText("Getting Started")).toBeVisible();
+    await expect(page.getByText("Advanced Topics")).toBeVisible();
+    await expect(page.getByText("Types and Interfaces")).toBeVisible();
+    await expect(page.getByText("Types and Interfaces")).toBeVisible();
+    await expect(page.getByText("Generics", { exact: true })).toBeVisible();
+  });
+
+  test("shows lesson status badges: completed, available, locked", async ({ page }) => {
+    await setTestSession(page);
+    await mockTRPC(page, {
+      curricula: [mockFullCurriculum],
+      lessons: mockCurriculumLessons,
+      progress: mockCurriculumProgressWithAvailable, // lesson-1 completed, lesson-2 available
+    });
+    await page.goto("/curriculum/curr-1");
+
+    // Lesson 1: completed badge
+    await expect(page.getByText("Done")).toBeVisible();
+    // Lesson 2: available → Start link appears (first "Review" or "Start" link)
+    await expect(page.getByRole("link", { name: /^Start$|^Review$/i }).first()).toBeVisible();
+    // Lesson 3: locked → Lock icon, no Start link
+    await expect(page.locator(".text-gray-300").first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Start generics/i })).not.toBeVisible();
+  });
+
+  test("shows progress bar with completion percentage", async ({ page }) => {
+    await setTestSession(page);
+    await mockTRPC(page, {
+      curricula: [mockFullCurriculum],
+      lessons: mockCurriculumLessons,
+      progress: mockCurriculumProgressWithAvailable, // 1/3 completed
+    });
+    await page.goto("/curriculum/curr-1");
+
+    // 1 out of 3 done (lesson-1 completed, lesson-2 available)
+    await expect(page.getByText("1/3 lessons done")).toBeVisible();
+    await expect(page.getByText("33%")).toBeVisible();
+  });
+
+  test("shows owner controls for curriculum owner", async ({ page }) => {
+    await setTestSession(page);
+    await mockTRPC(page, {
+      curricula: [mockFullCurriculum],
+      lessons: mockCurriculumLessons,
+    });
+    await page.goto("/curriculum/curr-1");
+
+    await expect(page.getByRole("button", { name: /remake course/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /delete/i })).toBeVisible();
+  });
+
+  test("hides owner controls for non-owner visitor", async ({ page }) => {
+    await setTestSession(page);
+    const visitorCurriculum = { ...mockFullCurriculum, userId: "other-user-id" };
+    await mockTRPC(page, {
+      curricula: [visitorCurriculum],
+      lessons: mockCurriculumLessons,
+    });
+    await page.goto("/curriculum/curr-1");
+
+    await expect(page.getByText("Manage curriculum")).not.toBeVisible();
+    await expect(page.getByRole("button", { name: /remake course/i })).not.toBeVisible();
+    await expect(page.getByRole("button", { name: /delete/i })).not.toBeVisible();
+  });
+
+  test("back link navigates to dashboard when authenticated", async ({ page }) => {
+    await setTestSession(page);
+    await mockTRPC(page, {
+      curricula: [mockFullCurriculum],
+      lessons: mockCurriculumLessons,
+    });
+    await page.goto("/curriculum/curr-1");
+
+    await page.getByRole("link", { name: /dashboard/i }).last().click();
+    await expect(page).toHaveURL(/\/dashboard/);
+  });
+
+  test("shows category badge", async ({ page }) => {
+    await setTestSession(page);
+    await mockTRPC(page, {
+      curricula: [mockFullCurriculum],
+      lessons: mockCurriculumLessons,
+      categories: [{ category: "TypeScript", subcategories: ["Basics"] }],
+    });
+    await page.goto("/curriculum/curr-1");
+
+    await expect(page.getByText(/TypeScript.*Basics/)).toBeVisible();
+  });
+});

@@ -133,7 +133,7 @@ export function SectionNavigator({
             onClick={() => handleClick(s.id)}
             className={`whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs transition-colors ${
               activeId === s.id
-                ? "bg-violet-100 font-semibold text-violet-700"
+                ? "bg-accent-subtle font-semibold text-accent-dark"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
             }`}
           >

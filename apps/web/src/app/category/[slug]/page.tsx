@@ -171,8 +171,8 @@ async function renderPage(
       {/* Curriculum grid */}
       {curriculaList.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white py-20 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-50">
-            <BookOpen className="h-8 w-8 text-violet-400" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-subtle">
+            <BookOpen className="h-8 w-8 text-accent" />
           </div>
           <h2 className="mb-2 text-lg font-semibold text-gray-900">
             No {categoryName} curricula yet
@@ -187,11 +187,11 @@ async function renderPage(
             <Link
               key={c.id}
               href={`/curriculum/${c.id}`}
-              className="group block rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-violet-200 hover:shadow-md"
+              className="group block rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-accent-light hover:shadow-md"
             >
               <div className="mb-4 flex items-start justify-between gap-2">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100">
-                  <BookOpen className="h-5 w-5 text-violet-600" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-subtle">
+                  <BookOpen className="h-5 w-5 text-accent" />
                 </div>
                 {c.subcategory && (
                   <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
@@ -199,7 +199,7 @@ async function renderPage(
                   </span>
                 )}
               </div>
-              <h2 className="mb-1 font-semibold text-gray-900 line-clamp-2 group-hover:text-violet-700">
+              <h2 className="mb-1 font-semibold text-gray-900 line-clamp-2 group-hover:text-accent-dark">
                 {c.title}
               </h2>
               <p className="mb-4 text-xs text-gray-500 line-clamp-2">

@@ -57,7 +57,7 @@ function ReturningUserGate({
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-600">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent">
             <Brain className="h-7 w-7 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Welcome back!</h1>
@@ -75,10 +75,10 @@ function ReturningUserGate({
             <Link
               key={c.id}
               href={`/curriculum/${c.id}`}
-              className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-violet-200 hover:shadow-md"
+              className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-accent-light hover:shadow-md"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100">
-                <BookOpen className="h-5 w-5 text-violet-600" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-subtle">
+                <BookOpen className="h-5 w-5 text-accent" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="truncate font-semibold text-gray-900">{c.title}</p>
@@ -102,7 +102,7 @@ function ReturningUserGate({
         {/* Start new */}
         <button
           onClick={onStartNew}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 py-3 font-semibold text-white shadow-sm hover:bg-violet-700"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-semibold text-white shadow-sm hover:bg-accent-dark"
         >
           <Plus className="h-4 w-4" />
           Start a new lesson plan
@@ -405,12 +405,12 @@ function OnboardingChat() {
       {/* Generation overlay */}
       {isGenerating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-sm rounded-2xl border border-violet-100 bg-white p-6 shadow-xl">
+          <div className="mx-4 w-full max-w-sm rounded-2xl border border-accent-light bg-white p-6 shadow-xl">
             {/* Header */}
             <div className="mb-4 flex items-center gap-3">
-              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-100">
-                <Sparkles className="h-6 w-6 text-violet-600" />
-                <div className="absolute inset-0 animate-ping rounded-xl bg-violet-200 opacity-40" />
+              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-subtle">
+                <Sparkles className="h-6 w-6 text-accent" />
+                <div className="absolute inset-0 animate-ping rounded-xl bg-accent-light opacity-40" />
               </div>
               <div>
                 <h2 className="text-base font-bold text-gray-900">Building your curriculum</h2>
@@ -441,7 +441,7 @@ function OnboardingChat() {
                         {lesson.status === "done" ? (
                           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
                         ) : lesson.status === "generating" ? (
-                          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-violet-500" />
+                          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-accent" />
                         ) : (
                           <Circle className="mt-0.5 h-4 w-4 shrink-0 text-gray-300" />
                         )}
@@ -450,7 +450,7 @@ function OnboardingChat() {
                             lesson.status === "done"
                               ? "text-gray-700"
                               : lesson.status === "generating"
-                              ? "text-violet-700"
+                              ? "text-accent-dark"
                               : "text-gray-400"
                           }`}>
                             {lesson.title}
@@ -471,7 +471,7 @@ function OnboardingChat() {
                   This may take a minute while BiteBase researches and creates
                   personalised lessons just for you.
                 </p>
-                <div className="rounded-xl bg-violet-50 px-4 py-3 text-sm text-violet-700">
+                <div className="rounded-xl bg-accent-subtle px-4 py-3 text-sm text-accent-dark">
                   <Loader2 className="mr-2 inline-block h-4 w-4 animate-spin" />
                   {generationStatus}
                 </div>
@@ -506,7 +506,7 @@ function OnboardingChat() {
                 className={`flex gap-3 animate-slide-up ${isAssistant ? "" : "flex-row-reverse"}`}
               >
                 {isAssistant && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600" aria-hidden="true">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent" aria-hidden="true">
                     <Brain className="h-4 w-4 text-white" />
                   </div>
                 )}
@@ -514,7 +514,7 @@ function OnboardingChat() {
                   className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     isAssistant
                       ? "bg-white text-gray-700 shadow-sm border border-gray-100"
-                      : "bg-violet-600 text-white"
+                      : "bg-accent text-white"
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{displayContent}</p>
@@ -530,7 +530,7 @@ function OnboardingChat() {
           })}
           {isLoading && (
             <div className="flex gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent">
                 <Brain className="h-4 w-4 text-white" />
               </div>
               <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
@@ -538,7 +538,7 @@ function OnboardingChat() {
                   {[0, 150, 300].map((delay) => (
                     <span
                       key={delay}
-                      className="h-2 w-2 animate-bounce rounded-full bg-violet-400"
+                      className="h-2 w-2 animate-bounce rounded-full bg-accent"
                       style={{ animationDelay: `${delay}ms` }}
                     />
                   ))}
@@ -602,7 +602,7 @@ function OnboardingChat() {
                     onClick={() => {
                       void append({ role: "user", content: s });
                     }}
-                    className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-medium text-violet-700 transition-colors hover:border-violet-400 hover:bg-violet-100"
+                    className="rounded-full border border-accent-light bg-accent-subtle px-3 py-1.5 text-sm font-medium text-accent-dark transition-colors hover:border-accent hover:bg-accent-light"
                   >
                     {s}
                   </button>
@@ -619,12 +619,12 @@ function OnboardingChat() {
                 onChange={handleInputChange}
                 placeholder="Type your message..."
                 disabled={isLoading}
-                className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition-all focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100 disabled:opacity-60"
+                className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition-all focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/20 disabled:opacity-60"
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm hover:bg-violet-700 disabled:opacity-60"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-white shadow-sm hover:bg-accent-dark disabled:opacity-60"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -664,8 +664,8 @@ export default function OnboardingPage() {
 
   if (sessionLoading) {
     return (
-      <main className="flex flex-1 items-center justify-center bg-gradient-to-br from-violet-50 via-white to-indigo-50">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+      <main className="flex flex-1 items-center justify-center bg-warm-100">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
       </main>
     );
   }
@@ -675,11 +675,11 @@ export default function OnboardingPage() {
   // GateOrChat fetches curricula and short-circuits to the chat when there are
   // no active curricula, so first-time users see the chat immediately.
   return (
-    <main className="flex flex-1 flex-col bg-gradient-to-br from-violet-50 via-white to-indigo-50">
+    <main className="flex flex-1 flex-col bg-warm-100">
       {/* Header */}
       <div className="border-b border-white/50 bg-white/80 backdrop-blur-sm px-6 py-4">
         <div className="mx-auto flex max-w-2xl items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent">
             <Brain className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -691,7 +691,7 @@ export default function OnboardingPage() {
 
       {/* Body ? gate or chat */}
       <div className="flex-1 overflow-hidden">
-        <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-violet-400" /></div>}>
+        <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-accent" /></div>}>
           {showChat ? (
             <OnboardingChat />
           ) : (
@@ -711,7 +711,7 @@ function GateOrChat({ onStartNew }: { onStartNew: () => void }) {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
       </div>
     );
   }

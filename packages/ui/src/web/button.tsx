@@ -8,14 +8,14 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-violet-600 text-white hover:bg-violet-700 focus-visible:ring-violet-600 shadow-sm",
+          "bg-accent text-white hover:bg-accent-dark focus-visible:ring-accent shadow-sm",
         outline:
-          "border border-violet-200 bg-white text-violet-700 hover:bg-violet-50 focus-visible:ring-violet-600",
-        ghost: "text-violet-700 hover:bg-violet-50 focus-visible:ring-violet-600",
+          "border border-accent-light bg-white text-accent-dark hover:bg-accent-subtle focus-visible:ring-accent",
+        ghost: "text-accent-dark hover:bg-accent-subtle focus-visible:ring-accent",
         destructive:
           "bg-red-500 text-white hover:bg-red-600 focus-visible:ring-red-500",
         secondary:
-          "bg-violet-100 text-violet-700 hover:bg-violet-200 focus-visible:ring-violet-600",
+          "bg-accent-subtle text-accent-dark hover:bg-accent-light focus-visible:ring-accent",
         success:
           "bg-emerald-500 text-white hover:bg-emerald-600 focus-visible:ring-emerald-500",
       },

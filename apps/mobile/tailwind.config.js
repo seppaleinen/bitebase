@@ -9,17 +9,21 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        violet: {
-          50: "#f5f3ff",
-          100: "#ede9fe",
-          200: "#ddd6fe",
-          300: "#c4b5fd",
-          400: "#a78bfa",
-          500: "#8b5cf6",
-          600: "#7c3aed",
-          700: "#6d28d9",
-          800: "#5b21b6",
-          900: "#4c1d95",
+        accent: {
+          DEFAULT: "#c75146",
+          dark: "#a84036",
+          light: "#f0d9d6",
+          subtle: "#f8edea",
+        },
+        secondary: {
+          DEFAULT: "#6b8f7f",
+          light: "#e3ede8",
+          subtle: "#f0f5f2",
+        },
+        warm: {
+          50: "#faf7f4",
+          100: "#f5f0eb",
+          200: "#ede7e0",
         },
       },
     },

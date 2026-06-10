@@ -35,7 +35,7 @@ function ToastBar({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) 
 
 function VersionBadge({ version, count }: { version: number; count: number }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-medium text-violet-700">
+    <span className="inline-flex items-center gap-1 rounded-full bg-accent-subtle px-2.5 py-0.5 text-xs font-medium text-accent-dark">
       <Hash className="h-3 w-3" />
       v{version} × {count}
     </span>
@@ -120,7 +120,7 @@ export default function AdminCurriculaPage() {
       {/* ── Loading ───────────────────────────────────────────────────── */}
       {isLoading && (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+          <Loader2 className="h-8 w-8 animate-spin text-accent" />
         </div>
       )}
 
@@ -128,7 +128,7 @@ export default function AdminCurriculaPage() {
       {!isLoading && versionRollup.length > 0 && (
         <section className="mb-8">
           <h2 className="mb-3 text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <Layers className="h-5 w-5 text-violet-500" />
+            <Layers className="h-5 w-5 text-accent" />
             Group by version
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -146,7 +146,7 @@ export default function AdminCurriculaPage() {
                 <button
                   onClick={() => handleRegenerateVersion(v.version)}
                   disabled={regeneratingVersion === v.version}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-md bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
                 >
                   {regeneratingVersion === v.version ? (
                     <>
@@ -170,7 +170,7 @@ export default function AdminCurriculaPage() {
       {!isLoading && curricula.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-violet-500" />
+            <BookOpen className="h-5 w-5 text-accent" />
             Group by curriculum
           </h2>
           <div className="space-y-4">
@@ -203,7 +203,7 @@ export default function AdminCurriculaPage() {
                   <button
                     onClick={() => handleRegenerateCurriculum(c.id)}
                     disabled={regeneratingCurrId === c.id}
-                    className="flex shrink-0 items-center gap-1.5 rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                    className="flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
                     title="Regenerate all lessons in this curriculum"
                   >
                     {regeneratingCurrId === c.id ? (
@@ -235,7 +235,7 @@ export default function AdminCurriculaPage() {
           </p>
           <button
             onClick={() => refetch()}
-            className="mt-4 flex items-center gap-1.5 rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+            className="mt-4 flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark"
           >
             <RefreshCw className="h-4 w-4" />
             Refresh

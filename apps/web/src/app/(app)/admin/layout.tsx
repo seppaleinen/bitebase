@@ -37,7 +37,7 @@ function Tabs() {
               href={t.href}
               className={`inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
                 isActive
-                  ? "border-violet-600 text-violet-600"
+                  ? "border-accent text-accent"
                   : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
               }`}
             >

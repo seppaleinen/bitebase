@@ -87,7 +87,7 @@ type TRPCMockData = {
   lessons?: object[];
   lesson?: object | null;
   quiz?: object | null;
-  progress?: object | null;
+  progress?: object | object[] | null;
   quizResult?: object | null;
   nextLesson?: object | null;
   user?: object | null;
@@ -100,10 +100,12 @@ type TRPCMockData = {
     regenerateCurriculum?: { curriculumId: string; lessonResults: { lessonId: string; newVersion: number }[] };
     regenerateLessonsByVersion?: { lessonId: string; newVersion: number }[];
   };
+  /** Profile returned by retryAndGetProfile */
+  retryProfile?: { topic: string; experienceLevel: string; goals: string; additionalContext: string; curriculumId: string } | null;
 };
 
 function resolveData(procedurePath: string, data: TRPCMockData): unknown {
-  const { curricula = [], lessons = [], lesson = null, quiz = null, progress = null, quizResult = null, nextLesson = null, user = null } = data;
+  const { curricula = [], lessons = [], lesson = null, quiz = null, progress = null, quizResult = null, nextLesson = null, user = null, retryProfile = null } = data;
 
   // Auth / session
   if (procedurePath === "public.getSession") {
@@ -118,6 +120,7 @@ function resolveData(procedurePath: string, data: TRPCMockData): unknown {
   if (procedurePath === "public.getPublishedCurriculum") return curricula[0] ?? null;
   if (procedurePath === "public.getPublishedLessons") return lessons;
   if (procedurePath === "public.getPublishedLesson") return { lesson, quiz };
+  if (procedurePath === "public.listCategories") return data.categories ?? [];
 
   // Curriculum owner-only
   if (procedurePath === "curriculum.list") return curricula;
@@ -127,12 +130,9 @@ function resolveData(procedurePath: string, data: TRPCMockData): unknown {
   if (procedurePath === "curriculum.submitQuiz") return quizResult;
   if (procedurePath === "curriculum.markLessonStarted") return null;
   if (procedurePath === "curriculum.getNextLesson") return nextLesson ?? null;
-
-  // Progress procedures
-  if (procedurePath === "curriculum.getProgressForCurriculum") return progress ? [progress] : [];
-  if (procedurePath === "curriculum.getLessonProgress") return progress ?? null;
-
-  // Category
+  if (procedurePath === "curriculum.getProgressForCurriculum") return Array.isArray(progress) ? progress : (progress ? [progress] : []);
+  if (procedurePath === "curriculum.delete") return { success: true };
+  if (procedurePath === "curriculum.retryAndGetProfile") return retryProfile ?? { topic: "TypeScript", experienceLevel: "beginner", goals: "learn the basics", additionalContext: "", curriculumId: "curr-1" };
   if (procedurePath === "curriculum.updateCategory") return null;
 
   // Admin

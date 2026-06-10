@@ -34,11 +34,11 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-50 to-indigo-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-warm-100 px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent">
               <Brain className="h-6 w-6 text-white" />
             </div>
             <span className="text-2xl font-bold text-gray-900">BiteBase</span>
@@ -64,7 +64,7 @@ export function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
                 placeholder="you@example.com"
               />
             </div>
@@ -79,7 +79,7 @@ export function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 pr-10 text-sm outline-none transition-all focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 pr-10 text-sm outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
                   placeholder="••••••••"
                 />
                 <button
@@ -100,7 +100,7 @@ export function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent-dark disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Sign in
@@ -109,7 +109,7 @@ export function LoginForm() {
 
           <p className="mt-6 text-center text-sm text-gray-500">
             Don&apos;t have an account?{" "}
-            <Link href="/register" className="font-medium text-violet-600 hover:text-violet-700">
+            <Link href="/register" className="font-medium text-accent hover:text-accent-dark">
               Create one free
             </Link>
           </p>

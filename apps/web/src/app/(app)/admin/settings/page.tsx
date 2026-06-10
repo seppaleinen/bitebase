@@ -73,7 +73,7 @@ function ModelCard({
           <button
             onClick={() => onSave(text)}
             disabled={!isDirty || !!parseError || isSaving}
-            className="flex items-center gap-1 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+            className="flex items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-dark disabled:opacity-50"
           >
             {isSaving ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -94,7 +94,7 @@ function ModelCard({
             className={`w-full rounded-md border bg-gray-50 px-3 py-2 font-mono text-xs leading-relaxed shadow-sm focus:outline-none focus:ring-1 ${
               parseError
                 ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                : "border-gray-300 focus:border-violet-500 focus:ring-violet-500"
+                : "border-gray-300 focus:border-accent focus:ring-accent"
             }`}
           />
           {parseError && (
@@ -153,14 +153,14 @@ export default function ModelSettingsPage() {
   return (
     <div>
       {/* ── Description ─────────────────────────────────────── */}
-      <div className="mb-6 flex items-start gap-2 rounded-lg bg-violet-50 p-4 text-sm text-violet-700">
+      <div className="mb-6 flex items-start gap-2 rounded-lg bg-accent-subtle p-4 text-sm text-accent-dark">
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <p>
           Configure model parameters per model key. The active model is resolved from{" "}
-          <code className="rounded bg-violet-100 px-1 py-0.5 text-xs">OLLAMA_MODEL</code>{" "}
-          (or <code className="rounded bg-violet-100 px-1 py-0.5 text-xs">llama3.2</code> by default).
-          Entries here override env vars (<code className="rounded bg-violet-100 px-1 py-0.5 text-xs">OLLAMA_TEMPERATURE</code>{" "}
-          etc.) and code defaults. A <code className="rounded bg-violet-100 px-1 py-0.5 text-xs">default</code> key acts as a
+          <code className="rounded bg-accent-subtle px-1 py-0.5 text-xs">OLLAMA_MODEL</code>{" "}
+          (or <code className="rounded bg-accent-subtle px-1 py-0.5 text-xs">llama3.2</code> by default).
+          Entries here override env vars (<code className="rounded bg-accent-subtle px-1 py-0.5 text-xs">OLLAMA_TEMPERATURE</code>{" "}
+          etc.) and code defaults. A <code className="rounded bg-accent-subtle px-1 py-0.5 text-xs">default</code> key acts as a
           catch-all when no exact match exists.
         </p>
       </div>
@@ -168,7 +168,7 @@ export default function ModelSettingsPage() {
       {/* ── Loading ─────────────────────────────────────────── */}
       {isLoading && (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+          <Loader2 className="h-8 w-8 animate-spin text-accent" />
         </div>
       )}
 
@@ -212,7 +212,7 @@ export default function ModelSettingsPage() {
             <button
               onClick={handleAddModel}
               disabled={!newKey.trim()}
-              className="flex items-center gap-1 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+            className="flex items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-dark disabled:opacity-50"
             >
               <Plus className="h-3 w-3" />
               Add

@@ -207,7 +207,7 @@ export default function CurriculumPage({
   if (loadingCurriculum || loadingLessons) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
       </div>
     );
   }
@@ -291,7 +291,7 @@ export default function CurriculumPage({
           {user ? "Dashboard" : "Explore"}
         </Link>
 
-        <div className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 p-6 text-white">
+        <div className="rounded-2xl bg-accent p-6 text-white">
           <div className="mb-1 flex items-center gap-2">
             <BookOpen className="h-5 w-5 opacity-80" />
             <span className="text-sm font-medium opacity-80">Curriculum</span>
@@ -356,7 +356,7 @@ export default function CurriculumPage({
             >
               <div className="flex items-center gap-4 border-b border-gray-50 bg-gray-50 px-5 py-4">
                 <div
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white"
                   aria-label={`Section ${sectionIdx + 1}`}
                 >
                   {sectionIdx + 1}
@@ -404,7 +404,7 @@ export default function CurriculumPage({
                         ) : isLocked ? (
                           <Lock className="h-5 w-5 text-gray-300" />
                         ) : (
-                          <Circle className="h-5 w-5 text-violet-400" />
+                          <Circle className="h-5 w-5 text-accent" />
                         )}
                       </div>
                       <div className="flex-1">
@@ -439,7 +439,7 @@ export default function CurriculumPage({
                         {lesson && !isLocked && (
                           <Link
                             href={`/lesson/${lesson.id}`}
-                            className="flex items-center gap-1 rounded-lg bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100"
+                            className="flex items-center gap-1 rounded-lg bg-accent-subtle px-3 py-1.5 text-xs font-medium text-accent-dark hover:bg-accent-light"
                           >
                             {isCompleted ? "Review" : "Start"}
                             <ChevronRight className="h-3.5 w-3.5" />
@@ -448,7 +448,7 @@ export default function CurriculumPage({
                         {lesson && !user && (
                           <Link
                             href={`/lesson/${lesson.id}`}
-                            className="flex items-center gap-1 rounded-lg bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100"
+                            className="flex items-center gap-1 rounded-lg bg-accent-subtle px-3 py-1.5 text-xs font-medium text-accent-dark hover:bg-accent-light"
                           >
                             Read
                             <ChevronRight className="h-3.5 w-3.5" />

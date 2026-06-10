@@ -239,7 +239,7 @@ function FailScreen({
       <div className="flex flex-col items-center gap-3">
         <button
           onClick={onRetake}
-          className="flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
+          className="flex items-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-white hover:bg-accent-dark"
         >
           <RotateCcw className="h-4 w-4" />
           Try again

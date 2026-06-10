@@ -2,7 +2,8 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "jsx": "react-jsx",
+    "lib": ["ES2022", "dom"],
     "outDir": "dist"
   },
-  "include": ["src"]
+  "include": ["src", "tests"]
 }

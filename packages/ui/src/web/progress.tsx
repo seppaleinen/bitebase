@@ -20,7 +20,7 @@ export function Progress({ className, value = 0, max = 100, ...props }: Progress
       {...props}
     >
       <div
-        className="h-full rounded-full bg-violet-600 transition-all duration-500"
+        className="h-full rounded-full bg-accent transition-all duration-500"
         style={{ width: `${pct}%` }}
       />
     </div>
