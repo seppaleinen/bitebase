@@ -16,7 +16,7 @@ import {
   Tag,
 } from "lucide-react-native";
 import { trpcReact } from "@/lib/trpc-provider";
-import type { CurriculumSection } from "@bitebase/db";
+import type { CourseSection } from "@bitebase/db";
 
 export default function CurriculumScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -37,14 +37,14 @@ export default function CurriculumScreen() {
 
   if (!course || !lessonsData) return null;
 
-  const sections = course.sections as CurriculumSection[];
+  const sections = course.sections as CourseSection[];
   const lessonMap = new Map(
     lessonsData.map((l) => [`${l.sectionId}:${l.subsectionId ?? ""}`, l])
   );
 
   const items = sections.flatMap((section) => [
     { type: "section" as const, section },
-    ...section.subsections.map((sub) => ({
+    ...section.subsections.map((sub: any) => ({
       type: "lesson" as const,
       sub,
       section,
