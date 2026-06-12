@@ -6,7 +6,7 @@ import {
   getModel,
   ensureModelLoaded,
   PROMPT_VERSION,
-  buildCurriculumSystemPrompt,
+   buildCourseSystemPrompt,
   buildLessonSystemPrompt,
   buildNarrativeThreads,
   coursePlanSchema,
@@ -289,7 +289,7 @@ export async function POST(req: Request) {
           {
             model: getModel(),
             mode: "json",
-            system: buildCurriculumSystemPrompt(profile),
+            system:              buildCourseSystemPrompt(profile),
             prompt: `Create a personalized course for learning ${profile.topic} for a ${profile.experienceLevel} learner.`,
             temperature: (effectiveConfig.temperature as number | undefined) ?? 0.7,
             maxTokens: effectiveConfig.maxTokens as number | undefined,

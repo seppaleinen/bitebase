@@ -23,7 +23,7 @@ import {
 import { trpcReact } from "@/lib/trpc/provider";
 import { JsonLd } from "@/components/json-ld";
 import { Progress, Badge } from "@bitebase/ui/web";
-import type { CurriculumSection } from "@bitebase/db";
+import type { CourseSection } from "@bitebase/db";
 
 function useUser() {
   const { data, isLoading } = trpcReact.public.getSession.useQuery();
@@ -214,7 +214,7 @@ export default function CurriculumPage({
 
   if (!course || !lessonsData) return null;
 
-  const sections = course.sections as CurriculumSection[];
+  const sections = course.sections as CourseSection[];
   const totalLessons = lessonsData.length;
   const progressMap = new Map(
     (progressList ?? []).map((p) => [p.lessonId, p])
@@ -379,7 +379,7 @@ export default function CurriculumPage({
               </div>
 
               <div className="divide-y divide-gray-50">
-                {section.subsections.map((sub) => {
+                  {section.subsections.map((sub: { id: string; title: string; description: string; order: number }) => {
                   const lesson = lessonsData.find(
                     (l) =>
                       l.sectionId === section.id &&
