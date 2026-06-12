@@ -3,7 +3,7 @@ name: bitebase
 description: BiteBase — personalized AI micro-learning platform
 type: application
 # Chart version — bumped automatically by the helm-release workflow
-version: 0.2.0
+version: 0.2.1
 # appVersion tracks the Docker image tag deployed by this chart version.
 # Set to the specific release tag (e.g. "v1.2.3") when pinning.
 appVersion: "0.1.0"
