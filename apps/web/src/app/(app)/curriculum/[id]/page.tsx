@@ -30,13 +30,13 @@ function useUser() {
   return { user: data ?? null, isLoading };
 }
 
-/** Inline category editor for curriculum owners. */
+/** Inline category editor for course owners. */
 function CategoryEditor({
-  curriculumId,
+  courseId,
   currentCategory,
   currentSubcategory,
 }: {
-  curriculumId: string;
+  courseId: string;
   currentCategory: string;
   currentSubcategory: string;
 }) {
@@ -47,10 +47,10 @@ function CategoryEditor({
   const utils = trpcReact.useUtils();
 
   const { data: categories } = trpcReact.public.listCategories.useQuery();
-  const updateMutation = trpcReact.curriculum.updateCategory.useMutation({
+  const updateMutation = trpcReact.course.updateCategory.useMutation({
     onSuccess: () => {
       void utils.public.listPublished.invalidate();
-      void utils.public.getPublishedCurriculum.invalidate({ id: curriculumId });
+      void utils.public.getPublishedCurriculum.invalidate({ id: courseId });
       void utils.public.listCategories.invalidate();
       setEditing(false);
     },
@@ -90,7 +90,7 @@ function CategoryEditor({
         onKeyDown={(e) => {
           if (e.key === "Enter" && category.trim()) {
             updateMutation.mutate({
-              curriculumId,
+              courseId,
               category: category.trim(),
               subcategory: subcategory.trim() || undefined,
             });
@@ -107,7 +107,7 @@ function CategoryEditor({
         onKeyDown={(e) => {
           if (e.key === "Enter" && category.trim()) {
             updateMutation.mutate({
-              curriculumId,
+              courseId,
               category: category.trim(),
               subcategory: subcategory.trim() || undefined,
             });
@@ -119,7 +119,7 @@ function CategoryEditor({
         onClick={() => {
           if (category.trim()) {
             updateMutation.mutate({
-              curriculumId,
+              courseId,
               category: category.trim(),
               subcategory: subcategory.trim() || undefined,
             });
@@ -167,25 +167,25 @@ export default function CurriculumPage({
   const utils = trpcReact.useUtils();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const { data: curriculum, isLoading: loadingCurriculum } =
+  const { data: course, isLoading: loadingCurriculum } =
     trpcReact.public.getPublishedCurriculum.useQuery({ id });
   const { data: lessonsData, isLoading: loadingLessons } =
-    trpcReact.public.getPublishedLessons.useQuery({ curriculumId: id });
+    trpcReact.public.getPublishedLessons.useQuery({ courseId: id });
 
   const { data: progressList } =
-    trpcReact.curriculum.getProgressForCurriculum.useQuery(
-      { curriculumId: id },
+    trpcReact.course.getProgressForCurriculum.useQuery(
+      { courseId: id },
       { enabled: !!user }
     );
 
-  const deleteMutation = trpcReact.curriculum.delete.useMutation({
+  const deleteMutation = trpcReact.course.delete.useMutation({
     onSuccess: () => {
-      void utils.curriculum.list.invalidate();
+      void utils.course.list.invalidate();
       router.push(user ? "/dashboard" : "/explore");
     },
   });
 
-  const retryMutation = trpcReact.curriculum.retryAndGetProfile.useMutation({
+  const retryMutation = trpcReact.course.retryAndGetProfile.useMutation({
     onSuccess: (result) => {
       // Store profile data for the onboarding flow, same as dashboard does
       if (typeof window !== "undefined") {
@@ -196,13 +196,13 @@ export default function CurriculumPage({
           additionalContext: result.additionalContext,
         };
         sessionStorage.setItem("bitebase_onboard_retry_profile", JSON.stringify(data));
-        sessionStorage.setItem("bitebase_replace_curriculum_id", result.curriculumId);
+        sessionStorage.setItem("bitebase_replace_course_id", result.courseId);
       }
       router.push("/onboarding");
     },
   });
 
-  const isOwner = !!user && curriculum?.userId === user.id;
+  const isOwner = !!user && course?.userId === user.id;
 
   if (loadingCurriculum || loadingLessons) {
     return (
@@ -212,9 +212,9 @@ export default function CurriculumPage({
     );
   }
 
-  if (!curriculum || !lessonsData) return null;
+  if (!course || !lessonsData) return null;
 
-  const sections = curriculum.sections as CurriculumSection[];
+  const sections = course.sections as CurriculumSection[];
   const totalLessons = lessonsData.length;
   const progressMap = new Map(
     (progressList ?? []).map((p) => [p.lessonId, p])
@@ -229,7 +229,7 @@ export default function CurriculumPage({
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
     <main className="space-y-8">
       {/* Structured data for search engines + AI answer engines */}
-      {curriculum && (
+      {course && (
         <>
           <JsonLd
             data={{
@@ -253,7 +253,7 @@ export default function CurriculumPage({
                 {
                   "@type": "ListItem",
                   position: 3,
-                  name: curriculum.title,
+                  name: course.title,
                 },
               ],
             }}
@@ -262,19 +262,19 @@ export default function CurriculumPage({
             data={{
               "@context": "https://schema.org",
               "@type": "Course",
-              name: curriculum.title,
-              description: curriculum.description,
+              name: course.title,
+              description: course.description,
               provider: {
                 "@type": "Organization",
                 name: "BiteBase",
                 url: process.env.SITE_URL ?? "https://bitebase.labb.site",
               },
               numberOfLessons: lessonsData?.length ?? 0,
-              timeRequired: `PT${Math.round(curriculum.totalEstimatedMinutes)}M`,
+              timeRequired: `PT${Math.round(course.totalEstimatedMinutes)}M`,
               hasCourseInstance: {
                 "@type": "CourseInstance",
                 courseMode: "online",
-                courseWorkload: `PT${Math.round(curriculum.totalEstimatedMinutes)}M`,
+                courseWorkload: `PT${Math.round(course.totalEstimatedMinutes)}M`,
               },
             }}
           />
@@ -296,22 +296,22 @@ export default function CurriculumPage({
             <BookOpen className="h-5 w-5 opacity-80" />
             <span className="text-sm font-medium opacity-80">Curriculum</span>
           </div>
-          <h1 className="mb-2 text-2xl font-bold">{curriculum.title}</h1>
-          <p className="text-sm opacity-80">{curriculum.description}</p>
+          <h1 className="mb-2 text-2xl font-bold">{course.title}</h1>
+          <p className="text-sm opacity-80">{course.description}</p>
 
           {/* Category badge */}
-          {curriculum.category && (
+          {course.category && (
             <div className="mb-4 mt-2 flex items-center gap-2">
               <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-0.5 text-xs font-medium text-white">
                 <Tag className="h-3 w-3" />
-                {curriculum.category}
-                {curriculum.subcategory && ` · ${curriculum.subcategory}`}
+                {course.category}
+                {course.subcategory && ` · ${course.subcategory}`}
               </span>
               {isOwner && (
                 <CategoryEditor
-                  curriculumId={curriculum.id}
-                  currentCategory={curriculum.category ?? ""}
-                  currentSubcategory={curriculum.subcategory ?? ""}
+                  courseId={course.id}
+                  currentCategory={course.category ?? ""}
+                  currentSubcategory={course.subcategory ?? ""}
                 />
               )}
             </div>
@@ -468,7 +468,7 @@ export default function CurriculumPage({
       {isOwner && (
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <h3 className="mb-1 text-sm font-semibold text-gray-900">
-            Manage curriculum
+            Manage course
           </h3>
           <p className="mb-4 text-xs text-gray-500">
             Only you can see these options as the creator.

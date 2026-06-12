@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookOpen, Clock, Home, ChevronRight } from "lucide-react";
 import { db } from "@bitebase/db";
-import { curricula } from "@bitebase/db/schema";
+import { courses } from "@bitebase/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { JsonLd } from "@/components/json-ld";
 
@@ -30,11 +30,11 @@ export default async function CategoryPage({
 
   // Get all categories from DB
   const rows = await db
-    .select({ category: curricula.category })
-    .from(curricula)
-    .where(eq(curricula.isPublished, true))
-    .groupBy(curricula.category)
-    .orderBy(curricula.category);
+    .select({ category: courses.category })
+    .from(courses)
+    .where(eq(courses.isPublished, true))
+    .groupBy(courses.category)
+    .orderBy(courses.category);
 
   const categories = rows
     .map((r) => r.category)
@@ -58,30 +58,30 @@ export default async function CategoryPage({
       notFound();
     }
     // Use direct match
-    const curriculaList = await getCurriculaForCategory(directMatch);
-    return renderPage(slug, directMatch, curriculaList);
+    const coursesList = await getCoursesForCategory(directMatch);
+    return renderPage(slug, directMatch, coursesList);
   }
 
-  const curriculaList = await getCurriculaForCategory(categoryName);
-  return renderPage(slug, categoryName, curriculaList);
+  const coursesList = await getCoursesForCategory(categoryName);
+  return renderPage(slug, categoryName, coursesList);
 }
 
 // ── Data fetching ─────────────────────────────────────────────────────────
 
-async function getCurriculaForCategory(category: string) {
+async function getCoursesForCategory(category: string) {
   return db
     .select({
-      id: curricula.id,
-      title: curricula.title,
-      description: curricula.description,
-      category: curricula.category,
-      subcategory: curricula.subcategory,
-      totalEstimatedMinutes: curricula.totalEstimatedMinutes,
-      createdAt: curricula.createdAt,
+      id: courses.id,
+      title: courses.title,
+      description: courses.description,
+      category: courses.category,
+      subcategory: courses.subcategory,
+      totalEstimatedMinutes: courses.totalEstimatedMinutes,
+      createdAt: courses.createdAt,
     })
-    .from(curricula)
-    .where(and(eq(curricula.isPublished, true), eq(curricula.category, category)))
-    .orderBy(desc(curricula.createdAt))
+    .from(courses)
+    .where(and(eq(courses.isPublished, true), eq(courses.category, category)))
+    .orderBy(desc(courses.createdAt))
     .limit(50);
 }
 
@@ -90,10 +90,10 @@ async function getCurriculaForCategory(category: string) {
 async function renderPage(
   slug: string,
   categoryName: string,
-  curriculaList: Awaited<ReturnType<typeof getCurriculaForCategory>>
+  coursesList: Awaited<ReturnType<typeof getCoursesForCategory>>
 ) {
   const baseUrl = process.env.SITE_URL ?? "https://bitebase.labb.site";
-  const pageDescription = `Explore BiteBase's ${categoryName} curricula. Learn ${categoryName} with personalized AI-generated lessons and quizzes.`;
+  const pageDescription = `Explore BiteBase's ${categoryName} courses. Learn ${categoryName} with personalized AI-generated lessons and quizzes.`;
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
@@ -127,18 +127,18 @@ async function renderPage(
         data={{
           "@context": "https://schema.org",
           "@type": "ItemList",
-          name: `${categoryName} Curricula`,
+          name: `${categoryName} Courses`,
           description: pageDescription,
           url: `${baseUrl}/category/${slug}`,
-          numberOfItems: curriculaList.length,
-          itemListElement: curriculaList.map((c, i) => ({
+          numberOfItems: coursesList.length,
+          itemListElement: coursesList.map((c, i) => ({
             "@type": "ListItem",
             position: i + 1,
             item: {
               "@type": "Course",
               name: c.title,
               description: c.description,
-              url: `${baseUrl}/curriculum/${c.id}`,
+              url: `${baseUrl}/course/${c.id}`,
             },
           })),
         }}
@@ -161,7 +161,7 @@ async function renderPage(
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 font-[family-name:var(--font-fraunces)]">
-          {categoryName} Curricula
+          {categoryName} Courses
         </h1>
         <p className="mt-2 text-gray-500">
           {pageDescription}
@@ -169,24 +169,24 @@ async function renderPage(
       </div>
 
       {/* Curriculum grid */}
-      {curriculaList.length === 0 ? (
+      {coursesList.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white py-20 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-subtle">
             <BookOpen className="h-8 w-8 text-accent" />
           </div>
           <h2 className="mb-2 text-lg font-semibold text-gray-900">
-            No {categoryName} curricula yet
+            No {categoryName} courses yet
           </h2>
           <p className="text-sm text-gray-500">
-            Be the first to create a curriculum in this category.
+            Be the first to create a course in this category.
           </p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {curriculaList.map((c) => (
+          {coursesList.map((c) => (
             <Link
               key={c.id}
-              href={`/curriculum/${c.id}`}
+              href={`/course/${c.id}`}
               className="group block rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-accent-light hover:shadow-md"
             >
               <div className="mb-4 flex items-start justify-between gap-2">

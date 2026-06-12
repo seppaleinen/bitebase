@@ -117,7 +117,7 @@ ingress:
     enabled: true
     clusterIssuer: letsencrypt-prod
   annotations:
-    # Increase timeouts for AI streaming responses (curriculum generation ≥60s)
+    # Increase timeouts for AI streaming responses (course generation ≥60s)
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
 

@@ -51,7 +51,7 @@ export default function AdminCurriculaPage() {
       const total = res.lessonResults.length;
       const bumped = res.lessonResults.filter((r) => r.newVersion > 0).length;
       addToast(
-        `Regenerated ${total} lesson(s) in curriculum (${bumped} version bump${bumped !== 1 ? "s" : ""})`,
+        `Regenerated ${total} lesson(s) in course (${bumped} version bump${bumped !== 1 ? "s" : ""})`,
         "success"
       );
       void refetch();
@@ -83,10 +83,10 @@ export default function AdminCurriculaPage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, [setToasts]);
 
-  const handleRegenerateCurriculum = async (curriculumId: string) => {
-    setRegeneratingCurrId(curriculumId);
+  const handleRegenerateCurriculum = async (courseId: string) => {
+    setRegeneratingCurrId(courseId);
     try {
-      await regenerateCurrMut.mutateAsync({ curriculumId });
+      await regenerateCurrMut.mutateAsync({ courseId });
     } catch {
       // errors handled by onError
     } finally {
@@ -105,7 +105,7 @@ export default function AdminCurriculaPage() {
     }
   };
 
-  const curricula = data?.curricula ?? [];
+  const courses = data?.courses ?? [];
   const versionRollup = data?.versionRollup ?? [];
 
   return (
@@ -140,7 +140,7 @@ export default function AdminCurriculaPage() {
                 <div className="mb-2 flex items-baseline justify-between">
                   <span className="text-lg font-bold text-gray-900">Version {v.version}</span>
                   <span className="text-sm text-gray-500">
-                    {v.totalLessons} lesson{v.totalLessons !== 1 ? "s" : ""} across {v.curriculaCount} curriculum / curricula
+                    {v.totalLessons} lesson{v.totalLessons !== 1 ? "s" : ""} across {v.coursesCount} course / courses
                   </span>
                 </div>
                 <button
@@ -167,14 +167,14 @@ export default function AdminCurriculaPage() {
       )}
 
       {/* ── Curriculum list ────────────────────────────────────────────── */}
-      {!isLoading && curricula.length > 0 && (
+      {!isLoading && courses.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-gray-800 flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-accent" />
-            Group by curriculum
+            Group by course
           </h2>
           <div className="space-y-4">
-            {curricula.map((c) => (
+            {courses.map((c) => (
               <div
                 key={c.id}
                 className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
@@ -204,7 +204,7 @@ export default function AdminCurriculaPage() {
                     onClick={() => handleRegenerateCurriculum(c.id)}
                     disabled={regeneratingCurrId === c.id}
                     className="flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
-                    title="Regenerate all lessons in this curriculum"
+                    title="Regenerate all lessons in this course"
                   >
                     {regeneratingCurrId === c.id ? (
                       <>
@@ -226,10 +226,10 @@ export default function AdminCurriculaPage() {
       )}
 
       {/* ── Empty state ────────────────────────────────────────────────── */}
-      {!isLoading && curricula.length === 0 && (
+      {!isLoading && courses.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 py-16 text-center">
           <BookOpen className="mb-3 h-10 w-10 text-gray-300" />
-          <p className="text-lg font-medium text-gray-700">No curricula found</p>
+          <p className="text-lg font-medium text-gray-700">No courses found</p>
           <p className="mt-1 max-w-md text-sm text-gray-500">
             Curricula will appear here once they have been created.
           </p>

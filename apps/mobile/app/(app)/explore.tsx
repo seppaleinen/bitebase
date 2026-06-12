@@ -28,7 +28,7 @@ export default function ExploreScreen() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   const { data: categories } = trpcReact.public.listCategories.useQuery();
-  const { data: curricula, isLoading } =
+  const { data: courses, isLoading } =
     trpcReact.public.listPublished.useQuery({
       category: selectedCategory ?? undefined,
       search: search.trim() || undefined,
@@ -60,10 +60,10 @@ export default function ExploreScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search curricula..."
+            placeholder="Search courses..."
             placeholderTextColor="#9ca3af"
             className="ml-2 flex-1 text-sm text-gray-900"
-            accessibilityLabel="Search curricula"
+            accessibilityLabel="Search courses"
             returnKeyType="search"
           />
           {search.length > 0 && (
@@ -190,36 +190,36 @@ export default function ExploreScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#7c3aed" size="large" />
         </View>
-      ) : !curricula || curricula.length === 0 ? (
+      ) : !courses || courses.length === 0 ? (
         <View
           className="flex-1 items-center justify-center px-8"
-          accessibilityLabel="No curricula found"
+          accessibilityLabel="No courses found"
         >
           <View className="mb-4 h-16 w-16 items-center justify-center rounded-2xl bg-violet-100">
             <BookOpen color="#7c3aed" size={32} />
           </View>
           <Text className="mb-2 text-center text-lg font-semibold text-gray-900">
             {search || selectedCategory
-              ? "No matching curricula"
-              : "No curricula yet"}
+              ? "No matching courses"
+              : "No courses yet"}
           </Text>
           <Text className="text-center text-sm text-gray-500">
             {search || selectedCategory
               ? "Try different filters or search terms."
-              : "Be the first to create a curriculum and share it."}
+              : "Be the first to create a course and share it."}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={curricula}
+          data={courses}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
           ItemSeparatorComponent={() => <View className="h-3" />}
           renderItem={({ item }) => (
             <TouchableOpacity
-              onPress={() => router.push(`/curriculum/${item.id}`)}
+              onPress={() => router.push(`/course/${item.id}`)}
               accessibilityLabel={item.title}
-              accessibilityHint={`Open ${item.title} curriculum`}
+              accessibilityHint={`Open ${item.title} course`}
               className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
             >
               <View className="mb-3 flex-row items-start justify-between">

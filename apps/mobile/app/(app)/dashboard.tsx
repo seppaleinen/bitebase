@@ -12,15 +12,15 @@ import { BookOpen, Clock, ChevronRight } from "lucide-react-native";
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { data: curricula, isLoading } = trpcReact.curriculum.list.useQuery();
+  const { data: courses, isLoading } = trpcReact.course.list.useQuery();
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
       <View className="px-5 pb-4 pt-6">
         <Text accessibilityRole="header" className="text-2xl font-bold text-gray-900">Your Learning</Text>
         <Text className="mt-1 text-sm text-gray-500">
-          {curricula?.length
-            ? `${curricula.length} active ${curricula.length === 1 ? "curriculum" : "curricula"}`
+          {courses?.length
+            ? `${courses.length} active ${courses.length === 1 ? "course" : "courses"}`
             : "No courses yet"}
         </Text>
       </View>
@@ -29,7 +29,7 @@ export default function DashboardScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#7c3aed" size="large" />
         </View>
-      ) : !curricula?.length ? (
+      ) : !courses?.length ? (
         <View className="flex-1 items-center justify-center px-8" accessibilityLabel="Empty state: no courses yet">
           <View className="mb-4 h-16 w-16 items-center justify-center rounded-2xl bg-violet-100">
             <BookOpen color="#7c3aed" size={32} />
@@ -38,20 +38,20 @@ export default function DashboardScreen() {
             No courses yet
           </Text>
           <Text className="mb-6 text-center text-sm text-gray-500">
-            Tap &quot;New Course&quot; to create your first personalized curriculum.
+            Tap &quot;New Course&quot; to create your first personalized course.
           </Text>
         </View>
       ) : (
         <FlatList
-          data={curricula}
+          data={courses}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
           ItemSeparatorComponent={() => <View className="h-3" />}
           renderItem={({ item }) => (
             <TouchableOpacity
-               onPress={() => router.push(`/curriculum/${item.id}`)}
+               onPress={() => router.push(`/course/${item.id}`)}
                accessibilityLabel={item.title}
-               accessibilityHint={`Open ${item.title} curriculum`}
+               accessibilityHint={`Open ${item.title} course`}
                className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
             >
               <View className="mb-3 flex-row items-start justify-between">

@@ -27,8 +27,8 @@ interface QuizSectionProps {
   lessonId: string;
   quiz: Quiz;
   lessonTitle: string;
-  curriculumId: string;
-  curriculumTitle?: string;
+  courseId: string;
+  courseTitle?: string;
   onComplete?: () => void;
 }
 
@@ -51,20 +51,20 @@ function WhatsNextScreen({
   result,
   lessonId,
   lessonTitle,
-  curriculumTitle,
+  courseTitle,
   questions,
   onRetake,
 }: {
   result: QuizResult;
   lessonId: string;
   lessonTitle: string;
-  curriculumTitle?: string;
+  courseTitle?: string;
   questions: QuizQuestion[];
   onRetake: () => void;
 }) {
   const [showReview, setShowReview] = useState(false);
 
-  const { data: nextLesson } = trpcReact.curriculum.getNextLesson.useQuery({
+  const { data: nextLesson } = trpcReact.course.getNextLesson.useQuery({
     lessonId,
   });
 
@@ -73,7 +73,7 @@ function WhatsNextScreen({
     `I want to explore a deeper aspect of what I just learned: "${lessonTitle}". Can you help me go further?`
   );
   const relatedTopicParam = encodeURIComponent(
-    `I just finished learning about "${lessonTitle}"${curriculumTitle ? ` as part of "${curriculumTitle}"` : ""}. What related topic should I explore next to complement this?`
+    `I just finished learning about "${lessonTitle}"${courseTitle ? ` as part of "${courseTitle}"` : ""}. What related topic should I explore next to complement this?`
   );
 
   return (
@@ -97,7 +97,7 @@ function WhatsNextScreen({
           What would you like to do next?
         </p>
 
-        {/* Next lesson in curriculum */}
+        {/* Next lesson in course */}
         {nextLesson ? (
           <Link
             href={`/lesson/${nextLesson.id}`}
@@ -120,7 +120,7 @@ function WhatsNextScreen({
             <div className="flex-1">
               <p className="text-xs font-medium text-emerald-600">All done!</p>
               <p className="font-semibold text-emerald-900">
-                You&apos;ve completed {curriculumTitle ?? "this curriculum"}
+                You&apos;ve completed {courseTitle ?? "this course"}
               </p>
             </div>
           </div>
@@ -318,14 +318,14 @@ export default function QuizSection({
   lessonId,
   quiz,
   lessonTitle,
-  curriculumTitle,
+  courseTitle,
   onComplete,
 }: QuizSectionProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentQ, setCurrentQ] = useState(0);
   const [result, setResult] = useState<QuizResult | null>(null);
 
-  const submitQuiz = trpcReact.curriculum.submitQuiz.useMutation({
+  const submitQuiz = trpcReact.course.submitQuiz.useMutation({
     onSuccess: (data) => {
       setResult(data);
       if (data.passed) onComplete?.();
@@ -369,7 +369,7 @@ export default function QuizSection({
         result={result}
         lessonId={lessonId}
         lessonTitle={lessonTitle}
-        curriculumTitle={curriculumTitle}
+        courseTitle={courseTitle}
         questions={quiz.questions}
         onRetake={handleReset}
       />

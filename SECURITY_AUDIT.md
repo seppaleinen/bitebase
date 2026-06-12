@@ -21,8 +21,8 @@
 
 ## Authorization & Access Control
 - [x] Test protected procedure guards in tRPC
-- [x] Check user ownership validation on curriculum/lesson access
-- [x] Test admin router access controls for curriculum operations
+- [x] Check user ownership validation on course/lesson access
+- [x] Test admin router access controls for course operations
 - [x] Review publicRouter endpoints for proper access levels
 
 ### Access Control Findings
@@ -30,8 +30,8 @@
 **GRN:**
 - ✅ `protectedProcedure` middleware properly extracts session from request headers via `auth.api.getSession()` and throws `UNAUTHORIZED` when missing
 - ✅ Admin router `ensureAdmin()` guards all 3 procedures: `listCurricula`, `regenerateCurriculum`, `regenerateLessonsByVersion`
-- ✅ Public endpoints properly filter by `isPublished === true` — no unpublished curricula exposed
-- ✅ `getPublishedLesson` verifies curriculum is published before returning lesson/quiz data
+- ✅ Public endpoints properly filter by `isPublished === true` — no unpublished courses exposed
+- ✅ `getPublishedLesson` verifies course is published before returning lesson/quiz data
 - ✅ `getSession` returns null for anonymous users (no info disclosure)
 
 **YEL (Fixed):**
@@ -89,21 +89,21 @@
 ## Web Application Vulnerabilities
 - [x] Test CSRF protection on forms
 - [x] Check for IDOR vulnerabilities in API
-- [x] Validate business logic for curriculum operations
+- [x] Validate business logic for course operations
 
 ### Web App Vulnerabilities Findings
 
 **GRN:**
-- ✅ IDOR protection confirmed: `curriculumRouter.get`, `getLessons`, `getLesson`, `markLessonCompleted` all check `curricula.userId === ctx.session.user.id`
+- ✅ IDOR protection confirmed: `courseRouter.get`, `getLessons`, `getLesson`, `markLessonCompleted` all check `courses.userId === ctx.session.user.id`
 - ✅ `submitQuiz` correctly validates quiz exists before scoring
 - ✅ Business logic: `unlockNextLesson()` only called when quiz is passed — proper sequencing enforced
 - ✅ CORS middleware validates origin against `BETTER_AUTH_TRUSTED_ORIGINS` — CSRF mitigated for cross-origin requests
 - ✅ tRPC operates over POST + `Content-Type: application/json` — prevents simple CSRF via `<form>` tags
-- ✅ `regenerateCurriculum` and `regenerateLessonsByVersion` guarded by `ensureAdmin()` — no unauthorized curriculum mutation
+- ✅ `regenerateCurriculum` and `regenerateLessonsByVersion` guarded by `ensureAdmin()` — no unauthorized course mutation
 
 **YEL (Verified/Fixed):**
 - ⚠️ No explicit CSRF token (relying on CORS + cookie SameSite). `SameSite: none` is required for cross-origin mobile auth, which reduces CSRF protection — the CORS origin check is the primary defense
-- ✅ `markLessonCompleted` ownership chain verified: lesson → curriculum(`userId` check) → progress update — correct chain confirmed
+- ✅ `markLessonCompleted` ownership chain verified: lesson → course(`userId` check) → progress update — correct chain confirmed
 
 **RED:**
 - ❌ None found

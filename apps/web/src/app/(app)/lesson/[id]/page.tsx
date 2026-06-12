@@ -158,27 +158,27 @@ export default function LessonPage({
       lessonId: id,
     });
 
-  const { data: curriculum } = trpcReact.public.getPublishedCurriculum.useQuery(
-    { id: data?.lesson.curriculumId ?? "" },
-    { enabled: !!data?.lesson.curriculumId }
+  const { data: course } = trpcReact.public.getPublishedCurriculum.useQuery(
+    { id: data?.lesson.courseId ?? "" },
+    { enabled: !!data?.lesson.courseId }
   );
 
   const { data: userProgress } =
-    trpcReact.curriculum.getLessonProgress.useQuery(
+    trpcReact.course.getLessonProgress.useQuery(
       { lessonId: id },
       { enabled: !!user }
     );
 
-  const markStarted = trpcReact.curriculum.markLessonStarted.useMutation();
+  const markStarted = trpcReact.course.markLessonStarted.useMutation();
 
-  const completeNoQuiz = trpcReact.curriculum.markLessonCompleted.useMutation({
+  const completeNoQuiz = trpcReact.course.markLessonCompleted.useMutation({
     onSuccess: () => {
-      void utils.curriculum.getLessonProgress.invalidate({ lessonId: id });
-      void utils.curriculum.getNextLesson.invalidate({ lessonId: id });
+      void utils.course.getLessonProgress.invalidate({ lessonId: id });
+      void utils.course.getNextLesson.invalidate({ lessonId: id });
     },
   });
 
-  const { data: nextLesson } = trpcReact.curriculum.getNextLesson.useQuery(
+  const { data: nextLesson } = trpcReact.course.getNextLesson.useQuery(
     { lessonId: id },
     { enabled: !!user }
   );
@@ -271,10 +271,10 @@ export default function LessonPage({
                 {
                   "@type": "ListItem",
                   position: 3,
-                  name: curriculum?.title ?? "Curriculum",
+                  name: course?.title ?? "Curriculum",
                   item: `${
                     process.env.SITE_URL ?? "https://bitebase.labb.site"
-                  }/curriculum/${lesson.curriculumId}`,
+                  }/course/${lesson.courseId}`,
                 },
                 {
                   "@type": "ListItem",
@@ -291,13 +291,13 @@ export default function LessonPage({
               name: lesson.title,
               description: lesson.content?.slice(0, 300) ?? "",
               timeRequired: `PT${lesson.estimatedMinutes}M`,
-              isPartOf: curriculum
+              isPartOf: course
                 ? {
                     "@type": "Course",
-                    name: curriculum.title,
+                    name: course.title,
                     url: `${
                       process.env.SITE_URL ?? "https://bitebase.labb.site"
-                    }/curriculum/${lesson.curriculumId}`,
+                    }/course/${lesson.courseId}`,
                   }
                 : undefined,
             }}
@@ -309,12 +309,12 @@ export default function LessonPage({
 
       {/* Back nav */}
       <Link
-        href={`/curriculum/${lesson.curriculumId}`}
+        href={`/course/${lesson.courseId}`}
         className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition-colors"
-        aria-label="Back to curriculum"
+        aria-label="Back to course"
       >
         <ChevronLeft className="h-4 w-4" />
-        Back to curriculum
+        Back to course
       </Link>
 
       {/* Lesson header — hidden during quiz to avoid text-matching ambiguity */}
@@ -571,11 +571,11 @@ export default function LessonPage({
               lessonId={id}
               quiz={quiz}
               lessonTitle={lesson.title}
-              curriculumId={lesson.curriculumId}
-              curriculumTitle={curriculum?.title}
+              courseId={lesson.courseId}
+              courseTitle={course?.title}
               onComplete={() => {
-                utils.curriculum.getLessonProgress.invalidate({ lessonId: id });
-                utils.curriculum.getNextLesson.invalidate({ lessonId: id });
+                utils.course.getLessonProgress.invalidate({ lessonId: id });
+                utils.course.getNextLesson.invalidate({ lessonId: id });
               }}
             />
           )}

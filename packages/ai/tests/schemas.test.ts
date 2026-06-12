@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   learningProfileSchema,
-  curriculumPlanSchema,
+  coursePlanSchema,
   quizQuestionSchema,
   lessonContentSchema,
 } from "../src/schemas/index";
@@ -52,9 +52,9 @@ describe("learningProfileSchema", () => {
   });
 });
 
-// ─── curriculumPlanSchema ─────────────────────────────────────────────────────
+// ─── coursePlanSchema ─────────────────────────────────────────────────────
 
-describe("curriculumPlanSchema", () => {
+describe("coursePlanSchema", () => {
   const makeSection = (id: string, order: number) => ({
     id,
     title: `Section ${id}`,
@@ -74,18 +74,18 @@ describe("curriculumPlanSchema", () => {
   };
 
   it("accepts a valid plan with 3 sections", () => {
-    expect(() => curriculumPlanSchema.parse(valid)).not.toThrow();
+    expect(() => coursePlanSchema.parse(valid)).not.toThrow();
   });
 
   it("accepts a plan with only 1 section", () => {
     expect(() =>
-      curriculumPlanSchema.parse({ ...valid, sections: [makeSection("s1", 0)] })
+      coursePlanSchema.parse({ ...valid, sections: [makeSection("s1", 0)] })
     ).not.toThrow();
   });
 
   it("accepts a plan with 2 sections", () => {
     expect(() =>
-      curriculumPlanSchema.parse({ ...valid, sections: [makeSection("s1", 0), makeSection("s2", 1)] })
+      coursePlanSchema.parse({ ...valid, sections: [makeSection("s1", 0), makeSection("s2", 1)] })
     ).not.toThrow();
   });
 
@@ -93,54 +93,54 @@ describe("curriculumPlanSchema", () => {
     const sections = Array.from({ length: 9 }, (_, i) =>
       makeSection(`s${i}`, i)
     );
-    expect(() => curriculumPlanSchema.parse({ ...valid, sections })).toThrow();
+    expect(() => coursePlanSchema.parse({ ...valid, sections })).toThrow();
   });
 
   it("accepts exactly 8 sections", () => {
     const sections = Array.from({ length: 8 }, (_, i) =>
       makeSection(`s${i}`, i)
     );
-    expect(() => curriculumPlanSchema.parse({ ...valid, sections })).not.toThrow();
+    expect(() => coursePlanSchema.parse({ ...valid, sections })).not.toThrow();
   });
 
   it("coerces totalEstimatedMinutes from a string number", () => {
-    const result = curriculumPlanSchema.parse({ ...valid, totalEstimatedMinutes: "120" });
+    const result = coursePlanSchema.parse({ ...valid, totalEstimatedMinutes: "120" });
     expect(result.totalEstimatedMinutes).toBe(120);
   });
 
   it("falls back to 60 when totalEstimatedMinutes is unparseable", () => {
-    const result = curriculumPlanSchema.parse({ ...valid, totalEstimatedMinutes: "120 minutes" });
+    const result = coursePlanSchema.parse({ ...valid, totalEstimatedMinutes: "120 minutes" });
     expect(result.totalEstimatedMinutes).toBe(60);
   });
 
   it("coerces section estimatedMinutes from a string", () => {
     const sectionWithStringMinutes = { ...makeSection("s1", 0), estimatedMinutes: "30" };
-    const result = curriculumPlanSchema.parse({ ...valid, sections: [sectionWithStringMinutes] });
+    const result = coursePlanSchema.parse({ ...valid, sections: [sectionWithStringMinutes] });
     expect(result.sections[0].estimatedMinutes).toBe(30);
   });
 
   it("falls back section estimatedMinutes to 10 when unparseable", () => {
     const sectionWithBadMinutes = { ...makeSection("s1", 0), estimatedMinutes: "about 30 min" };
-    const result = curriculumPlanSchema.parse({ ...valid, sections: [sectionWithBadMinutes] });
+    const result = coursePlanSchema.parse({ ...valid, sections: [sectionWithBadMinutes] });
     expect(result.sections[0].estimatedMinutes).toBe(10);
   });
 
   it("falls back section id to 'section-0' when missing", () => {
     const { id: _, ...sectionWithoutId } = makeSection("s1", 0);
-    const result = curriculumPlanSchema.parse({ ...valid, sections: [sectionWithoutId] });
+    const result = coursePlanSchema.parse({ ...valid, sections: [sectionWithoutId] });
     expect(result.sections[0].id).toBe("section-0");
   });
 
   it("coerces section order from a string", () => {
     const sectionWithStringOrder = { ...makeSection("s1", 0), order: "2" };
-    const result = curriculumPlanSchema.parse({ ...valid, sections: [sectionWithStringOrder] });
+    const result = coursePlanSchema.parse({ ...valid, sections: [sectionWithStringOrder] });
     expect(result.sections[0].order).toBe(2);
   });
 
   it("falls back subsection id to 'sub-0' when missing", () => {
     const section = makeSection("s1", 0);
     const { id: _, ...subWithoutId } = section.subsections[0];
-    const result = curriculumPlanSchema.parse({ ...valid, sections: [{ ...section, subsections: [subWithoutId] }] });
+    const result = coursePlanSchema.parse({ ...valid, sections: [{ ...section, subsections: [subWithoutId] }] });
     expect(result.sections[0].subsections[0].id).toBe("sub-0");
   });
 });

@@ -3,7 +3,7 @@ import { protectedProcedure, router } from "../trpc";
 import { scoreQuiz } from "../lib/quiz-scoring";
 import {
   db,
-  curricula,
+  courses,
   learningProfiles,
   lessons,
   quizzes,
@@ -14,54 +14,54 @@ import { TRPCError } from "@trpc/server";
 import { randomUUID } from "crypto";
 
 const categorySchema = z.object({
-  curriculumId: z.string(),
+  courseId: z.string(),
   category: z.string().min(1, "Category is required"),
   subcategory: z.string().optional(),
 });
 
-export const curriculumRouter = router({
+export const courseRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     return db
       .select()
-      .from(curricula)
-      .where(eq(curricula.userId, ctx.session.user.id));
+      .from(courses)
+      .where(eq(courses.userId, ctx.session.user.id));
   }),
 
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
+        .from(courses)
         .where(
           and(
-            eq(curricula.id, input.id),
-            eq(curricula.userId, ctx.session.user.id)
+            eq(courses.id, input.id),
+            eq(courses.userId, ctx.session.user.id)
           )
         );
 
-      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
-      return curriculum;
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      return course;
     }),
 
   getLessons: protectedProcedure
-    .input(z.object({ curriculumId: z.string() }))
+    .input(z.object({ courseId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
+        .from(courses)
         .where(
           and(
-            eq(curricula.id, input.curriculumId),
-            eq(curricula.userId, ctx.session.user.id)
+            eq(courses.id, input.courseId),
+            eq(courses.userId, ctx.session.user.id)
           )
         );
-      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
 
       const lessonList = await db
         .select()
         .from(lessons)
-        .where(eq(lessons.curriculumId, input.curriculumId));
+        .where(eq(lessons.courseId, input.courseId));
 
       const progressList = await db
         .select()
@@ -85,16 +85,16 @@ export const curriculumRouter = router({
         .where(eq(lessons.id, input.lessonId));
       if (!lesson) throw new TRPCError({ code: "NOT_FOUND" });
 
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
+        .from(courses)
         .where(
           and(
-            eq(curricula.id, lesson.curriculumId),
-            eq(curricula.userId, ctx.session.user.id)
+            eq(courses.id, lesson.courseId),
+            eq(courses.userId, ctx.session.user.id)
           )
         );
-      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
 
       const [quiz] = await db
         .select()
@@ -186,16 +186,16 @@ export const curriculumRouter = router({
         .where(eq(lessons.id, input.lessonId));
       if (!lesson) throw new TRPCError({ code: "NOT_FOUND" });
 
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
+        .from(courses)
         .where(
           and(
-            eq(curricula.id, lesson.curriculumId),
-            eq(curricula.userId, ctx.session.user.id)
+            eq(courses.id, lesson.courseId),
+            eq(courses.userId, ctx.session.user.id)
           )
         );
-      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
 
       const [existing] = await db
         .select()
@@ -274,28 +274,28 @@ export const curriculumRouter = router({
         .where(eq(lessons.id, input.lessonId));
       if (!currentLesson) return null;
 
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
+        .from(courses)
         .where(
           and(
-            eq(curricula.id, currentLesson.curriculumId),
-            eq(curricula.userId, ctx.session.user.id)
+            eq(courses.id, currentLesson.courseId),
+            eq(courses.userId, ctx.session.user.id)
           )
         );
-      if (!curriculum) return null;
+      if (!course) return null;
 
       const allLessons = await db
         .select()
         .from(lessons)
-        .where(eq(lessons.curriculumId, currentLesson.curriculumId));
+        .where(eq(lessons.courseId, currentLesson.courseId));
 
       const next = allLessons.find((l) => l.order === currentLesson.order + 1) ?? null;
       return next
         ? {
             id: next.id,
             title: next.title,
-            curriculumId: next.curriculumId,
+            courseId: next.courseId,
             order: next.order,
           }
         : null;
@@ -304,28 +304,28 @@ export const curriculumRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
-        .where(eq(curricula.id, input.id));
-      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
-      if (curriculum.userId !== ctx.session.user.id) {
+        .from(courses)
+        .where(eq(courses.id, input.id));
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      if (course.userId !== ctx.session.user.id) {
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
-      // Deleting the curriculum cascades to lessons → quizzes and progress via FK.
-      await db.delete(curricula).where(eq(curricula.id, input.id));
+      // Deleting the course cascades to lessons → quizzes and progress via FK.
+      await db.delete(courses).where(eq(courses.id, input.id));
     }),
 
-  /** Get the current user's progress across all lessons in a curriculum. */
+  /** Get the current user's progress across all lessons in a course. */
   getProgressForCurriculum: protectedProcedure
-    .input(z.object({ curriculumId: z.string() }))
+    .input(z.object({ courseId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const curriculumLessons = await db
+      const courseLessons = await db
         .select({ id: lessons.id })
         .from(lessons)
-        .where(eq(lessons.curriculumId, input.curriculumId));
-      const lessonIds = curriculumLessons.map((l) => l.id);
+        .where(eq(lessons.courseId, input.courseId));
+      const lessonIds = courseLessons.map((l) => l.id);
       if (lessonIds.length === 0) return [];
 
       return db
@@ -356,71 +356,71 @@ export const curriculumRouter = router({
     }),
 
   getProfile: protectedProcedure
-    .input(z.object({ curriculumId: z.string() }))
+    .input(z.object({ courseId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
-        .where(eq(curricula.id, input.curriculumId));
-      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
-      if (curriculum.userId !== ctx.session.user.id) {
+        .from(courses)
+        .where(eq(courses.id, input.courseId));
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      if (course.userId !== ctx.session.user.id) {
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
       const [profile] = await db
         .select()
         .from(learningProfiles)
-        .where(eq(learningProfiles.id, curriculum.profileId));
+        .where(eq(learningProfiles.id, course.profileId));
 
       return profile ?? null;
     }),
 
-  /** Update the category/subcategory for a curriculum (owner only). */
+  /** Update the category/subcategory for a course (owner only). */
   updateCategory: protectedProcedure
     .input(categorySchema)
     .mutation(async ({ ctx, input }) => {
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
-        .where(eq(curricula.id, input.curriculumId));
-      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
-      if (curriculum.userId !== ctx.session.user.id) {
+        .from(courses)
+        .where(eq(courses.id, input.courseId));
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      if (course.userId !== ctx.session.user.id) {
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
       await db
-        .update(curricula)
+        .update(courses)
         .set({
           category: input.category,
           subcategory: input.subcategory || null,
         })
-        .where(eq(curricula.id, input.curriculumId));
+        .where(eq(courses.id, input.courseId));
     }),
 
   /** Fetch a learning profile so the caller can re-trigger generation with the
-   *  same inputs. Does NOT delete the curriculum — deletion is deferred until
-   *  the new curriculum has been successfully generated. */
+   *  same inputs. Does NOT delete the course — deletion is deferred until
+   *  the new course has been successfully generated. */
   retryAndGetProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
-        .where(eq(curricula.id, input.id));
-      if (!curriculum) throw new TRPCError({ code: "NOT_FOUND" });
-      if (curriculum.userId !== ctx.session.user.id) {
+        .from(courses)
+        .where(eq(courses.id, input.id));
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      if (course.userId !== ctx.session.user.id) {
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
       const [profile] = await db
         .select()
         .from(learningProfiles)
-        .where(eq(learningProfiles.id, curriculum.profileId));
+        .where(eq(learningProfiles.id, course.profileId));
 
       if (!profile) throw new TRPCError({ code: "NOT_FOUND", message: "Learning profile not found" });
 
       return {
-        curriculumId: input.id,
+        courseId: input.id,
         topic: profile.topic,
         experienceLevel: profile.experienceLevel,
         goals: profile.goals,
@@ -439,7 +439,7 @@ async function unlockNextLesson(userId: string, completedLessonId: string) {
   const allLessons = await db
     .select()
     .from(lessons)
-    .where(eq(lessons.curriculumId, completedLesson.curriculumId));
+    .where(eq(lessons.courseId, completedLesson.courseId));
 
   const nextLesson = allLessons
     .filter((l) => l.order === completedLesson.order + 1)

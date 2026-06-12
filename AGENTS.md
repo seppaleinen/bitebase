@@ -6,7 +6,7 @@ Everything an agent needs to understand the project, make changes safely, and av
 
 ## What this project is
 
-BiteBase is an interactive micro-learning app. The user tells it what they want to learn, the AI asks a few follow-up questions (experience level, goals), then generates a personalized curriculum with markdown lessons and quizzes. Lessons are unlocked in order; each one requires passing the previous quiz (≥ 70%).
+BiteBase is an interactive micro-learning app. The user tells it what they want to learn, the AI asks a few follow-up questions (experience level, goals), then generates a personalized course with markdown lessons and quizzes. Lessons are unlocked in order; each one requires passing the previous quiz (≥ 70%).
 
 **Design philosophy**: the app is intentionally exploratory. Users learn for as long as they are interested — there is no time commitment or daily minutes concept. Do not add anything that asks how many minutes per day a user has available.
 
@@ -110,19 +110,19 @@ pnpm --filter @bitebase/mobile web     # run mobile app in browser (no Expo Go n
 
 | File | What it does |
 |---|---|
-| `packages/db/src/schema/learning.ts` | All learning-domain tables: `learningProfiles`, `curricula`, `lessons`, `quizzes`, `progress`, `streaks`. If you add a column, run `pnpm db:push`. |
+| `packages/db/src/schema/learning.ts` | All learning-domain tables: `learningProfiles`, `courses`, `lessons`, `quizzes`, `progress`, `streaks`. If you add a column, run `pnpm db:push`. |
 | `packages/db/src/schema/users.ts` | Better Auth user/session/account tables — do not edit manually; Better Auth owns this shape. |
 | `packages/db/src/client.ts` | Lazy-initialized Drizzle client via a `Proxy`. Intentionally deferred so the build never needs `DATABASE_URL`. Do not change this to eager init. |
 | `packages/api/src/trpc.ts` | tRPC context (`createContext`) and middleware. `protectedProcedure` guards all authenticated routes. |
-| `packages/api/src/routers/curriculum.ts` | The only router right now. Contains all lesson/quiz/progress mutations and queries. |
+| `packages/api/src/routers/course.ts` | The only router right now. Contains all lesson/quiz/progress mutations and queries. |
 | `packages/api/src/lib/quiz-scoring.ts` | Pure function `scoreQuiz()` extracted from the router — the only complex business logic eligible for unit tests. |
-| `packages/ai/src/schemas/index.ts` | Zod schemas for AI-structured outputs: `learningProfileSchema`, `curriculumPlanSchema`, `quizQuestionSchema`, `lessonContentSchema`. |
-| `packages/ai/src/prompts/index.ts` | System prompts for onboarding, curriculum generation, and lesson generation. |
+| `packages/ai/src/schemas/index.ts` | Zod schemas for AI-structured outputs: `learningProfileSchema`, `coursePlanSchema`, `quizQuestionSchema`, `lessonContentSchema`. |
+| `packages/ai/src/prompts/index.ts` | System prompts for onboarding, course generation, and lesson generation. |
 | `packages/ai/src/tools/index.ts` | `finalizeProfileTool` (onboarding) and `createWebSearchTool(config)` factory (supports Tavily and SearXNG). |
 | `apps/web/src/lib/onboarding-state.ts` | Server + client utilities for extracting profile fields from conversation history. Read this before touching anything onboarding-related. |
 | `apps/web/src/app/(app)/layout.tsx` | Server component that checks the session on every authenticated page. Contains the Playwright E2E bypass (see Testing section). |
 | `apps/web/src/app/api/onboarding/chat/route.ts` | Streaming AI chat endpoint for the onboarding flow. |
-| `apps/web/src/app/api/onboarding/generate/route.ts` | SSE endpoint that generates the full curriculum (parallel lesson generation via `runConcurrent`). |
+| `apps/web/src/app/api/onboarding/generate/route.ts` | SSE endpoint that generates the full course (parallel lesson generation via `runConcurrent`). |
 
 ---
 
@@ -131,7 +131,7 @@ pnpm --filter @bitebase/mobile web     # run mobile app in browser (no Expo Go n
 ```
 users                  — managed by Better Auth
 learning_profiles      — topic, experienceLevel, goals
-curricula              — title, description, sections (JSONB), generationStatus
+courses              — title, description, sections (JSONB), generationStatus
 lessons                — content (markdown), sources (JSONB), order, estimatedMinutes
 quizzes                — questions (JSONB: QuizQuestion[]), passingScore (default 70)
 progress               — per-user per-lesson: status enum, quizScore, quizPassed, quizAttempts
@@ -140,7 +140,7 @@ streaks                — currentStreak, longestStreak (one row per user)
 
 **Lesson status enum**: `locked → available → in_progress → completed`
 
-Lesson 0 starts as `available`; subsequent lessons are unlocked by `unlockNextLesson()` in the curriculum router when the previous quiz is passed.
+Lesson 0 starts as `available`; subsequent lessons are unlocked by `unlockNextLesson()` in the course router when the previous quiz is passed.
 
 **`QuizQuestion` shape** (stored as JSONB in `quizzes.questions`):
 ```typescript
@@ -158,16 +158,16 @@ Lesson 0 starts as `available`; subsequent lessons are unlocked by `unlockNextLe
 
 ## tRPC API
 
-The router is at `packages/api/src/router.ts`, which composes `curriculumRouter`. All procedures are protected (require a session).
+The router is at `packages/api/src/router.ts`, which composes `courseRouter`. All procedures are protected (require a session).
 
 **Procedures**:
-- `curriculum.list` → all curricula for the current user
-- `curriculum.get({ id })` → single curriculum (ownership checked)
-- `curriculum.getLessons({ curriculumId })` → lessons + progress map
-- `curriculum.getLesson({ lessonId })` → lesson + quiz + progress
-- `curriculum.submitQuiz({ lessonId, answers })` → grades quiz, updates progress, unlocks next lesson if passed
-- `curriculum.markLessonStarted({ lessonId })` → creates/updates progress row
-- `curriculum.getProfile({ curriculumId })` → linked learning profile
+- `course.list` → all courses for the current user
+- `course.get({ id })` → single course (ownership checked)
+- `course.getLessons({ courseId })` → lessons + progress map
+- `course.getLesson({ lessonId })` → lesson + quiz + progress
+- `course.submitQuiz({ lessonId, answers })` → grades quiz, updates progress, unlocks next lesson if passed
+- `course.markLessonStarted({ lessonId })` → creates/updates progress row
+- `course.getProfile({ courseId })` → linked learning profile
 
 The tRPC client in the web app uses `httpBatchStreamLink` (POST to `/api/trpc`).
 
@@ -183,11 +183,11 @@ The onboarding collects **3 fields only**: `topic`, `experienceLevel`, `goals`. 
 4. Client POSTs to `POST /api/onboarding/generate` → SSE stream:
    - `lesson_list` event — full list of lessons so the UI can render a progress overview
    - `lesson_started` / `lesson_completed` events — per-lesson progress
-   - `curriculum_created` event with `curriculumId` and `totalSections`
-   - `done` event with final `curriculumId`
-5. Client redirects to `/dashboard?new=<curriculumId>`
+   - `course_created` event with `courseId` and `totalSections`
+   - `done` event with final `courseId`
+5. Client redirects to `/dashboard?new=<courseId>`
 
-Lesson generation runs in parallel (controlled by `LESSON_GENERATION_CONCURRENCY`). Each lesson is generated with a `curriculumOutline` for cross-lesson coherence. Generation uses `withRetry` with temperature escalation (0.7 → 1.0) across 3 attempts. If all retries fail, a placeholder lesson is saved rather than aborting the whole curriculum.
+Lesson generation runs in parallel (controlled by `LESSON_GENERATION_CONCURRENCY`). Each lesson is generated with a `courseOutline` for cross-lesson coherence. Generation uses `withRetry` with temperature escalation (0.7 → 1.0) across 3 attempts. If all retries fail, a placeholder lesson is saved rather than aborting the whole course.
 
 To swap the AI model: set `OLLAMA_MODEL` in `.env.local`. Any OpenAI-compatible endpoint works — just point `OLLAMA_BASE_URL` at it.
 
@@ -271,7 +271,7 @@ We follow: **unit tests for complex/pure logic, integration tests for tRPC bound
 | Situation | Test type | Where |
 |---|---|---|
 | A pure function with non-trivial logic (scoring, parsing, state extraction) | Unit | same package as the function, `tests/` subfolder |
-| A new tRPC procedure or mutation | Integration | `packages/api/tests/curriculum.integration.test.ts` |
+| A new tRPC procedure or mutation | Integration | `packages/api/tests/course.integration.test.ts` |
 | A new Zod schema used for AI output | Unit | `packages/ai/tests/schemas.test.ts` |
 | A new Next.js API utility extracted to `apps/web/src/lib/` | Unit | `apps/web/src/lib/*.test.ts` |
 | A new or changed user-facing flow (auth, onboarding, lesson, quiz) | E2E | `apps/web/tests/e2e/` |
@@ -304,11 +304,11 @@ Run: `pnpm --filter @bitebase/api test`, `pnpm --filter @bitebase/ai test`, `pnp
 
 Runner: **Vitest** with `vi.mock('@bitebase/db')`.
 
-- `packages/api/tests/curriculum.integration.test.ts` — tRPC router via `appRouter.createCaller()`. Mocks the DB at the module boundary. Tests:
+- `packages/api/tests/course.integration.test.ts` — tRPC router via `appRouter.createCaller()`. Mocks the DB at the module boundary. Tests:
   - Auth guard: every protected procedure throws `UNAUTHORIZED` with no session
-  - `curriculum.list`: returns rows / empty array
-  - `curriculum.get`: throws `NOT_FOUND` for unknown/other-user ID
-  - `curriculum.submitQuiz`: correct → 100% + passed; wrong → 33% + failed; existing progress → `db.update` used; no quiz → `NOT_FOUND`
+  - `course.list`: returns rows / empty array
+  - `course.get`: throws `NOT_FOUND` for unknown/other-user ID
+  - `course.submitQuiz`: correct → 100% + passed; wrong → 33% + failed; existing progress → `db.update` used; no quiz → `NOT_FOUND`
 
 Mocking pattern: use `vi.hoisted()` for mock objects (avoids the hoisting-before-init error), then pass through the rest of `@bitebase/db` with `importOriginal`. Always add `vi.clearAllMocks()` in `beforeEach` for suites that check call counts.
 
@@ -325,9 +325,9 @@ SKIP_WEB_SERVER=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm --filter @biteb
 
 **Auth bypass for E2E**: The `(app)/layout.tsx` checks for a cookie `__playwright_test__=1` in non-production environments. If present, it uses a hardcoded mock session (`playwright-test-user`) without hitting the database. Set it via `setTestSession(page)` from `tests/e2e/fixtures.ts`.
 
-**tRPC mocking**: `mockTRPC(page, data)` in `fixtures.ts` intercepts `**/api/trpc*` via `page.route()`. It reads procedure names from query params (`?0.procedure=curriculum.list&batch=1`) and returns correctly shaped JSON.
+**tRPC mocking**: `mockTRPC(page, data)` in `fixtures.ts` intercepts `**/api/trpc*` via `page.route()`. It reads procedure names from query params (`?0.procedure=course.list&batch=1`) and returns correctly shaped JSON.
 
-**AI mocking**: `mockAI(page)` in `fixtures.ts` intercepts `/api/onboarding/chat` (returns a fake SSE stream) and `/api/onboarding/generate` (returns a fake curriculum creation SSE stream).
+**AI mocking**: `mockAI(page)` in `fixtures.ts` intercepts `/api/onboarding/chat` (returns a fake SSE stream) and `/api/onboarding/generate` (returns a fake course creation SSE stream).
 
 Test files:
 - `tests/e2e/auth.spec.ts` — register form, login form, bad credentials error, landing page CTAs
@@ -425,7 +425,7 @@ Key design decisions:
 
 **Ollama vs external AI** — the `ollama-deployment.yaml` runs Ollama in-cluster. For production on cloud, it's simpler and cheaper to use an external OpenAI-compatible API. Change `OLLAMA_BASE_URL` and `OLLAMA_MODEL` in `k8s/configmap.yaml` and delete the Ollama manifests. No code changes needed.
 
-**Streaming responses** — curriculum generation uses SSE and can take >60 seconds. The Ingress has `proxy-read-timeout: 300` and `proxy-send-timeout: 300`. Ensure your load balancer / Ingress controller also increases its timeout, or the stream will be cut off.
+**Streaming responses** — course generation uses SSE and can take >60 seconds. The Ingress has `proxy-read-timeout: 300` and `proxy-send-timeout: 300`. Ensure your load balancer / Ingress controller also increases its timeout, or the stream will be cut off.
 
 **Replicas** — the web Deployment defaults to 2 replicas. The app is stateless (all state in Postgres); scaling horizontally works out of the box. Sessions are stored in the DB, not in-process memory.
 
@@ -434,9 +434,9 @@ Key design decisions:
 ## Adding a new feature — checklist
 
 1. **Schema change?** Edit `packages/db/src/schema/learning.ts`, then run `pnpm db:push`.
-2. **New tRPC procedure?** Add it to `packages/api/src/routers/curriculum.ts` and export any new pure logic into `packages/api/src/lib/`.
+2. **New tRPC procedure?** Add it to `packages/api/src/routers/course.ts` and export any new pure logic into `packages/api/src/lib/`.
 3. **New complex pure function?** Extract it to a `lib/` file and add a unit test alongside it.
-4. **New API boundary?** Add an integration test in `packages/api/tests/curriculum.integration.test.ts`.
+4. **New API boundary?** Add an integration test in `packages/api/tests/course.integration.test.ts`.
 5. **New user-facing page or flow?** Add an E2E test scenario in `apps/web/tests/e2e/learning.spec.ts` or `auth.spec.ts`.
 6. **New AI schema?** Add Zod validation tests in `packages/ai/tests/schemas.test.ts`.
 7. **New Next.js API route?** Add `export const dynamic = "force-dynamic"` at the top.

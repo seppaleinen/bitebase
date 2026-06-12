@@ -22,10 +22,10 @@ export default function CurriculumScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const { data: curriculum, isLoading: loadingCurriculum } =
-    trpcReact.curriculum.get.useQuery({ id });
+  const { data: course, isLoading: loadingCurriculum } =
+    trpcReact.course.get.useQuery({ id });
   const { data: lessonsData, isLoading: loadingLessons } =
-    trpcReact.curriculum.getLessons.useQuery({ curriculumId: id });
+    trpcReact.course.getLessons.useQuery({ courseId: id });
 
   if (loadingCurriculum || loadingLessons) {
     return (
@@ -35,9 +35,9 @@ export default function CurriculumScreen() {
     );
   }
 
-  if (!curriculum || !lessonsData) return null;
+  if (!course || !lessonsData) return null;
 
-  const sections = curriculum.sections as CurriculumSection[];
+  const sections = course.sections as CurriculumSection[];
   const lessonMap = new Map(
     lessonsData.map((l) => [`${l.sectionId}:${l.subsectionId ?? ""}`, l])
   );
@@ -60,14 +60,14 @@ export default function CurriculumScreen() {
         </TouchableOpacity>
         <View className="flex-1">
           <Text className="font-semibold text-gray-900" numberOfLines={1}>
-            {curriculum.title}
+            {course.title}
           </Text>
-          {curriculum.category && (
+          {course.category && (
             <View className="mt-0.5 flex-row items-center gap-1">
               <Tag color="#9ca3af" size={11} />
               <Text className="text-xs text-gray-400" numberOfLines={1}>
-                {curriculum.category}
-                {curriculum.subcategory ? ` · ${curriculum.subcategory}` : ""}
+                {course.category}
+                {course.subcategory ? ` · ${course.subcategory}` : ""}
               </Text>
             </View>
           )}

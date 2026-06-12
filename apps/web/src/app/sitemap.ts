@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { db } from "@bitebase/db";
-import { curricula } from "@bitebase/db/schema";
+import { courses } from "@bitebase/db/schema";
 import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -35,11 +35,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Add category pages
   try {
     const rows = await db
-      .select({ category: curricula.category })
-      .from(curricula)
-      .where(eq(curricula.isPublished, true))
-      .groupBy(curricula.category)
-      .orderBy(curricula.category);
+      .select({ category: courses.category })
+      .from(courses)
+      .where(eq(courses.isPublished, true))
+      .groupBy(courses.category)
+      .orderBy(courses.category);
 
     for (const row of rows) {
       if (row.category) {
@@ -55,15 +55,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // DB not available during build — serve static entries only
   }
 
-  // Add /learn/[slug] pages for every published curriculum
+  // Add /learn/[slug] pages for every published course
   try {
-    const curriculumRows = await db
-      .select({ slug: curricula.slug })
-      .from(curricula)
-      .where(eq(curricula.isPublished, true))
-      .orderBy(curricula.slug);
+    const courseRows = await db
+      .select({ slug: courses.slug })
+      .from(courses)
+      .where(eq(courses.isPublished, true))
+      .orderBy(courses.slug);
 
-    for (const row of curriculumRows) {
+    for (const row of courseRows) {
       entries.push({
         url: `${baseUrl}/learn/${encodeURIComponent(row.slug)}`,
         lastModified: new Date(),

@@ -88,7 +88,7 @@ export default function OnboardingScreen() {
 
   async function generateCurriculum(profile: LearningProfile) {
     setIsGenerating(true);
-    setGenerationStatus("Building your curriculum...");
+    setGenerationStatus("Building your course...");
 
     try {
       const response = await fetch(`${API_BASE}/api/onboarding/generate`, {
@@ -102,7 +102,7 @@ export default function OnboardingScreen() {
       if (!reader) return;
 
       const decoder = new TextDecoder();
-      let curriculumId: string | null = null;
+      let courseId: string | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -116,10 +116,10 @@ export default function OnboardingScreen() {
             const parsed = JSON.parse(line.slice(6));
             if (parsed.event === "status") {
               setGenerationStatus(parsed.data.message ?? "");
-            } else if (parsed.event === "curriculum_created") {
-              curriculumId = parsed.data.curriculumId;
+            } else if (parsed.event === "course_created") {
+              courseId = parsed.data.courseId;
             } else if (parsed.event === "done") {
-              curriculumId = parsed.data.curriculumId ?? curriculumId;
+              courseId = parsed.data.courseId ?? courseId;
             }
           } catch {
             // ignore
@@ -127,8 +127,8 @@ export default function OnboardingScreen() {
         }
       }
 
-      if (curriculumId) {
-        router.push(`/curriculum/${curriculumId}`);
+      if (courseId) {
+        router.push(`/course/${courseId}`);
       }
     } catch {
       setGenerationStatus("Something went wrong.");
@@ -148,7 +148,7 @@ export default function OnboardingScreen() {
             <Text className="text-4xl">✨</Text>
           </View>
           <Text className="mb-2 text-center text-xl font-bold text-gray-900">
-            Building your curriculum
+            Building your course
           </Text>
           <Text className="mb-6 text-center text-sm text-gray-500">
             This takes a minute while BiteBase creates personalized lessons.
@@ -221,7 +221,7 @@ export default function OnboardingScreen() {
           {finalizedProfile && !isGenerating && (
             <View testID="profile-card" accessibilityLabel="Profile review card" className="mx-4 mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
               <Text className="mb-3 text-sm font-semibold text-emerald-800">
-                Ready to generate your curriculum
+                Ready to generate your course
               </Text>
               <View className="mb-4 gap-1">
                 <View className="flex-row">
@@ -258,12 +258,12 @@ export default function OnboardingScreen() {
                 <TouchableOpacity
                   onPress={() => void generateCurriculum(finalizedProfile)}
                   className="flex-1 rounded-xl bg-emerald-600 py-2.5"
-                  testID="build-curriculum"
-                  accessibilityLabel="Build my curriculum"
+                  testID="build-course"
+                  accessibilityLabel="Build my course"
                   {...keyboardHandler(() => void generateCurriculum(finalizedProfile))}
                 >
                   <Text className="text-center text-xs font-medium text-white">
-                    Build my curriculum
+                    Build my course
                   </Text>
                 </TouchableOpacity>
               </View>

@@ -3,7 +3,7 @@ import { RegisterForm } from "./register-client";
 
 export const metadata: Metadata = {
   title: "Create an Account",
-  description: "Create your free BiteBase account and start learning with personalized AI-generated curricula.",
+  description: "Create your free BiteBase account and start learning with personalized AI-generated courses.",
   robots: {
     index: false,
     follow: false,

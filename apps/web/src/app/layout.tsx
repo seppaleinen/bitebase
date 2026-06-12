@@ -12,11 +12,11 @@ export const metadata: Metadata = {
     default: "BiteBase — Bite-sized Learning Powered by AI",
   },
   description:
-    "Tell BiteBase what you want to learn, and it builds a personalized, quiz-filled curriculum just for you.",
+    "Tell BiteBase what you want to learn, and it builds a personalized, quiz-filled course just for you.",
   openGraph: {
     title: "BiteBase — Bite-sized Learning Powered by AI",
     description:
-      "Tell BiteBase what you want to learn, and it builds a personalized, quiz-filled curriculum just for you.",
+      "Tell BiteBase what you want to learn, and it builds a personalized, quiz-filled course just for you.",
     type: "website",
     locale: "en_US",
     siteName: "BiteBase",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "BiteBase — Bite-sized Learning Powered by AI",
     description:
-      "Tell BiteBase what you want to learn, and it builds a personalized, quiz-filled curriculum just for you.",
+      "Tell BiteBase what you want to learn, and it builds a personalized, quiz-filled course just for you.",
     images: "/opengraph-image",
   },
   robots: {

@@ -58,7 +58,7 @@ const { mockDb } = vi.hoisted(() => {
 
 vi.mock("@bitebase/db", () => ({
   db: mockDb,
-  curricula: {},
+  courses: {},
   lessons: {},
   quizzes: {},
   learningProfiles: {},
@@ -177,7 +177,7 @@ describe("admin guard", () => {
 
 // ── admin.listCurricula ──────────────────────────────────────────────────────
 describe("admin.listCurricula", () => {
-  it("lists curricula with lesson version rollup", async () => {
+  it("lists courses with lesson version rollup", async () => {
     mockDb._setRows([
       { id: "c2", title: "React", userId: "u2", createdAt: new Date("2025-02-01"), lessonVersion: 1 },
       { id: "c1", title: "TS Basics", userId: "u1", createdAt: new Date("2025-01-01"), lessonVersion: 1 },
@@ -187,14 +187,14 @@ describe("admin.listCurricula", () => {
     const caller = appRouter.createCaller(adminCtx());
     const result = await caller.admin.listCurricula();
 
-    expect(result.curricula).toHaveLength(2);
-    expect(result.curricula[0].id).toBe("c2"); // newest first (orderBy DESC)
-    expect(result.curricula[0].totalLessons).toBe(1);
-    expect(result.curricula[0].versionSummary).toEqual([{ version: 1, count: 1 }]);
+    expect(result.courses).toHaveLength(2);
+    expect(result.courses[0].id).toBe("c2"); // newest first (orderBy DESC)
+    expect(result.courses[0].totalLessons).toBe(1);
+    expect(result.courses[0].versionSummary).toEqual([{ version: 1, count: 1 }]);
 
-    expect(result.curricula[1].id).toBe("c1");
-    expect(result.curricula[1].totalLessons).toBe(2);
-    expect(result.curricula[1].versionSummary).toEqual([
+    expect(result.courses[1].id).toBe("c1");
+    expect(result.courses[1].totalLessons).toBe(2);
+    expect(result.courses[1].versionSummary).toEqual([
       { version: 1, count: 1 },
       { version: 2, count: 1 },
     ]);
@@ -207,7 +207,7 @@ describe("admin.listCurricula", () => {
     mockDb._setRows([]);
     const caller = appRouter.createCaller(adminCtx());
     const result = await caller.admin.listCurricula();
-    expect(result.curricula).toEqual([]);
+    expect(result.courses).toEqual([]);
     expect(result.versionRollup).toEqual([]);
   });
 });

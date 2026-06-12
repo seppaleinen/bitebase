@@ -88,7 +88,7 @@ test.describe("Mobile onboarding", () => {
     await sendMessage(page, "Hold conversations");
 
     await expect(
-      page.getByText("Ready to generate your curriculum"),
+      page.getByText("Ready to generate your course"),
     ).toBeVisible({ timeout: 15000 });
 
     // Profile details shown in card — scoped by testID
@@ -98,6 +98,6 @@ test.describe("Mobile onboarding", () => {
 
     // Action buttons — scoped by testID
     await expect(page.getByTestId("edit-answers")).toBeVisible();
-    await expect(page.getByTestId("build-curriculum")).toBeVisible();
+    await expect(page.getByTestId("build-course")).toBeVisible();
   });
 });

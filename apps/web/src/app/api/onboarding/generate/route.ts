@@ -9,7 +9,7 @@ import {
   buildCurriculumSystemPrompt,
   buildLessonSystemPrompt,
   buildNarrativeThreads,
-  curriculumPlanSchema,
+  coursePlanSchema,
   learningProfileSchema,
   createWebSearchTool,
   parseLessonResponse,
@@ -21,7 +21,7 @@ import { auth, getEffectiveModelConfig } from "@bitebase/api";
 import {
   db,
   learningProfiles,
-  curricula,
+  courses,
   lessons,
   quizzes,
   progress,
@@ -216,11 +216,11 @@ function getSearchTool(includeImages = false) {
  * POST /api/onboarding/generate
  *
  * Accepts a validated LearningProfile JSON body and responds with an SSE stream.
- * Events: `status` (progress message), `curriculum_created` (id + title),
- * `done` (final curriculumId), `error` (message string).
+ * Events: `status` (progress message), `course_created` (id + title),
+ * `done` (final courseId), `error` (message string).
  *
- * Saves profile → generates curriculum plan → generates each lesson in order →
- * seeds the first lesson's progress row → marks the curriculum complete.
+ * Saves profile → generates course plan → generates each lesson in order →
+ * seeds the first lesson's progress row → marks the course complete.
  */
 export async function POST(req: Request) {
   const TEST_COOKIE = "__playwright_test__=1";
@@ -259,7 +259,7 @@ export async function POST(req: Request) {
         );
       }
 
-      let curriculumId: string | undefined;
+      let courseId: string | undefined;
 
       try {
         send("status", { message: "Saving your learning profile..." });
@@ -283,61 +283,61 @@ export async function POST(req: Request) {
         const modelKey = process.env.OLLAMA_MODEL ?? "llama3.2";
         const effectiveConfig = await getEffectiveModelConfig(modelKey);
 
-        send("status", { message: "Designing your curriculum..." });
+        send("status", { message: "Designing your course..." });
 
-        const curriculumPlan = await generateJsonObject<CurriculumPlan>(
+        const coursePlan = await generateJsonObject<CurriculumPlan>(
           {
             model: getModel(),
             mode: "json",
             system: buildCurriculumSystemPrompt(profile),
-            prompt: `Create a personalized curriculum for learning ${profile.topic} for a ${profile.experienceLevel} learner.`,
+            prompt: `Create a personalized course for learning ${profile.topic} for a ${profile.experienceLevel} learner.`,
             temperature: (effectiveConfig.temperature as number | undefined) ?? 0.7,
             maxTokens: effectiveConfig.maxTokens as number | undefined,
             topP: effectiveConfig.topP as number | undefined,
           },
-          curriculumPlanSchema
+          coursePlanSchema
         );
 
-        curriculumId = randomUUID();
+        courseId = randomUUID();
         // Generate a kebab-case slug from the title
-        const slug = curriculumPlan.title
+        const slug = coursePlan.title
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-+|-+$/g, "");
 
-        await db.insert(curricula).values({
-          id: curriculumId,
+        await db.insert(courses).values({
+          id: courseId,
           userId: session.user.id,
           profileId,
-          title: curriculumPlan.title,
+          title: coursePlan.title,
           slug,
-          description: curriculumPlan.description,
-          totalEstimatedMinutes: curriculumPlan.totalEstimatedMinutes,
-          sections: curriculumPlan.sections,
-          category: curriculumPlan.category || null,
-          subcategory: curriculumPlan.subcategory || null,
+          description: coursePlan.description,
+          totalEstimatedMinutes: coursePlan.totalEstimatedMinutes,
+          sections: coursePlan.sections,
+          category: coursePlan.category || null,
+          subcategory: coursePlan.subcategory || null,
           generationStatus: "generating",
         });
 
-        send("curriculum_created", {
-          curriculumId,
-          title: curriculumPlan.title,
-          totalSections: curriculumPlan.sections.length,
+        send("course_created", {
+          courseId,
+          title: coursePlan.title,
+          totalSections: coursePlan.sections.length,
         });
 
         const searchTool = getSearchTool(true);
-        const curriculumIdStr: string = curriculumId;
+        const courseIdStr: string = courseId;
 
         interface LessonMeta {
           id: string;
           order: number;
-          section: (typeof curriculumPlan.sections)[number];
-          subsection: (typeof curriculumPlan.sections)[number]["subsections"][number];
+          section: (typeof coursePlan.sections)[number];
+          subsection: (typeof coursePlan.sections)[number]["subsections"][number];
         }
 
         const allLessonMeta: LessonMeta[] = [];
         let order = 0;
-        for (const section of curriculumPlan.sections) {
+        for (const section of coursePlan.sections) {
           for (const subsection of section.subsections) {
             allLessonMeta.push({ id: randomUUID(), order: order++, section, subsection });
           }
@@ -351,12 +351,12 @@ export async function POST(req: Request) {
           })),
         });
 
-        const curriculumOutline = allLessonMeta
+        const courseOutline = allLessonMeta
           .map((m) => `${m.order + 1}. [${m.section.title}] ${m.subsection.title}`)
           .join("\n");
 
-        const narrativeThreads = buildNarrativeThreads(curriculumPlan);
-        const isLanguageCourse = curriculumPlan.category === "Languages";
+        const narrativeThreads = buildNarrativeThreads(coursePlan);
+        const isLanguageCourse = coursePlan.category === "Languages";
 
         const tasks = allLessonMeta.map((meta) => async () => {
           send("lesson_started", { title: meta.subsection.title });
@@ -419,7 +419,7 @@ export async function POST(req: Request) {
                   profile,
                   meta.section.title,
                   meta.subsection.title,
-                  curriculumOutline,
+                  courseOutline,
                   searchContext ||
                     `Focus on ${meta.subsection.title} as part of ${meta.section.title} in ${profile.topic}.`,
                   meta.order + 1,
@@ -439,11 +439,11 @@ export async function POST(req: Request) {
               return parsed;
             }, 3, 1000, `lesson "${meta.subsection.title}"`);
           } catch {
-            // A single lesson failing should not abort the entire curriculum.
+            // A single lesson failing should not abort the entire course.
             // Save a placeholder so the card is still clickable and the user knows what happened.
             console.error(`[generate] lesson "${meta.subsection.title}" failed after all retries — saving placeholder`);
             lessonData = {
-              content: `# ${meta.subsection.title}\n\nThis lesson could not be generated automatically. Try using the "Remake course" option from the dashboard to regenerate your curriculum.`,
+              content: `# ${meta.subsection.title}\n\nThis lesson could not be generated automatically. Try using the "Remake course" option from the dashboard to regenerate your course.`,
               estimatedMinutes: 5,
               sources: [],
               quiz: { questions: [], passingScore: 70 },
@@ -497,7 +497,7 @@ export async function POST(req: Request) {
 
           await db.insert(lessons).values({
             id: meta.id,
-            curriculumId: curriculumIdStr,
+            courseId: courseIdStr,
             sectionId: meta.section.id,
             subsectionId: meta.subsection.id,
             title: meta.subsection.title,
@@ -537,33 +537,33 @@ export async function POST(req: Request) {
         }
 
         await db
-          .update(curricula)
+          .update(courses)
           .set({ generationStatus: "complete" })
-          .where(eq(curricula.id, curriculumId));
+          .where(eq(courses.id, courseId));
 
-        // Non-destructive remake: delete old curriculum now that the new one is ready
-        if (replaceCurriculumId && typeof replaceCurriculumId === "string" && replaceCurriculumId !== curriculumId) {
+        // Non-destructive remake: delete old course now that the new one is ready
+        if (replaceCurriculumId && typeof replaceCurriculumId === "string" && replaceCurriculumId !== courseId) {
           try {
-            await db.delete(curricula).where(eq(curricula.id, replaceCurriculumId));
+            await db.delete(courses).where(eq(courses.id, replaceCurriculumId));
           } catch (err) {
-            // Best-effort; old curriculum may have been deleted already
-            console.warn(`[generate] failed to remove old curriculum ${replaceCurriculumId}:`, err);
+            // Best-effort; old course may have been deleted already
+            console.warn(`[generate] failed to remove old course ${replaceCurriculumId}:`, err);
           }
         }
 
-        send("done", { curriculumId });
+        send("done", { courseId });
       } catch (err) {
         console.error("[generate] fatal error:", err instanceof Error ? err.message : err);
-        if (curriculumId) {
+        if (courseId) {
           try {
             // Delete partial lessons (quizzes cascade via FK)
             await db
               .delete(lessons)
-              .where(eq(lessons.curriculumId, curriculumId));
+              .where(eq(lessons.courseId, courseId));
             await db
-              .update(curricula)
+              .update(courses)
               .set({ generationStatus: "failed" })
-              .where(eq(curricula.id, curriculumId));
+              .where(eq(courses.id, courseId));
           } catch {
             // best-effort cleanup; don't mask the original error
           }

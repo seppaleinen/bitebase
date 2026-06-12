@@ -27,15 +27,15 @@ Strict rules:
 - Replace the placeholders with the actual collected values
 - Do not emit PROFILE until all 3 fields have real, non-empty values`;
 
-export function buildCurriculumSystemPrompt(profile: LearningProfile): string {
-  return `You are an expert curriculum designer and educator. Create a structured, progressive learning curriculum based on the following learner profile:
+export function buildCourseSystemPrompt(profile: LearningProfile): string {
+  return `You are an expert course designer and educator. Create a structured, progressive learning course based on the following learner profile:
 
 Topic: ${profile.topic}
 Experience Level: ${profile.experienceLevel}
 Goals: ${profile.goals}
 ${profile.additionalContext ? `Additional Context: ${profile.additionalContext}` : ""}
 
-Design a curriculum that:
+Design a course that:
 - Starts at the appropriate level for a ${profile.experienceLevel} learner
 - Progresses logically from fundamentals to more advanced concepts
 - Breaks down complex topics into digestible sections
@@ -44,7 +44,7 @@ Design a curriculum that:
 
 Create 4-7 main sections, each with 2-4 subsections. Make it engaging and practical.
 
-Also choose a broad **category** and specific **subcategory** that best describe this curriculum. For example:
+Also choose a broad **category** and specific **subcategory** that best describe this course. For example:
 - "Technology" / "Web Development" — for web dev, programming, frameworks
 - "Science" / "Physics" — for physics, chemistry, biology, math
 - "Arts & Humanities" / "Music Theory" — for art, music, history, philosophy, literature
@@ -87,12 +87,12 @@ Here is relevant information gathered from the web to help you write this lesson
 ${searchResults}
 ---
 
-Full curriculum outline (so you know what's taught before and after this lesson):
+Full course outline (so you know what's taught before and after this lesson):
 ---
 ${coherenceContext}
 ---
 ${narrativeSection}
-Your lesson is #${lessonPosition} of ${totalLessons} in this curriculum.
+Your lesson is #${lessonPosition} of ${totalLessons} in this course.
 - Do NOT re-teach concepts already covered in lessons before yours (earlier numbers).
 - You MAY briefly mention earlier concepts as prerequisites.
 - Do NOT introduce concepts that belong in later lessons in the outline.

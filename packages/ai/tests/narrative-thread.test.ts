@@ -114,7 +114,7 @@ describe("buildNarrativeThreads", () => {
     expect(threads[0]).toContain('"The Only Lesson"');
   });
 
-  it("returns empty array for empty curriculum", () => {
+  it("returns empty array for empty course", () => {
     const empty: CurriculumPlan = {
       title: "Empty",
       description: "No sections",

@@ -83,7 +83,7 @@ export async function mockAuth(page: Page, { fail = false } = {}) {
 }
 
 type TRPCMockData = {
-  curricula?: object[];
+  courses?: object[];
   lessons?: object[];
   lesson?: object | null;
   quiz?: object | null;
@@ -94,61 +94,61 @@ type TRPCMockData = {
   categories?: { category: string; subcategories: string[] }[];
   admin?: {
     listCurricula?: {
-      curricula: { id: string; title: string; totalLessons: number; createdAt: Date; versionSummary: { version: number; count: number }[] }[];
-      versionRollup: { version: number; totalLessons: number; curriculaCount: number; curricula: string[] }[];
+      courses: { id: string; title: string; totalLessons: number; createdAt: Date; versionSummary: { version: number; count: number }[] }[];
+      versionRollup: { version: number; totalLessons: number; coursesCount: number; courses: string[] }[];
     };
-    regenerateCurriculum?: { curriculumId: string; lessonResults: { lessonId: string; newVersion: number }[] };
+    regenerateCurriculum?: { courseId: string; lessonResults: { lessonId: string; newVersion: number }[] };
     regenerateLessonsByVersion?: { lessonId: string; newVersion: number }[];
   };
   /** Profile returned by retryAndGetProfile */
-  retryProfile?: { topic: string; experienceLevel: string; goals: string; additionalContext: string; curriculumId: string } | null;
+  retryProfile?: { topic: string; experienceLevel: string; goals: string; additionalContext: string; courseId: string } | null;
 };
 
 function resolveData(procedurePath: string, data: TRPCMockData): unknown {
-  const { curricula = [], lessons = [], lesson = null, quiz = null, progress = null, quizResult = null, nextLesson = null, user = null, retryProfile = null } = data;
+  const { courses = [], lessons = [], lesson = null, quiz = null, progress = null, quizResult = null, nextLesson = null, user = null, retryProfile = null } = data;
 
   // Auth / session
   if (procedurePath === "public.getSession") {
     // Use explicit user from test data, or default to the E2E test user
     return user ?? { id: "playwright-test-user", name: "Test User", email: "test@playwright.dev", image: null };
   }
-  if (procedurePath === "curriculum.getProfile") return null;
+  if (procedurePath === "course.getProfile") return null;
 
   // Public browse
   if (procedurePath === "public.listCategories") return data.categories ?? [];
-  if (procedurePath === "public.listPublished") return curricula;
-  if (procedurePath === "public.getPublishedCurriculum") return curricula[0] ?? null;
+  if (procedurePath === "public.listPublished") return courses;
+  if (procedurePath === "public.getPublishedCurriculum") return courses[0] ?? null;
   if (procedurePath === "public.getPublishedLessons") return lessons;
   if (procedurePath === "public.getPublishedLesson") return { lesson, quiz };
   if (procedurePath === "public.listCategories") return data.categories ?? [];
 
   // Curriculum owner-only
-  if (procedurePath === "curriculum.list") return curricula;
-  if (procedurePath === "curriculum.get") return curricula[0] ?? null;
-  if (procedurePath === "curriculum.getLessons") return lessons;
-  if (procedurePath === "curriculum.getLesson") return { lesson, quiz, progress };
-  if (procedurePath === "curriculum.submitQuiz") return quizResult;
-  if (procedurePath === "curriculum.markLessonStarted") return null;
-  if (procedurePath === "curriculum.getNextLesson") return nextLesson ?? null;
-  if (procedurePath === "curriculum.getProgressForCurriculum") return Array.isArray(progress) ? progress : (progress ? [progress] : []);
-  if (procedurePath === "curriculum.delete") return { success: true };
-  if (procedurePath === "curriculum.retryAndGetProfile") return retryProfile ?? { topic: "TypeScript", experienceLevel: "beginner", goals: "learn the basics", additionalContext: "", curriculumId: "curr-1" };
-  if (procedurePath === "curriculum.updateCategory") return null;
+  if (procedurePath === "course.list") return courses;
+  if (procedurePath === "course.get") return courses[0] ?? null;
+  if (procedurePath === "course.getLessons") return lessons;
+  if (procedurePath === "course.getLesson") return { lesson, quiz, progress };
+  if (procedurePath === "course.submitQuiz") return quizResult;
+  if (procedurePath === "course.markLessonStarted") return null;
+  if (procedurePath === "course.getNextLesson") return nextLesson ?? null;
+  if (procedurePath === "course.getProgressForCurriculum") return Array.isArray(progress) ? progress : (progress ? [progress] : []);
+  if (procedurePath === "course.delete") return { success: true };
+  if (procedurePath === "course.retryAndGetProfile") return retryProfile ?? { topic: "TypeScript", experienceLevel: "beginner", goals: "learn the basics", additionalContext: "", courseId: "curr-1" };
+  if (procedurePath === "course.updateCategory") return null;
 
   // Admin
-  if (procedurePath === "admin.listCurricula") return data.admin?.listCurricula ?? { curricula: [], versionRollup: [] };
+  if (procedurePath === "admin.listCurricula") return data.admin?.listCurricula ?? { courses: [], versionRollup: [] };
 
-  if (procedurePath === "admin.regenerateCurriculum") return data.admin?.regenerateCurriculum ?? { curriculumId: "", lessonResults: [] };
+  if (procedurePath === "admin.regenerateCurriculum") return data.admin?.regenerateCurriculum ?? { courseId: "", lessonResults: [] };
 
   if (procedurePath === "admin.regenerateLessonsByVersion") return data.admin?.regenerateLessonsByVersion ?? [];
 }
 
 /**
- * Mock the tRPC curriculum router via the batch POST endpoint.
+ * Mock the tRPC course router via the batch POST endpoint.
  *
  * httpBatchStreamLink POSTs to /api/trpc with a JSON body like:
  *   {"0": {"json": <input>}, "1": {"json": <input>}, ...}
- * and a query param like ?batch=1&0.procedure=curriculum.list
+ * and a query param like ?batch=1&0.procedure=course.list
  *
  * We respond with the tRPC batch JSON format:
  *   [{"result":{"data":{"json":<result>}}}, ...]
@@ -158,8 +158,8 @@ export async function mockTRPC(page: Page, data: TRPCMockData = {}) {
   await page.route(/\/api\/trpc/, async (route) => {
     const url = new URL(route.request().url());
 
-    // httpBatchLink sends GET /api/trpc/curriculum.list?batch=1 for queries
-    // and POST /api/trpc/curriculum.submitQuiz?batch=1 for mutations.
+    // httpBatchLink sends GET /api/trpc/course.list?batch=1 for queries
+    // and POST /api/trpc/course.submitQuiz?batch=1 for mutations.
     // Extract procedure name(s) from the path segment after /api/trpc/.
     const procedures: string[] = [];
     const pathPart = url.pathname.split("/api/trpc/")[1];
@@ -198,14 +198,14 @@ export async function mockAI(page: Page) {
     });
   });
 
-  // Mock the SSE curriculum generation endpoint
+  // Mock the SSE course generation endpoint
   await page.route("**/api/onboarding/generate", (route) => {
-    const curriculumId = "mock-curriculum-1";
+    const courseId = "mock-course-1";
     const body = [
       `data: ${JSON.stringify({ event: "status", data: { message: "Saving your learning profile..." } })}\n\n`,
-      `data: ${JSON.stringify({ event: "curriculum_created", data: { curriculumId, title: "Test Curriculum", totalSections: 2 } })}\n\n`,
+      `data: ${JSON.stringify({ event: "course_created", data: { courseId, title: "Test Curriculum", totalSections: 2 } })}\n\n`,
       `data: ${JSON.stringify({ event: "status", data: { message: "Creating lessons..." } })}\n\n`,
-      `data: ${JSON.stringify({ event: "done", data: { curriculumId } })}\n\n`,
+      `data: ${JSON.stringify({ event: "done", data: { courseId } })}\n\n`,
     ].join("");
 
     return route.fulfill({

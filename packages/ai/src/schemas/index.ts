@@ -17,7 +17,7 @@ export const learningProfileSchema = z.object({
 export type LearningProfile = z.infer<typeof learningProfileSchema>;
 
 export const categorySchema = z.object({
-  category: z.string().describe("Broad category for this curriculum (e.g. Technology, Science, Arts, Business, Languages, Lifestyle, Personal Development)"),
+  category: z.string().describe("Broad category for this course (e.g. Technology, Science, Arts, Business, Languages, Lifestyle, Personal Development)"),
   subcategory: z.string().describe("Specific subcategory within the category (e.g. Web Development, Physics, Music Theory, Marketing, Spanish)"),
 });
 
@@ -37,8 +37,8 @@ export const sectionSchema = z.object({
   subsections: z.array(subsectionSchema).min(1).max(6),
 });
 
-export const curriculumPlanSchema = z.object({
-  title: z.string().describe("Engaging title for the curriculum"),
+export const coursePlanSchema = z.object({
+  title: z.string().describe("Engaging title for the course"),
   description: z
     .string()
     .describe("Brief overview of what the user will learn"),
@@ -46,16 +46,16 @@ export const curriculumPlanSchema = z.object({
     .coerce.number()
     .catch(60)
     .describe("Total estimated learning time in minutes"),
-  category: z.string().catch("").describe("Broad category for this curriculum (e.g. Technology, Science, Arts, Business, Languages, Lifestyle, Personal Development)"),
+  category: z.string().catch("").describe("Broad category for this course (e.g. Technology, Science, Arts, Business, Languages, Lifestyle, Personal Development)"),
   subcategory: z.string().catch("").describe("Specific subcategory within the category (e.g. Web Development, Physics, Music Theory, Marketing, Spanish)"),
   sections: z
     .array(sectionSchema)
     .min(1)
     .max(8)
-    .describe("Main sections of the curriculum"),
+    .describe("Main sections of the course"),
 });
 
-export type CurriculumPlan = z.infer<typeof curriculumPlanSchema>;
+export type CurriculumPlan = z.infer<typeof coursePlanSchema>;
 
 // Normalise type strings the model might output (e.g. "multiple choice", "Multiple_Choice")
 const quizTypeSchema = z.preprocess(

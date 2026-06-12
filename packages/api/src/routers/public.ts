@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { publicProcedure, router } from "../trpc";
-import { db, curricula, learningProfiles, lessons, quizzes } from "@bitebase/db";
+import { db, courses, learningProfiles, lessons, quizzes } from "@bitebase/db";
 import { eq, desc, and, or, ilike, isNotNull, type SQL } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
@@ -18,18 +18,18 @@ export const publicRouter = router({
     return null;
   }),
 
-  /** List all distinct categories that have published curricula. */
+  /** List all distinct categories that have published courses. */
   listCategories: publicProcedure.query(async () => {
     const rows = await db
       .select({
-        category: curricula.category,
-        subcategory: curricula.subcategory,
+        category: courses.category,
+        subcategory: courses.subcategory,
       })
-      .from(curricula)
+      .from(courses)
       .where(
         and(
-          eq(curricula.isPublished, true),
-          isNotNull(curricula.category),
+          eq(courses.isPublished, true),
+          isNotNull(courses.category),
         )
       );
 
@@ -47,7 +47,7 @@ export const publicRouter = router({
     }));
   }),
 
-  /** List published curricula, optionally filtered by category + search term.
+  /** List published courses, optionally filtered by category + search term.
    *  Search covers title, description, and learning profile topic. */
   listPublished: publicProcedure
     .input(
@@ -59,72 +59,72 @@ export const publicRouter = router({
         .optional()
     )
     .query(async ({ input }) => {
-      const conditions: SQL[] = [eq(curricula.isPublished, true)];
+      const conditions: SQL[] = [eq(courses.isPublished, true)];
 
       if (input?.category) {
-        conditions.push(eq(curricula.category, input.category));
+        conditions.push(eq(courses.category, input.category));
       }
 
       if (input?.search?.trim()) {
         const term = `%${input.search.trim()}%`;
         const searchClause = or(
-          ilike(curricula.title, term),
-          ilike(curricula.description, term),
+          ilike(courses.title, term),
+          ilike(courses.description, term),
           ilike(learningProfiles.topic, term),
         );
         if (searchClause) conditions.push(searchClause);
 
         const rows = await db
           .select()
-          .from(curricula)
+          .from(courses)
           .leftJoin(
             learningProfiles,
-            eq(curricula.profileId, learningProfiles.id)
+            eq(courses.profileId, learningProfiles.id)
           )
           .where(and(...conditions))
-          .orderBy(desc(curricula.createdAt));
-        return rows.map((r) => r.curricula);
+          .orderBy(desc(courses.createdAt));
+        return rows.map((r) => r.courses);
       }
 
       return db
         .select()
-        .from(curricula)
+        .from(courses)
         .where(and(...conditions))
-        .orderBy(desc(curricula.createdAt));
+        .orderBy(desc(courses.createdAt));
     }),
 
-  /** Get a single published curriculum by ID. */
+  /** Get a single published course by ID. */
   getPublishedCurriculum: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
-        .where(eq(curricula.id, input.id));
-      if (!curriculum || !curriculum.isPublished) {
+        .from(courses)
+        .where(eq(courses.id, input.id));
+      if (!course || !course.isPublished) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
-      return curriculum;
+      return course;
     }),
 
-  /** Get lessons for a published curriculum (no per-user progress). */
+  /** Get lessons for a published course (no per-user progress). */
   getPublishedLessons: publicProcedure
-    .input(z.object({ curriculumId: z.string() }))
+    .input(z.object({ courseId: z.string() }))
     .query(async ({ input }) => {
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
-        .where(eq(curricula.id, input.curriculumId));
-      if (!curriculum || !curriculum.isPublished) {
+        .from(courses)
+        .where(eq(courses.id, input.courseId));
+      if (!course || !course.isPublished) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       return db
         .select()
         .from(lessons)
-        .where(eq(lessons.curriculumId, input.curriculumId));
+        .where(eq(lessons.courseId, input.courseId));
     }),
 
-  /** Get a single lesson + quiz from a published curriculum (no per-user progress). */
+  /** Get a single lesson + quiz from a published course (no per-user progress). */
   getPublishedLesson: publicProcedure
     .input(z.object({ lessonId: z.string() }))
     .query(async ({ input }) => {
@@ -134,11 +134,11 @@ export const publicRouter = router({
         .where(eq(lessons.id, input.lessonId));
       if (!lesson) throw new TRPCError({ code: "NOT_FOUND" });
 
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
-        .where(eq(curricula.id, lesson.curriculumId));
-      if (!curriculum || !curriculum.isPublished) {
+        .from(courses)
+        .where(eq(courses.id, lesson.courseId));
+      if (!course || !course.isPublished) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
@@ -150,17 +150,17 @@ export const publicRouter = router({
       return { lesson, quiz: quiz ?? null };
     }),
 
-  /** Get a single published curriculum by its slug (for pSEO /learn/[topic] routes). */
+  /** Get a single published course by its slug (for pSEO /learn/[topic] routes). */
   getByTopicSlug: publicProcedure
     .input(z.object({ slug: z.string().min(1) }))
     .query(async ({ input }) => {
-      const [curriculum] = await db
+      const [course] = await db
         .select()
-        .from(curricula)
-        .where(eq(curricula.slug, input.slug));
-      if (!curriculum || !curriculum.isPublished) {
+        .from(courses)
+        .where(eq(courses.slug, input.slug));
+      if (!course || !course.isPublished) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
-      return curriculum;
+      return course;
     }),
 });

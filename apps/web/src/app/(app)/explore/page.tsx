@@ -20,7 +20,7 @@ function ExploreContent() {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
   const { data: categories } = trpcReact.public.listCategories.useQuery();
-  const { data: curricula, isLoading } =
+  const { data: courses, isLoading } =
     trpcReact.public.listPublished.useQuery({
       category: selectedCategory ?? undefined,
       search: search.trim() || undefined,
@@ -36,7 +36,7 @@ function ExploreContent() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Explore curricula</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Explore courses</h1>
         <p className="mt-1 text-sm text-gray-500">
           Browse community-generated courses. Find something new to learn.
         </p>
@@ -49,7 +49,7 @@ function ExploreContent() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search curricula by title, description, or topic..."
+          placeholder="Search courses by title, description, or topic..."
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               // Trigger re-query via the search state change
@@ -185,63 +185,63 @@ function ExploreContent() {
       )}
 
       {/* Empty state */}
-      {!isLoading && (!curricula || curricula.length === 0) && (
+      {!isLoading && (!courses || courses.length === 0) && (
         <div className="rounded-2xl border-2 border-dashed border-gray-200 py-20 text-center" style={{ backgroundColor: 'var(--color-bg-warm)' }}>
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-light">
             <BookOpen className="h-8 w-8 text-accent" />
           </div>
           <h3 className="mb-2 text-lg font-semibold text-gray-900">
             {search || selectedCategory
-              ? "No matching curricula"
-              : "No curricula yet"}
+              ? "No matching courses"
+              : "No courses yet"}
           </h3>
           <p className="text-sm text-gray-500">
             {search || selectedCategory
               ? "Try different filters or search terms."
-              : "Be the first to create a curriculum and share it with the community."}
+              : "Be the first to create a course and share it with the community."}
           </p>
         </div>
       )}
 
       {/* Curriculum grid */}
-      {!isLoading && curricula && curricula.length > 0 && (
+      {!isLoading && courses && courses.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {curricula.map((curriculum) => (
+          {courses.map((course) => (
             <div
-              key={curriculum.id}
+              key={course.id}
               role="link"
               tabIndex={0}
-              onClick={() => router.push(`/curriculum/${curriculum.id}`)}
+              onClick={() => router.push(`/course/${course.id}`)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  router.push(`/curriculum/${curriculum.id}`);
+                  router.push(`/course/${course.id}`);
                 }
               }}
-              aria-label={`Open ${curriculum.title}`}
+              aria-label={`Open ${course.title}`}
               className="group block cursor-pointer card card-hover p-5"
             >
               <div className="mb-4 flex items-start justify-between gap-2">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-light">
                   <BookOpen className="h-5 w-5 text-accent" />
                 </div>
-                {curriculum.category && (
+                {course.category && (
                   <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-                    {curriculum.category}
-                    {curriculum.subcategory && ` · ${curriculum.subcategory}`}
+                    {course.category}
+                    {course.subcategory && ` · ${course.subcategory}`}
                   </span>
                 )}
               </div>
               <h3 className="mb-1 font-semibold text-gray-900 line-clamp-2 group-hover:text-accent-dark">
-                {curriculum.title}
+                {course.title}
               </h3>
               <p className="mb-4 text-xs text-gray-500 line-clamp-2">
-                {curriculum.description}
+                {course.description}
               </p>
               <div className="flex items-center gap-3 text-xs text-gray-400">
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  {Math.round(curriculum.totalEstimatedMinutes / 60)}h total
+                  {Math.round(course.totalEstimatedMinutes / 60)}h total
                 </span>
               </div>
             </div>

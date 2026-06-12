@@ -31,10 +31,10 @@ function DashboardContent() {
     }
   }, [session, sessionLoading, router]);
 
-  const { data: curricula, isLoading: curriculaLoading } =
-    trpcReact.curriculum.list.useQuery(undefined, { enabled: !!session });
+  const { data: courses, isLoading: coursesLoading } =
+    trpcReact.course.list.useQuery(undefined, { enabled: !!session });
 
-  if (sessionLoading || curriculaLoading) {
+  if (sessionLoading || coursesLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-accent/60" />
@@ -42,7 +42,7 @@ function DashboardContent() {
     );
   }
 
-  const hasCurricula = curricula && curricula.length > 0;
+  const hasCurricula = courses && courses.length > 0;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
@@ -53,8 +53,8 @@ function DashboardContent() {
           <h1 className="text-2xl font-bold text-gray-900">Your Learning</h1>
           <p className="mt-1 text-sm text-gray-500">
             {hasCurricula
-              ? `${curricula.length} active ${curricula.length === 1 ? "curriculum" : "curricula"}`
-              : "Start your first curriculum"}
+              ? `${courses.length} active ${courses.length === 1 ? "course" : "courses"}`
+              : "Start your first course"}
           </p>
         </div>
         {hasCurricula && (
@@ -69,20 +69,20 @@ function DashboardContent() {
         )}
       </div>
 
-      {/* New curriculum banner */}
+      {/* New course banner */}
       {newCurriculumId && (
         <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
           <Sparkles className="h-5 w-5 text-emerald-600" />
           <div className="flex-1">
             <p className="text-sm font-semibold text-emerald-800">
-              Your curriculum is ready!
+              Your course is ready!
             </p>
             <p className="text-xs text-emerald-600">
               Your personalized lessons and quizzes have been generated.
             </p>
           </div>
           <Link
-            href={`/curriculum/${newCurriculumId}`}
+            href={`/course/${newCurriculumId}`}
             className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
           >
             Start learning
@@ -101,7 +101,7 @@ function DashboardContent() {
           </h3>
           <p className="mb-6 text-sm text-gray-500">
             Tell BiteBase what you want to learn and get a personalized
-            curriculum in minutes.
+            course in minutes.
           </p>
           <Link
             href="/onboarding"
@@ -116,8 +116,8 @@ function DashboardContent() {
       {/* Curriculum cards */}
       {hasCurricula && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {curricula.map((curriculum) => (
-            <CurriculumCard key={curriculum.id} curriculum={curriculum} />
+          {courses.map((course) => (
+            <CurriculumCard key={course.id} course={course} />
           ))}
         </div>
       )}
@@ -127,9 +127,9 @@ function DashboardContent() {
 }
 
 function CurriculumCard({
-  curriculum,
+  course,
 }: {
-  curriculum: {
+  course: {
     id: string;
     title: string;
     description: string;
@@ -146,14 +146,14 @@ function CurriculumCard({
   const [isRedoing, setIsRedoing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  const deleteMutation = trpcReact.curriculum.delete.useMutation({
-    onSuccess: () => utils.curriculum.list.invalidate(),
+  const deleteMutation = trpcReact.course.delete.useMutation({
+    onSuccess: () => utils.course.list.invalidate(),
   });
 
-  const retryMutation = trpcReact.curriculum.retryAndGetProfile.useMutation();
+  const retryMutation = trpcReact.course.retryAndGetProfile.useMutation();
 
-  const { data: lessonsData } = trpcReact.curriculum.getLessons.useQuery({
-    curriculumId: curriculum.id,
+  const { data: lessonsData } = trpcReact.course.getLessons.useQuery({
+    courseId: course.id,
   });
 
   const totalLessons = lessonsData?.length ?? 0;
@@ -162,8 +162,8 @@ function CurriculumCard({
   const progressPct =
     totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
-  const isGenerating = curriculum.generationStatus === "generating";
-  const isFailed = curriculum.generationStatus === "failed";
+  const isGenerating = course.generationStatus === "generating";
+  const isFailed = course.generationStatus === "failed";
   const isMutating = isDeleting || isRetrying || isRedoing;
 
   function handleDeleteClick(e: React.MouseEvent) {
@@ -183,7 +183,7 @@ function CurriculumCard({
     e.stopPropagation();
     setIsDeleting(true);
     try {
-      await deleteMutation.mutateAsync({ id: curriculum.id });
+      await deleteMutation.mutateAsync({ id: course.id });
     } finally {
       setIsDeleting(false);
       setConfirmingDelete(false);
@@ -195,9 +195,9 @@ function CurriculumCard({
     e.stopPropagation();
     setIsRetrying(true);
     try {
-      const data = await retryMutation.mutateAsync({ id: curriculum.id });
+      const data = await retryMutation.mutateAsync({ id: course.id });
       sessionStorage.setItem("bitebase_retry_profile", JSON.stringify(data));
-      sessionStorage.setItem("bitebase_replace_curriculum_id", data.curriculumId);
+      sessionStorage.setItem("bitebase_replace_course_id", data.courseId);
       router.push("/onboarding?autoGenerate=1");
     } catch {
       setIsRetrying(false);
@@ -209,9 +209,9 @@ function CurriculumCard({
     e.stopPropagation();
     setIsRedoing(true);
     try {
-      const data = await retryMutation.mutateAsync({ id: curriculum.id });
+      const data = await retryMutation.mutateAsync({ id: course.id });
       sessionStorage.setItem("bitebase_retry_profile", JSON.stringify(data));
-      sessionStorage.setItem("bitebase_replace_curriculum_id", data.curriculumId);
+      sessionStorage.setItem("bitebase_replace_course_id", data.courseId);
       router.push("/onboarding?refine=1");
     } catch {
       setIsRedoing(false);
@@ -231,7 +231,7 @@ function CurriculumCard({
       <button
         onClick={handleConfirmDelete}
         disabled={isDeleting}
-        aria-label={isDeleting ? "Deleting curriculum" : "Confirm delete"}
+        aria-label={isDeleting ? "Deleting course" : "Confirm delete"}
         className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-red-200 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
       >
         {isDeleting && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -263,10 +263,10 @@ function CurriculumCard({
       </div>
 
       <h3 className="mb-1 font-semibold text-gray-900 line-clamp-2 group-hover:text-accent-dark">
-        {curriculum.title}
+        {course.title}
       </h3>
       <p className="mb-4 text-xs text-gray-500 line-clamp-2">
-        {curriculum.description}
+        {course.description}
       </p>
 
         <div className="space-y-2">
@@ -313,7 +313,7 @@ function CurriculumCard({
           <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {Math.round(curriculum.totalEstimatedMinutes / 60)}h total
+              {Math.round(course.totalEstimatedMinutes / 60)}h total
             </span>
             {!isGenerating && (
               <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -373,10 +373,10 @@ function CurriculumCard({
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            router.push(`/curriculum/${curriculum.id}`);
+            router.push(`/course/${course.id}`);
           }
         }}
-        aria-label={`Open ${curriculum.title}`}
+        aria-label={`Open ${course.title}`}
         className="group block cursor-pointer rounded-2xl border border-red-100 bg-white p-5 shadow-sm"
       >
         {cardContent}
@@ -388,14 +388,14 @@ function CurriculumCard({
     <div
       role="link"
       tabIndex={0}
-      onClick={() => router.push(`/curriculum/${curriculum.id}`)}
+      onClick={() => router.push(`/course/${course.id}`)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          router.push(`/curriculum/${curriculum.id}`);
+          router.push(`/course/${course.id}`);
         }
       }}
-      aria-label={`Open ${curriculum.title}`}
+      aria-label={`Open ${course.title}`}
       className="group block cursor-pointer p-5 card card-hover"
     >
       {cardContent}

@@ -9,14 +9,14 @@ import { JsonLd } from "@/components/json-ld";
 export const metadata: Metadata = {
   title: "BiteBase — Personalized Learning, Built by AI",
   description:
-    "Tell BiteBase what you want to learn. Get a personalized curriculum with lessons and quizzes, generated just for you.",
+    "Tell BiteBase what you want to learn. Get a personalized course with lessons and quizzes, generated just for you.",
   alternates: {
     canonical: "/",
   },
   openGraph: {
     title: "BiteBase — Personalized Learning, Built by AI",
     description:
-      "Tell BiteBase what you want to learn. Get a personalized curriculum with lessons and quizzes, generated just for you.",
+      "Tell BiteBase what you want to learn. Get a personalized course with lessons and quizzes, generated just for you.",
   },
   // FAQPage structured data for AI answer engines — served via metadata
   // so it doesn't require inline scripts (CSP-safe).
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
           name: "What is BiteBase?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "BiteBase is an AI-powered learning app that generates personalized curricula with lessons and quizzes. You tell it what you want to learn, and it creates a step-by-step course tailored to your experience level and goals.",
+            text: "BiteBase is an AI-powered learning app that generates personalized courses with lessons and quizzes. You tell it what you want to learn, and it creates a step-by-step course tailored to your experience level and goals.",
           },
         },
         {
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
           name: "How does BiteBase work?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Chat with BiteBase about what you want to learn. Answer a few questions about your experience and goals. BiteBase generates a structured curriculum with bite-sized lessons and quizzes. You unlock lessons sequentially by passing each quiz.",
+            text: "Chat with BiteBase about what you want to learn. Answer a few questions about your experience and goals. BiteBase generates a structured course with bite-sized lessons and quizzes. You unlock lessons sequentially by passing each quiz.",
           },
         },
         {
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
           name: "Is BiteBase free?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes, BiteBase is free to use. Your learning data stays local — the app uses AI to generate content on your own device.",
+            text: "Yes, BiteBase is free to use. Your learning progress and courses are securely stored in your account, while the AI generates content tailored specifically to you.",
           },
         },
         {
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
           name: "What can I learn with BiteBase?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Anything! Pick any topic — programming, languages, history, science, art, business — and BiteBase will build a curriculum around it with lessons and quizzes.",
+            text: "Anything! Pick any topic — programming, languages, history, science, art, business — and BiteBase will build a course around it with lessons and quizzes.",
           },
         },
         {
@@ -69,6 +69,7 @@ export const metadata: Metadata = {
     }),
   },
 };
+
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +102,7 @@ export default async function LandingPage() {
           name: "BiteBase",
           url: process.env.SITE_URL ?? "https://bitebase.labb.site",
           description:
-            "Tell BiteBase what you want to learn, and it builds a personalized, quiz-filled curriculum just for you.",
+            "Tell BiteBase what you want to learn, and it builds a personalized, quiz-filled course just for you.",
           applicationCategory: "EducationalApplication",
           operatingSystem: "Web",
           offers: {
@@ -120,8 +121,9 @@ export default async function LandingPage() {
         <section className="relative overflow-hidden px-6 py-20 sm:py-28">
           {/* Subtle decorative background */}
           <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-            <div className="absolute -top-40 right-0 h-[600px] w-[600px] rounded-full opacity-[0.04]" style={{ backgroundColor: 'var(--color-accent)' }} />
-            <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full opacity-[0.03]" style={{ backgroundColor: 'var(--color-secondary)' }} />
+            <div className="absolute -top-40 right-0 h-[600px] w-[600px] rounded-full opacity-[0.06]" style={{ backgroundColor: 'var(--color-accent)' }} />
+            <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full opacity-[0.05]" style={{ backgroundColor: 'var(--color-secondary)' }} />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[800px] w-[800px] rounded-full opacity-[0.03]" style={{ background: 'radial-gradient(circle, var(--color-accent-subtle) 0%, transparent 70%)' }} />
           </div>
           <div className="mx-auto max-w-4xl text-center">
             <div
@@ -133,10 +135,10 @@ export default async function LandingPage() {
               }}
             >
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              Powered by local AI — your data stays on your device
+              AI-powered, personalized learning
             </div>
             <h1
-              className="mb-6 font-[family-name:var(--font-fraunces)] text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl"
+              className="mb-6 font-[family-name:var(--font-fraunces)] text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl text-balance"
               style={{ color: 'var(--color-text-primary)' }}
             >
               Learn anything.{" "}
@@ -149,7 +151,7 @@ export default async function LandingPage() {
               style={{ color: 'var(--color-text-muted)' }}
             >
               Tell BiteBase what you want to learn. Answer a few questions. Get a
-              personalized curriculum with lessons, real-world examples, and
+              personalized course with lessons, real-world examples, and
               quizzes — all generated just for you.
             </p>
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -168,9 +170,18 @@ export default async function LandingPage() {
                   Sign in
                 </Link>
               )}
+              <Link
+                href="/explore"
+                className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+              >
+                Explore community courses
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
           </div>
         </section>
+
+
 
         {/* ── How it works (2+2 staggered) ───────────── */}
         <section className="mx-auto max-w-6xl px-6 pb-24">
@@ -182,7 +193,7 @@ export default async function LandingPage() {
               How it works
             </h2>
             <p className="mt-2" style={{ color: 'var(--color-text-muted)' }}>
-              Four steps to your personalized curriculum.
+              Four steps to your personalized course.
             </p>
           </div>
           <div className="space-y-8">
@@ -195,7 +206,7 @@ export default async function LandingPage() {
               },
               {
                 icon: BookOpen,
-                title: "Get your curriculum",
+                title: "Get your course",
                 desc: "BiteBase builds a structured, step-by-step learning plan tailored to your experience.",
                 color: "secondary",
               },

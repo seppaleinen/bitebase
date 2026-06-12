@@ -102,7 +102,7 @@ async function main() {
     if (m.trim()) console.log(`    💬 "${m.trim().slice(0, 120)}"`);
   }
 
-  const generationOverlay = await page.getByText(/building your curriculum/i).isVisible().catch(() => false);
+  const generationOverlay = await page.getByText(/building your course/i).isVisible().catch(() => false);
   console.log(`    Generation overlay visible: ${generationOverlay}`);
 
   const errorVisible = await page.getByText(/error|something went wrong/i).isVisible().catch(() => false);

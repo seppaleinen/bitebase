@@ -16,7 +16,7 @@ const outline = [
 ].join("\n");
 
 describe("buildLessonSystemPrompt", () => {
-  it("includes the curriculum outline in the prompt", () => {
+  it("includes the course outline in the prompt", () => {
     const result = buildLessonSystemPrompt(
       profile,
       "Foundations",

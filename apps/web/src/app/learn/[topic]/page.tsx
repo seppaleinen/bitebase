@@ -11,7 +11,7 @@ interface Props {
 
 async function getCurriculumBySlug(slug: string) {
   const res = await fetch(
-    `${SITE_URL}/api/trpc/curriculum.getByTopicSlug?batch=1&0.slug=${encodeURIComponent(slug)}`,
+    `${SITE_URL}/api/trpc/course.getByTopicSlug?batch=1&0.slug=${encodeURIComponent(slug)}`,
     {
       next: { revalidate: 3600 },
     }
@@ -21,9 +21,9 @@ async function getCurriculumBySlug(slug: string) {
   return data?.result?.data?.data ?? null;
 }
 
-async function getLessonsForCurriculum(curriculumId: string) {
+async function getLessonsForCurriculum(courseId: string) {
   const res = await fetch(
-    `${SITE_URL}/api/trpc/curriculum.getPublishedLessons?batch=1&0.curriculumId=${encodeURIComponent(curriculumId)}`,
+    `${SITE_URL}/api/trpc/course.getPublishedLessons?batch=1&0.courseId=${encodeURIComponent(courseId)}`,
     {
       next: { revalidate: 3600 },
     }
@@ -35,18 +35,18 @@ async function getLessonsForCurriculum(curriculumId: string) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { topic } = await params;
-  const curriculum = await getCurriculumBySlug(topic);
+  const course = await getCurriculumBySlug(topic);
 
-  if (curriculum) {
+  if (course) {
     return {
-      title: `Learn ${curriculum.title} | BiteBase`,
-      description: curriculum.description,
+      title: `Learn ${course.title} | BiteBase`,
+      description: course.description,
       alternates: {
         canonical: `${SITE_URL}/learn/${topic}`,
       },
       openGraph: {
-        title: `Learn ${curriculum.title} | BiteBase`,
-        description: curriculum.description,
+        title: `Learn ${course.title} | BiteBase`,
+        description: course.description,
         type: "website",
       },
     };
@@ -54,13 +54,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `Learn ${topic} | BiteBase`,
-    description: `Start learning ${topic} with an AI-powered personalized curriculum. Interactive lessons, quizzes, and progress tracking.`,
+    description: `Start learning ${topic} with an AI-powered personalized course. Interactive lessons, quizzes, and progress tracking.`,
     alternates: {
       canonical: `${SITE_URL}/learn/${topic}`,
     },
     openGraph: {
       title: `Learn ${topic} | BiteBase`,
-      description: `Start learning ${topic} with an AI-powered personalized curriculum.`,
+      description: `Start learning ${topic} with an AI-powered personalized course.`,
       type: "website",
     },
   };
@@ -68,19 +68,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function LearnTopicPage({ params }: Props) {
   const { topic } = await params;
-  const curriculum = await getCurriculumBySlug(topic);
-  const lessons = curriculum ? await getLessonsForCurriculum(curriculum.id) : [];
+  const course = await getCurriculumBySlug(topic);
+  const lessons = course ? await getLessonsForCurriculum(course.id) : [];
 
-  const title = curriculum?.title || topic;
-  const description = curriculum?.description || `Start learning ${topic} with an AI-powered personalized curriculum. Interactive lessons, quizzes, and progress tracking.`;
+  const title = course?.title || topic;
+  const description = course?.description || `Start learning ${topic} with an AI-powered personalized course. Interactive lessons, quizzes, and progress tracking.`;
 
   // JSON-LD structured data
-  const jsonLd = curriculum
+  const jsonLd = course
     ? {
         "@context": "https://schema.org",
         "@type": "Course",
-        name: curriculum.title,
-        description: curriculum.description,
+        name: course.title,
+        description: course.description,
         provider: {
           "@type": "Organization",
           name: "BiteBase",
@@ -88,11 +88,11 @@ export default async function LearnTopicPage({ params }: Props) {
         },
         courseMode: "selfpaced",
         educationalLevel: "All Levels",
-        time: `${curriculum.totalEstimatedMinutes} minutes`,
+        time: `${course.totalEstimatedMinutes} minutes`,
         coursePrerequisites: "None",
         learningResourceType: "Interactive Course",
-        about: curriculum.category || topic,
-        hasCourseSection: (curriculum.sections as Array<{ title: string; description: string; subsections?: Array<{ title: string; description: string }> }>)?.map((section) => ({
+        about: course.category || topic,
+        hasCourseSection: (course.sections as Array<{ title: string; description: string; subsections?: Array<{ title: string; description: string }> }>)?.map((section) => ({
           "@type": "CourseSection",
           name: section.title,
           description: section.description,
@@ -125,7 +125,7 @@ export default async function LearnTopicPage({ params }: Props) {
           </p>
         </div>
 
-        {curriculum ? (
+        {course ? (
           <>
             {/* Curriculum Preview */}
             <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
@@ -203,11 +203,11 @@ export default async function LearnTopicPage({ params }: Props) {
             {/* Search-to-Seed: Placeholder for missing topic */}
             <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 text-center">
               <h2 className="text-2xl font-semibold text-slate-900 mb-4">
-                No curriculum yet for {title}
+                No course yet for {title}
               </h2>
                <p className="text-slate-600 mb-6 max-w-xl mx-auto">
-                 We haven&apos;t generated a curriculum for this topic yet. Generate a
-                 personalized curriculum tailored to your goals and experience
+                 We haven&apos;t generated a course for this topic yet. Generate a
+                 personalized course tailored to your goals and experience
                  level.
                </p>
               <Link

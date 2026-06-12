@@ -7,7 +7,7 @@ const mockCurriculum = {
   userId: "playwright-test-user",
   profileId: "prof-1",
   title: "Intro to TypeScript",
-  description: "A complete TypeScript curriculum for beginners.",
+  description: "A complete TypeScript course for beginners.",
   totalEstimatedMinutes: 120,
   sections: [
     {
@@ -32,7 +32,7 @@ const mockCurriculum = {
 
 const mockLesson = {
   id: "lesson-1",
-  curriculumId: "curr-1",
+  courseId: "curr-1",
   sectionId: "sec-1",
   subsectionId: "sub-1",
   title: "Types and Interfaces",
@@ -91,9 +91,9 @@ const mockProgress = {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
 test.describe("Dashboard", () => {
-  test("shows empty state when user has no curricula", async ({ page }) => {
+  test("shows empty state when user has no courses", async ({ page }) => {
     await setTestSession(page);
-    await mockTRPC(page, { curricula: [] });
+    await mockTRPC(page, { courses: [] });
     await page.goto("/dashboard");
 
     await expect(page.getByText(/no courses yet/i)).toBeVisible();
@@ -102,10 +102,10 @@ test.describe("Dashboard", () => {
     ).toBeVisible();
   });
 
-  test("shows curriculum cards when curricula exist", async ({ page }) => {
+  test("shows course cards when courses exist", async ({ page }) => {
     await setTestSession(page);
     await mockTRPC(page, {
-      curricula: [mockCurriculum],
+      courses: [mockCurriculum],
       lessons: [],
     });
     await page.goto("/dashboard");
@@ -116,7 +116,7 @@ test.describe("Dashboard", () => {
 
   test("'New course' button navigates to /onboarding", async ({ page }) => {
     await setTestSession(page);
-    await mockTRPC(page, { curricula: [] });
+    await mockTRPC(page, { courses: [] });
     await page.goto("/dashboard");
 
     await page.getByRole("link", { name: /new course/i }).first().click();
@@ -129,7 +129,7 @@ test.describe("Dashboard", () => {
 test.describe("Onboarding chat", () => {
   test("renders the initial welcome message", async ({ page }) => {
     await setTestSession(page);
-    await mockTRPC(page, { curricula: [] });
+    await mockTRPC(page, { courses: [] });
     await mockAI(page);
     await page.goto("/onboarding");
 
@@ -140,7 +140,7 @@ test.describe("Onboarding chat", () => {
 
   test("message input and send button are visible", async ({ page }) => {
     await setTestSession(page);
-    await mockTRPC(page, { curricula: [] });
+    await mockTRPC(page, { courses: [] });
     await mockAI(page);
     await page.goto("/onboarding");
 
@@ -150,7 +150,7 @@ test.describe("Onboarding chat", () => {
 
   test("level chips disappear after user has already said 'Beginner'", async ({ page }) => {
     await setTestSession(page);
-    await mockTRPC(page, { curricula: [] });
+    await mockTRPC(page, { courses: [] });
 
     // Always respond asking about experience level — this would trigger chips
     // if the user hasn't already provided a level.
@@ -203,7 +203,7 @@ test.describe("Lesson page", () => {
   async function setupLesson(page: Parameters<typeof mockTRPC>[0]) {
     await setTestSession(page);
     await mockTRPC(page, {
-      curricula: [mockCurriculum],
+      courses: [mockCurriculum],
       lesson: mockLesson,
       quiz: mockQuiz,
       progress: mockProgress,
@@ -246,12 +246,12 @@ test.describe("Lesson page", () => {
     ).toBeVisible();
   });
 
-  test("back link navigates to curriculum", async ({ page }) => {
+  test("back link navigates to course", async ({ page }) => {
     await setupLesson(page);
     await page.goto("/lesson/lesson-1");
 
     await expect(
-      page.getByRole("link", { name: /back to curriculum/i })
+      page.getByRole("link", { name: /back to course/i })
     ).toBeVisible();
   });
 });
@@ -262,7 +262,7 @@ test.describe("Quiz engine", () => {
   async function setupQuiz(page: Parameters<typeof mockTRPC>[0], quizResult?: object) {
     await setTestSession(page);
     await mockTRPC(page, {
-      curricula: [mockCurriculum],
+      courses: [mockCurriculum],
       lesson: mockLesson,
       quiz: mockQuiz,
       progress: mockProgress,
@@ -419,7 +419,7 @@ const mockFullCurriculum = {
   userId: "playwright-test-user",
   profileId: "prof-1",
   title: "Intro to TypeScript",
-  description: "A complete TypeScript curriculum for beginners.",
+  description: "A complete TypeScript course for beginners.",
   totalEstimatedMinutes: 120,
   category: mockCategory,
   subcategory: "Basics",
@@ -452,17 +452,17 @@ const mockFullCurriculum = {
 
 const mockCurriculumLessons = [
   {
-    id: "lesson-1", curriculumId: "curr-1", sectionId: "sec-1", subsectionId: "sub-1",
+    id: "lesson-1", courseId: "curr-1", sectionId: "sec-1", subsectionId: "sub-1",
     title: "Types and Interfaces", content: "", sources: [], estimatedMinutes: 15, order: 0,
     createdAt: new Date().toISOString(),
   },
   {
-    id: "lesson-2", curriculumId: "curr-1", sectionId: "sec-1", subsectionId: "sub-2",
+    id: "lesson-2", courseId: "curr-1", sectionId: "sec-1", subsectionId: "sub-2",
     title: "Functions", content: "", sources: [], estimatedMinutes: 15, order: 1,
     createdAt: new Date().toISOString(),
   },
   {
-    id: "lesson-3", curriculumId: "curr-1", sectionId: "sec-2", subsectionId: "sub-3",
+    id: "lesson-3", courseId: "curr-1", sectionId: "sec-2", subsectionId: "sub-3",
     title: "Generics", content: "", sources: [], estimatedMinutes: 15, order: 2,
     createdAt: new Date().toISOString(),
   },
@@ -487,14 +487,14 @@ test.describe("Curriculum page", () => {
   test("renders title, description, and sections", async ({ page }) => {
     await setTestSession(page);
     await mockTRPC(page, {
-      curricula: [mockFullCurriculum],
+      courses: [mockFullCurriculum],
       lessons: mockCurriculumLessons,
       progress: null,
     });
-    await page.goto("/curriculum/curr-1");
+    await page.goto("/course/curr-1");
 
     await expect(page.getByRole("heading", { name: "Intro to TypeScript" })).toBeVisible();
-    await expect(page.getByText("A complete TypeScript curriculum for beginners.")).toBeVisible();
+    await expect(page.getByText("A complete TypeScript course for beginners.")).toBeVisible();
     await expect(page.getByText("Getting Started")).toBeVisible();
     await expect(page.getByText("Advanced Topics")).toBeVisible();
     await expect(page.getByText("Types and Interfaces")).toBeVisible();
@@ -505,11 +505,11 @@ test.describe("Curriculum page", () => {
   test("shows lesson status badges: completed, available, locked", async ({ page }) => {
     await setTestSession(page);
     await mockTRPC(page, {
-      curricula: [mockFullCurriculum],
+      courses: [mockFullCurriculum],
       lessons: mockCurriculumLessons,
       progress: mockCurriculumProgressWithAvailable, // lesson-1 completed, lesson-2 available
     });
-    await page.goto("/curriculum/curr-1");
+    await page.goto("/course/curr-1");
 
     // Lesson 1: completed badge
     await expect(page.getByText("Done")).toBeVisible();
@@ -523,24 +523,24 @@ test.describe("Curriculum page", () => {
   test("shows progress bar with completion percentage", async ({ page }) => {
     await setTestSession(page);
     await mockTRPC(page, {
-      curricula: [mockFullCurriculum],
+      courses: [mockFullCurriculum],
       lessons: mockCurriculumLessons,
       progress: mockCurriculumProgressWithAvailable, // 1/3 completed
     });
-    await page.goto("/curriculum/curr-1");
+    await page.goto("/course/curr-1");
 
     // 1 out of 3 done (lesson-1 completed, lesson-2 available)
     await expect(page.getByText("1/3 lessons done")).toBeVisible();
     await expect(page.getByText("33%")).toBeVisible();
   });
 
-  test("shows owner controls for curriculum owner", async ({ page }) => {
+  test("shows owner controls for course owner", async ({ page }) => {
     await setTestSession(page);
     await mockTRPC(page, {
-      curricula: [mockFullCurriculum],
+      courses: [mockFullCurriculum],
       lessons: mockCurriculumLessons,
     });
-    await page.goto("/curriculum/curr-1");
+    await page.goto("/course/curr-1");
 
     await expect(page.getByRole("button", { name: /remake course/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /delete/i })).toBeVisible();
@@ -550,12 +550,12 @@ test.describe("Curriculum page", () => {
     await setTestSession(page);
     const visitorCurriculum = { ...mockFullCurriculum, userId: "other-user-id" };
     await mockTRPC(page, {
-      curricula: [visitorCurriculum],
+      courses: [visitorCurriculum],
       lessons: mockCurriculumLessons,
     });
-    await page.goto("/curriculum/curr-1");
+    await page.goto("/course/curr-1");
 
-    await expect(page.getByText("Manage curriculum")).not.toBeVisible();
+    await expect(page.getByText("Manage course")).not.toBeVisible();
     await expect(page.getByRole("button", { name: /remake course/i })).not.toBeVisible();
     await expect(page.getByRole("button", { name: /delete/i })).not.toBeVisible();
   });
@@ -563,10 +563,10 @@ test.describe("Curriculum page", () => {
   test("back link navigates to dashboard when authenticated", async ({ page }) => {
     await setTestSession(page);
     await mockTRPC(page, {
-      curricula: [mockFullCurriculum],
+      courses: [mockFullCurriculum],
       lessons: mockCurriculumLessons,
     });
-    await page.goto("/curriculum/curr-1");
+    await page.goto("/course/curr-1");
 
     await page.getByRole("link", { name: /dashboard/i }).last().click();
     await expect(page).toHaveURL(/\/dashboard/);
@@ -575,11 +575,11 @@ test.describe("Curriculum page", () => {
   test("shows category badge", async ({ page }) => {
     await setTestSession(page);
     await mockTRPC(page, {
-      curricula: [mockFullCurriculum],
+      courses: [mockFullCurriculum],
       lessons: mockCurriculumLessons,
       categories: [{ category: "TypeScript", subcategories: ["Basics"] }],
     });
-    await page.goto("/curriculum/curr-1");
+    await page.goto("/course/curr-1");
 
     await expect(page.getByText(/TypeScript.*Basics/)).toBeVisible();
   });

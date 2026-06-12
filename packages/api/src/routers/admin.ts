@@ -1,9 +1,9 @@
 // Admin router – limited to specific admin user (davidbaeriksson@gmail.com)
-// Provides curriculum-level management: list all curricula with lesson version summaries,
-// and regenerate all lessons within a curriculum.
+// Provides course-level management: list all courses with lesson version summaries,
+// and regenerate all lessons within a course.
 
 import { z } from "zod";
-import { db, lessons, curricula, learningProfiles, quizzes, modelSettings } from "@bitebase/db";
+import { db, lessons, courses, learningProfiles, quizzes, modelSettings } from "@bitebase/db";
 import { protectedProcedure, router } from "../trpc";
 import { generateText } from "ai";
 import { eq, sql } from "drizzle-orm";
@@ -78,25 +78,25 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
   const [lesson] = await db.select().from(lessons).where(eq(lessons.id, lessonId));
   if (!lesson) throw new TRPCError({ code: "NOT_FOUND", message: "Lesson not found" });
 
-  const [curriculum] = await db.select().from(curricula).where(eq(curricula.id, lesson.curriculumId));
-  if (!curriculum) throw new TRPCError({ code: "NOT_FOUND", message: "Curriculum not found" });
+  const [course] = await db.select().from(courses).where(eq(courses.id, lesson.courseId));
+  if (!course) throw new TRPCError({ code: "NOT_FOUND", message: "Curriculum not found" });
 
-  // Load learning profile for the curriculum
-  const [profile] = await db.select().from(learningProfiles).where(eq(learningProfiles.id, curriculum.profileId));
+  // Load learning profile for the course
+  const [profile] = await db.select().from(learningProfiles).where(eq(learningProfiles.id, course.profileId));
   if (!profile) throw new TRPCError({ code: "NOT_FOUND", message: "Learning profile not found" });
 
-  // Re‑construct the curriculum plan from stored JSONB
-  const plan = curriculum.sections as any;
-  const curriculumPlan = { ...curriculum, sections: plan } as any;
+  // Re‑construct the course plan from stored JSONB
+  const plan = course.sections as any;
+  const coursePlan = { ...course, sections: plan } as any;
 
-  const narrativeThreads = buildNarrativeThreads(curriculumPlan);
+  const narrativeThreads = buildNarrativeThreads(coursePlan);
   const safeProfile = { ...profile, additionalContext: profile.additionalContext ?? undefined };
 
   // Locate the order index of this lesson within the plan
   let orderIndex = -1;
   const allMeta: { id: string; order: number; section: any; subsection: any }[] = [];
   let order = 0;
-  for (const sec of curriculumPlan.sections) {
+  for (const sec of coursePlan.sections) {
     for (const sub of sec.subsections) {
       const metaId = sub.id;
       if (metaId === lesson.subsectionId) {
@@ -106,7 +106,7 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
       order++;
     }
   }
-  if (orderIndex === -1) throw new TRPCError({ code: "NOT_FOUND", message: "Lesson not found in curriculum plan" });
+  if (orderIndex === -1) throw new TRPCError({ code: "NOT_FOUND", message: "Lesson not found in course plan" });
 
   const meta = allMeta[orderIndex];
 
@@ -155,8 +155,8 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
     }
   }
 
-  // Build full curriculum outline string (used by prompt)
-  const curriculumOutline = allMeta
+  // Build full course outline string (used by prompt)
+  const courseOutline = allMeta
     .map((m) => `${m.order + 1}. [${m.section.title}] ${m.subsection.title}`)
     .join("\n");
 
@@ -171,7 +171,7 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
         safeProfile,
         meta.section.title,
         meta.subsection.title,
-        curriculumOutline,
+        courseOutline,
         searchContext || `Focus on ${meta.subsection.title} as part of ${meta.section.title} in ${profile.topic}.`,
         meta.order + 1,
         allMeta.length,
@@ -226,32 +226,32 @@ async function regenerateSingleLesson(lessonId: string): Promise<{ lessonId: str
 }
 
 export const adminRouter = router({
-  /** List all curricula with lesson version summaries. */
+  /** List all courses with lesson version summaries. */
   listCurricula: protectedProcedure.query(async ({ ctx }) => {
     ensureAdmin(ctx.session.user.email);
     checkRateLimit(ctx.session.user.id, 30, 60_000); // 30 reads per minute
 
-    // Get all curricula joined with lessons to derive version info
+    // Get all courses joined with lessons to derive version info
     const rows = await db
       .select({
-        id: curricula.id,
-        title: curricula.title,
-        userId: curricula.userId,
-        createdAt: curricula.createdAt,
+        id: courses.id,
+        title: courses.title,
+        userId: courses.userId,
+        createdAt: courses.createdAt,
         lessonVersion: lessons.version,
       })
-      .from(curricula)
-      .leftJoin(lessons, eq(lessons.curriculumId, curricula.id))
-      .orderBy(sql`${curricula.createdAt} DESC`);
+      .from(courses)
+      .leftJoin(lessons, eq(lessons.courseId, courses.id))
+      .orderBy(sql`${courses.createdAt} DESC`);
 
-    // Group by curriculum
-    const curriculumMap = new Map<
+    // Group by course
+    const courseMap = new Map<
       string,
       { id: string; title: string; createdAt: Date; totalLessons: number; versionCounts: Map<number, number> }
     >();
 
     for (const row of rows) {
-      let entry = curriculumMap.get(row.id);
+      let entry = courseMap.get(row.id);
       if (!entry) {
         entry = {
           id: row.id,
@@ -260,7 +260,7 @@ export const adminRouter = router({
           totalLessons: 0,
           versionCounts: new Map(),
         };
-        curriculumMap.set(row.id, entry);
+        courseMap.set(row.id, entry);
       }
       if (row.lessonVersion !== null) {
         entry.totalLessons++;
@@ -269,7 +269,7 @@ export const adminRouter = router({
       }
     }
 
-    const curriculaList = Array.from(curriculumMap.values()).map((c) => ({
+    const coursesList = Array.from(courseMap.values()).map((c) => ({
       id: c.id,
       title: c.title,
       totalLessons: c.totalLessons,
@@ -280,27 +280,27 @@ export const adminRouter = router({
     }));
 
     // Compute a global version rollup across ALL lessons
-    const globalVersionMap = new Map<number, { version: number; totalLessons: number; curriculaCount: number; curricula: string[] }>();
-    for (const c of curriculaList) {
+    const globalVersionMap = new Map<number, { version: number; totalLessons: number; coursesCount: number; courses: string[] }>();
+    for (const c of coursesList) {
       for (const vs of c.versionSummary) {
         let entry = globalVersionMap.get(vs.version);
         if (!entry) {
-          entry = { version: vs.version, totalLessons: 0, curriculaCount: 0, curricula: [] };
+          entry = { version: vs.version, totalLessons: 0, coursesCount: 0, courses: [] };
           globalVersionMap.set(vs.version, entry);
         }
         entry.totalLessons += vs.count;
-        entry.curriculaCount++;
-        entry.curricula.push(c.title);
+        entry.coursesCount++;
+        entry.courses.push(c.title);
       }
     }
     const versionRollup = Array.from(globalVersionMap.values()).sort((a, b) => a.version - b.version);
 
-    return { curricula: curriculaList, versionRollup };
+    return { courses: coursesList, versionRollup };
   }),
 
-  /** Regenerate all lessons within a curriculum. Returns results for each lesson. */
+  /** Regenerate all lessons within a course. Returns results for each lesson. */
   regenerateCurriculum: protectedProcedure
-    .input(z.object({ curriculumId: z.string() }))
+    .input(z.object({ courseId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       ensureAdmin(ctx.session.user.email);
       checkRateLimit(ctx.session.user.id, 2, 60_000); // 2 regenerations per minute (expensive AI calls)
@@ -308,11 +308,11 @@ export const adminRouter = router({
       const allLessons = await db
         .select({ id: lessons.id })
         .from(lessons)
-        .where(eq(lessons.curriculumId, input.curriculumId))
+        .where(eq(lessons.courseId, input.courseId))
         .orderBy(lessons.order);
 
       if (allLessons.length === 0) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "No lessons found for this curriculum" });
+        throw new TRPCError({ code: "NOT_FOUND", message: "No lessons found for this course" });
       }
 
       const results: { lessonId: string; newVersion: number }[] = [];
@@ -323,7 +323,7 @@ export const adminRouter = router({
         await new Promise((res) => setTimeout(res, 500));
       }
 
-      return { curriculumId: input.curriculumId, lessonResults: results };
+      return { courseId: input.courseId, lessonResults: results };
     }),
 
   /** Regenerate all lessons at a given version number. Returns array of results. */

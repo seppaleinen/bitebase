@@ -109,14 +109,14 @@ export async function mockAI(
 // ── Generate endpoint mock ─────────────────────────────────────────────────────
 
 export async function mockGenerate(page: Page) {
-  const curriculumId = "mock-curriculum-1";
+  const courseId = "mock-course-1";
 
   await page.route("**/api/onboarding/generate", async (route) => {
     const body = [
       `data: ${JSON.stringify({ event: "status", data: { message: "Saving your learning profile..." } })}\n\n`,
-      `data: ${JSON.stringify({ event: "curriculum_created", data: { curriculumId, title: "Test Curriculum", totalSections: 2 } })}\n\n`,
+      `data: ${JSON.stringify({ event: "course_created", data: { courseId, title: "Test Curriculum", totalSections: 2 } })}\n\n`,
       `data: ${JSON.stringify({ event: "status", data: { message: "Creating lessons..." } })}\n\n`,
-      `data: ${JSON.stringify({ event: "done", data: { curriculumId } })}\n\n`,
+      `data: ${JSON.stringify({ event: "done", data: { courseId } })}\n\n`,
     ].join("");
 
     await route.fulfill({
@@ -130,11 +130,11 @@ export async function mockGenerate(page: Page) {
 // ── tRPC mock ──────────────────────────────────────────────────────────────────
 
 type TRPCMockData = {
-  curricula?: object[];
+  courses?: object[];
 };
 
 function resolveData(procedurePath: string, data: TRPCMockData): unknown {
-  if (procedurePath === "curriculum.list") return data.curricula ?? [];
+  if (procedurePath === "course.list") return data.courses ?? [];
   return null;
 }
 

@@ -25,14 +25,14 @@ export default function LessonScreen() {
   }>(null);
 
   const utils = trpcReact.useUtils();
-  const { data, isLoading } = trpcReact.curriculum.getLesson.useQuery({
+  const { data, isLoading } = trpcReact.course.getLesson.useQuery({
     lessonId: id,
   });
-  const markStarted = trpcReact.curriculum.markLessonStarted.useMutation();
-  const submitQuiz = trpcReact.curriculum.submitQuiz.useMutation({
+  const markStarted = trpcReact.course.markLessonStarted.useMutation();
+  const submitQuiz = trpcReact.course.submitQuiz.useMutation({
     onSuccess: (result) => {
       setQuizResult({ score: result.score, passed: result.passed });
-      utils.curriculum.getLesson.invalidate({ lessonId: id });
+      utils.course.getLesson.invalidate({ lessonId: id });
     },
   });
 

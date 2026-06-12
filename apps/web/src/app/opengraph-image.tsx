@@ -132,7 +132,7 @@ export default async function Image() {
               fontWeight: 400,
             }}
           >
-            curriculum with lessons and quizzes, generated just for you.
+            course with lessons and quizzes, generated just for you.
           </div>
         </div>
       </div>

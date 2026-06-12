@@ -1,28 +1,28 @@
 import type { CurriculumPlan } from "../schemas";
 
 /**
- * Build narrative thread strings for every lesson in a curriculum plan.
+ * Build narrative thread strings for every lesson in a course plan.
  *
  * Each thread is a 1-2 sentence bridge that tells the lesson generator
  * what the learner should know coming into this lesson and why this topic
  * is the next logical step. This replaces the vague "build naturally on
  * what came before" instruction with concrete context derived from the
- * curriculum plan's section/subsection titles and descriptions.
+ * course plan's section/subsection titles and descriptions.
  *
  * For lesson 0 (the first), it sets the stage. For subsequent lessons,
  * it references the previous lesson's topic and describes the transition.
  *
  * Determinstic — zero AI calls, zero latency, consistent across retries.
  */
-export function buildNarrativeThreads(curriculumPlan: CurriculumPlan): string[] {
-  // Flatten all lessons in curriculum order
+export function buildNarrativeThreads(coursePlan: CurriculumPlan): string[] {
+  // Flatten all lessons in course order
   const allLessons: Array<{
     sectionTitle: string;
     subsectionTitle: string;
     subsectionDescription: string;
   }> = [];
 
-  for (const section of curriculumPlan.sections) {
+  for (const section of coursePlan.sections) {
     for (const subsection of section.subsections) {
       allLessons.push({
         sectionTitle: section.title,
@@ -40,7 +40,7 @@ export function buildNarrativeThreads(curriculumPlan: CurriculumPlan): string[] 
         `This is the first lesson. We will begin with "${lesson.subsectionTitle}" ` +
         `— ${lower(lesson.subsectionDescription)} within the broader context of ` +
         `"${lesson.sectionTitle}". Introduce the topic naturally; the learner has ` +
-        `no prior knowledge of this curriculum's content.`
+        `no prior knowledge of this course's content.`
       );
     }
 

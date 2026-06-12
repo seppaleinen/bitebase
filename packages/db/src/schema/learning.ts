@@ -34,7 +34,7 @@ export const learningProfiles = pgTable("learning_profiles", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export type CurriculumSection = {
+export type CourseSection = {
   id: string;
   title: string;
   description: string;
@@ -48,7 +48,7 @@ export type CurriculumSection = {
   }>;
 };
 
-export const curricula = pgTable("curricula", {
+export const courses = pgTable("courses", {
   id: text("id").primaryKey(),
   userId: text("user_id")
     .notNull()
@@ -60,7 +60,7 @@ export const curricula = pgTable("curricula", {
   slug: text("slug").notNull().unique(),
   description: text("description").notNull(),
   totalEstimatedMinutes: integer("total_estimated_minutes").notNull(),
-  sections: jsonb("sections").$type<CurriculumSection[]>().notNull(),
+  sections: jsonb("sections").$type<CourseSection[]>().notNull(),
   category: text("category"),
   subcategory: text("subcategory"),
   generationStatus: text("generation_status").notNull().default("pending"),
@@ -79,9 +79,9 @@ export type QuizQuestion = {
 
 export const lessons = pgTable("lessons", {
   id: text("id").primaryKey(),
-  curriculumId: text("curriculum_id")
+  courseId: text("course_id")
     .notNull()
-    .references(() => curricula.id, { onDelete: "cascade" }),
+    .references(() => courses.id, { onDelete: "cascade" }),
   sectionId: text("section_id").notNull(),
   subsectionId: text("subsection_id"),
   title: text("title").notNull(),

@@ -27,7 +27,7 @@ type GenerationStatus = {
   event: string;
   data: {
     message?: string;
-    curriculumId?: string;
+    courseId?: string;
     title?: string;
     totalSections?: number;
     lessons?: { title: string; section: string }[];
@@ -43,13 +43,13 @@ interface LessonProgress {
 
 // ?? Returning-user gate ???????????????????????????????????????????????????????
 
-type CurriculumRow = inferRouterOutputs<AppRouter>["curriculum"]["list"][number];
+type CurriculumRow = inferRouterOutputs<AppRouter>["course"]["list"][number];
 
 function ReturningUserGate({
-  curricula,
+  courses,
   onStartNew,
 }: {
-  curricula: CurriculumRow[];
+  courses: CurriculumRow[];
   onStartNew: () => void;
 }) {
   return (
@@ -66,15 +66,15 @@ function ReturningUserGate({
           </p>
         </div>
 
-        {/* Existing curricula */}
+        {/* Existing courses */}
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
             Continue learning
           </p>
-          {curricula.slice(0, 3).map((c) => (
+          {courses.slice(0, 3).map((c) => (
             <Link
               key={c.id}
-              href={`/curriculum/${c.id}`}
+              href={`/course/${c.id}`}
               className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-accent-light hover:shadow-md"
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-subtle">
@@ -146,8 +146,8 @@ function OnboardingChat() {
   const welcomeContent = refineProfile
     ? `Welcome back! Here's your previous learning profile:\n- Topic: ${refineProfile.topic}\n- Level: ${refineProfile.experienceLevel}\n- Goal: ${refineProfile.goals}\n\nWhat would you like to change? (e.g. "I want to focus more on conversation", "I'm actually intermediate level")`
     : initialMessage
-    ? `Great choice! Let me help you build a curriculum around "${initialMessage}". I have a couple of quick questions to personalise it — what's your current level (beginner, intermediate, or advanced), and what's your main goal?`
-    : "Hi there! I'm BiteBase, your personal learning assistant. I'm here to help you create a curriculum tailored just for you.\n\nWhat topic or skill have you been wanting to learn? It could be anything — programming, cooking, history, music theory, a new language... the world is yours! 🌍";
+    ? `Great choice! Let me help you build a course around "${initialMessage}". I have a couple of quick questions to personalise it — what's your current level (beginner, intermediate, or advanced), and what's your main goal?`
+    : "Hi there! I'm BiteBase, your personal learning assistant. I'm here to help you create a course tailored just for you.\n\nWhat topic or skill have you been wanting to learn? It could be anything — programming, cooking, history, music theory, a new language... the world is yours! 🌍";
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, append } =
     useChat({
@@ -296,12 +296,12 @@ function OnboardingChat() {
   async function startGeneration(profile: LearningProfile) {
     setIsGenerating(true);
     setGenerationError(null);
-    setGenerationStatus("Starting curriculum generation...");
+    setGenerationStatus("Starting course generation...");
     setLessonProgressList([]);
 
     // Read and clear the pending replace-request from sessionStorage
-    const replaceCurriculumId = sessionStorage.getItem("bitebase_replace_curriculum_id");
-    sessionStorage.removeItem("bitebase_replace_curriculum_id");
+    const replaceCurriculumId = sessionStorage.getItem("bitebase_replace_course_id");
+    sessionStorage.removeItem("bitebase_replace_course_id");
 
     try {
       const response = await fetch("/api/onboarding/generate", {
@@ -325,7 +325,7 @@ function OnboardingChat() {
       if (!reader) return;
 
       const decoder = new TextDecoder();
-      let curriculumId: string | null = null;
+      let courseId: string | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -339,8 +339,8 @@ function OnboardingChat() {
             const parsed: GenerationStatus = JSON.parse(line.slice(6));
             if (parsed.event === "status") {
               setGenerationStatus(parsed.data.message ?? null);
-            } else if (parsed.event === "curriculum_created") {
-              curriculumId = parsed.data.curriculumId ?? null;
+            } else if (parsed.event === "course_created") {
+              courseId = parsed.data.courseId ?? null;
               setGenerationStatus(
                 `Building ${parsed.data.totalSections} sections for "${parsed.data.title}"...`
               );
@@ -358,7 +358,7 @@ function OnboardingChat() {
                 prev.map((l) => l.title === title ? { ...l, status: "done" } : l)
               );
             } else if (parsed.event === "done") {
-              curriculumId = parsed.data.curriculumId ?? curriculumId;
+              courseId = parsed.data.courseId ?? courseId;
             } else if (parsed.event === "error") {
               setGenerationStatus(`Error: ${parsed.data.message}`);
             }
@@ -368,10 +368,10 @@ function OnboardingChat() {
         }
       }
 
-      if (curriculumId) {
-        router.push(`/dashboard?new=${curriculumId}`);
+      if (courseId) {
+        router.push(`/dashboard?new=${courseId}`);
       } else {
-        setGenerationError("Generation completed but no curriculum was created. Please try again.");
+        setGenerationError("Generation completed but no course was created. Please try again.");
         setIsGenerating(false);
       }
     } catch (err) {
@@ -413,7 +413,7 @@ function OnboardingChat() {
                 <div className="absolute inset-0 animate-ping rounded-xl bg-accent-light opacity-40" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-gray-900">Building your curriculum</h2>
+                <h2 className="text-base font-bold text-gray-900">Building your course</h2>
                 <p className="text-sm text-gray-500">Generating personalised lessons</p>
               </div>
             </div>
@@ -553,7 +553,7 @@ function OnboardingChat() {
       {/* Profile confirmation card */}
       {finalizedProfile && !isGenerating && (
         <div ref={confirmationRef} className="mx-6 mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
-          <p className="mb-3 text-sm font-semibold text-emerald-800">Ready to generate your curriculum</p>
+          <p className="mb-3 text-sm font-semibold text-emerald-800">Ready to generate your course</p>
           <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-emerald-700">
             <span className="font-medium">Topic</span>
             <span className="capitalize">{finalizedProfile.topic}</span>
@@ -575,7 +575,7 @@ function OnboardingChat() {
               onClick={() => void startGeneration(finalizedProfile)}
               className="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700"
             >
-              Build my curriculum →
+              Build my course →
             </button>
           </div>
         </div>
@@ -672,8 +672,8 @@ export default function OnboardingPage() {
 
   if (!session) return null;
 
-  // GateOrChat fetches curricula and short-circuits to the chat when there are
-  // no active curricula, so first-time users see the chat immediately.
+  // GateOrChat fetches courses and short-circuits to the chat when there are
+  // no active courses, so first-time users see the chat immediately.
   return (
     <main className="flex flex-1 flex-col bg-warm-100">
       {/* Header */}
@@ -703,10 +703,10 @@ export default function OnboardingPage() {
   );
 }
 
-// Fetches curricula once and either short-circuits to the chat (no active curricula)
+// Fetches courses once and either short-circuits to the chat (no active courses)
 // or renders ReturningUserGate with the data already in hand ? no second query.
 function GateOrChat({ onStartNew }: { onStartNew: () => void }) {
-  const { data: curricula, isLoading } = trpcReact.curriculum.list.useQuery();
+  const { data: courses, isLoading } = trpcReact.course.list.useQuery();
 
   if (isLoading) {
     return (
@@ -716,11 +716,11 @@ function GateOrChat({ onStartNew }: { onStartNew: () => void }) {
     );
   }
 
-  // Failed curricula shouldn't block access to the chat.
-  const activeCurricula = curricula?.filter((c) => c.generationStatus !== "failed") ?? [];
+  // Failed courses shouldn't block access to the chat.
+  const activeCurricula = courses?.filter((c) => c.generationStatus !== "failed") ?? [];
   if (activeCurricula.length === 0) {
     return <OnboardingChat />;
   }
 
-  return <ReturningUserGate curricula={activeCurricula} onStartNew={onStartNew} />;
+  return <ReturningUserGate courses={activeCurricula} onStartNew={onStartNew} />;
 }
