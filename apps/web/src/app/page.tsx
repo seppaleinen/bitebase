@@ -157,7 +157,7 @@ export default async function LandingPage() {
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
               <Link
                 href={isLoggedIn ? "/dashboard" : "/register"}
-                className="btn-primary inline-flex items-center gap-2 px-8 py-3.5 text-base"
+                className="bg-accent text-white inline-flex items-center gap-2 px-8 py-3.5 text-base font-semibold rounded-xl hover:bg-accent-dark"
               >
                 {isLoggedIn ? "Go to dashboard" : "Start learning for free"}
                 <ArrowRight className="h-4 w-4" />
