@@ -573,7 +573,7 @@ function OnboardingChat() {
             <button
               type="button"
               onClick={() => void startGeneration(finalizedProfile)}
-              className="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700"
+              className="flex-1 rounded-xl bg-accent px-4 py-2 text-xs font-medium text-white hover:bg-accent-dark"
             >
               Build my course →
             </button>
