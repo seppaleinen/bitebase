@@ -401,7 +401,7 @@ function OnboardingChat() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Generation overlay */}
       {isGenerating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm">
@@ -482,7 +482,7 @@ function OnboardingChat() {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 scrollbar-none">
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 scrollbar-none">
         <div className="mx-auto max-w-2xl space-y-6">
           {messages.map((m) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -690,7 +690,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Body ? gate or chat */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-accent" /></div>}>
           {showChat ? (
             <OnboardingChat />
@@ -699,6 +699,7 @@ export default function OnboardingPage() {
           )}
         </Suspense>
       </div>
+
     </main>
   );
 }

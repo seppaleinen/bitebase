@@ -512,7 +512,7 @@ test.describe("Curriculum page", () => {
     await page.goto("/course/course-1");
 
     // Lesson 1: completed badge
-    await expect(page.getByText("Done")).toBeVisible();
+    await expect(page.getByText("Done", { exact: true })).toBeVisible();
     // Lesson 2: available → Start link appears (first "Review" or "Start" link)
     await expect(page.getByRole("link", { name: /^Start$|^Review$/i }).first()).toBeVisible();
     // Lesson 3: locked → Lock icon, no Start link
