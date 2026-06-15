@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3001",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:8888",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -24,8 +24,8 @@ export default defineConfig({
   webServer: process.env.SKIP_WEB_SERVER
     ? undefined
     : {
-        command: "pnpm --filter @bitebase/web dev --port 3001",
-        url: "http://localhost:3001",
+        command: "pnpm --filter @bitebase/web dev --port 8888",
+        url: "http://localhost:8888",
         reuseExistingServer: true,
         timeout: 120_000,
       },

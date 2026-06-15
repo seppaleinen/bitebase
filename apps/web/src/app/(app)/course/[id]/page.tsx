@@ -173,7 +173,7 @@ export default function CurriculumPage({
     trpcReact.public.getPublishedLessons.useQuery({ courseId: id });
 
   const { data: progressList } =
-    trpcReact.course.getProgressForCurriculum.useQuery(
+    trpcReact.course.getProgressForCourse.useQuery(
       { courseId: id },
       { enabled: !!user }
     );

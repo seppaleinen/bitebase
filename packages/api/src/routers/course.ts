@@ -318,7 +318,7 @@ export const courseRouter = router({
     }),
 
   /** Get the current user's progress across all lessons in a course. */
-  getProgressForCurriculum: protectedProcedure
+  getProgressForCourse: protectedProcedure
     .input(z.object({ courseId: z.string() }))
     .query(async ({ ctx, input }) => {
       const courseLessons = await db
@@ -327,7 +327,7 @@ export const courseRouter = router({
         .where(eq(lessons.courseId, input.courseId));
       const lessonIds = courseLessons.map((l) => l.id);
       if (lessonIds.length === 0) return [];
-
+  
       return db
         .select()
         .from(progress)

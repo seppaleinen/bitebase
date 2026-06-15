@@ -128,7 +128,7 @@ export default function OnboardingScreen() {
       }
 
       if (courseId) {
-        router.push(`/course/${courseId}`);
+        router.push(`/curriculum/${courseId}`);
       }
     } catch {
       setGenerationStatus("Something went wrong.");

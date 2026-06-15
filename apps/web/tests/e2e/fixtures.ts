@@ -93,11 +93,11 @@ type TRPCMockData = {
   user?: object | null;
   categories?: { category: string; subcategories: string[] }[];
   admin?: {
-    listCurricula?: {
+    listCourses?: {
       courses: { id: string; title: string; totalLessons: number; createdAt: Date; versionSummary: { version: number; count: number }[] }[];
       versionRollup: { version: number; totalLessons: number; coursesCount: number; courses: string[] }[];
     };
-    regenerateCurriculum?: { courseId: string; lessonResults: { lessonId: string; newVersion: number }[] };
+    regenerateCourse?: { courseId: string; lessonResults: { lessonId: string; newVersion: number }[] };
     regenerateLessonsByVersion?: { lessonId: string; newVersion: number }[];
   };
   /** Profile returned by retryAndGetProfile */
@@ -118,11 +118,12 @@ function resolveData(procedurePath: string, data: TRPCMockData): unknown {
   if (procedurePath === "public.listCategories") return data.categories ?? [];
   if (procedurePath === "public.listPublished") return courses;
   if (procedurePath === "public.getPublishedCurriculum") return courses[0] ?? null;
+  if (procedurePath === "public.getPublishedCourse") return courses[0] ?? null;
   if (procedurePath === "public.getPublishedLessons") return lessons;
   if (procedurePath === "public.getPublishedLesson") return { lesson, quiz };
   if (procedurePath === "public.listCategories") return data.categories ?? [];
 
-  // Curriculum owner-only
+  // Course owner-only
   if (procedurePath === "course.list") return courses;
   if (procedurePath === "course.get") return courses[0] ?? null;
   if (procedurePath === "course.getLessons") return lessons;
@@ -130,15 +131,15 @@ function resolveData(procedurePath: string, data: TRPCMockData): unknown {
   if (procedurePath === "course.submitQuiz") return quizResult;
   if (procedurePath === "course.markLessonStarted") return null;
   if (procedurePath === "course.getNextLesson") return nextLesson ?? null;
-  if (procedurePath === "course.getProgressForCurriculum") return Array.isArray(progress) ? progress : (progress ? [progress] : []);
+  if (procedurePath === "course.getProgressForCourse") return Array.isArray(progress) ? progress : (progress ? [progress] : []);
   if (procedurePath === "course.delete") return { success: true };
-  if (procedurePath === "course.retryAndGetProfile") return retryProfile ?? { topic: "TypeScript", experienceLevel: "beginner", goals: "learn the basics", additionalContext: "", courseId: "curr-1" };
+  if (procedurePath === "course.retryAndGetProfile") return retryProfile ?? { topic: "TypeScript", experienceLevel: "beginner", goals: "learn the basics", additionalContext: "", courseId: "course-1" };
   if (procedurePath === "course.updateCategory") return null;
 
   // Admin
-  if (procedurePath === "admin.listCurricula") return data.admin?.listCurricula ?? { courses: [], versionRollup: [] };
+  if (procedurePath === "admin.listCourses") return data.admin?.listCourses ?? { courses: [], versionRollup: [] };
 
-  if (procedurePath === "admin.regenerateCurriculum") return data.admin?.regenerateCurriculum ?? { courseId: "", lessonResults: [] };
+  if (procedurePath === "admin.regenerateCourse") return data.admin?.regenerateCourse ?? { courseId: "", lessonResults: [] };
 
   if (procedurePath === "admin.regenerateLessonsByVersion") return data.admin?.regenerateLessonsByVersion ?? [];
 }
@@ -203,7 +204,7 @@ export async function mockAI(page: Page) {
     const courseId = "mock-course-1";
     const body = [
       `data: ${JSON.stringify({ event: "status", data: { message: "Saving your learning profile..." } })}\n\n`,
-      `data: ${JSON.stringify({ event: "course_created", data: { courseId, title: "Test Curriculum", totalSections: 2 } })}\n\n`,
+      `data: ${JSON.stringify({ event: "course_created", data: { courseId, title: "Test Course", totalSections: 2 } })}\n\n`,
       `data: ${JSON.stringify({ event: "status", data: { message: "Creating lessons..." } })}\n\n`,
       `data: ${JSON.stringify({ event: "done", data: { courseId } })}\n\n`,
     ].join("");

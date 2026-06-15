@@ -49,7 +49,7 @@ export default function DashboardScreen() {
           ItemSeparatorComponent={() => <View className="h-3" />}
           renderItem={({ item }) => (
             <TouchableOpacity
-               onPress={() => router.push(`/course/${item.id}`)}
+                onPress={() => router.push(`/curriculum/${item.id}`)}
                accessibilityLabel={item.title}
                accessibilityHint={`Open ${item.title} course`}
                className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
