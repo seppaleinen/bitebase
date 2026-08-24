@@ -112,3 +112,6 @@ scripts/smoke-screenshots/
 
 # Sentry
 .sentryclirc
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+graft/
