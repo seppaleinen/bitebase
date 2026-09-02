@@ -819,3 +819,171 @@ describe("ownership guard", () => {
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
+
+  // Horizontal privilege escalation tests - ensure users cannot access other users' data
+  describe("horizontal privilege escalation", () => {
+    beforeEach(() => {
+      // Mock a course belonging to MOCK_USER_ID
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([mockCurriculum]),
+      });
+      // Mock related data for lessons, progress, etc.
+      mockDb.select.mockImplementation(
+        vi.fn().mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([mockLesson]),
+        }) // for lesson lookup
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([]),
+        }) // for progress lookup (no existing progress)
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([mockLesson]),
+        }) // for lesson list in getLessons
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([]),
+        }) // for progress list in getLessons
+      );
+    });
+
+    it("get throws FORBIDDEN when course belongs to another user", async () => {
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+      await expect(
+        caller.course.get({ id: MOCK_CURRICULUM_ID })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("getLessons throws FORBIDDEN when course belongs to another user", async () => {
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+      await expect(
+        caller.course.getLessons({ courseId: MOCK_CURRICULUM_ID })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("getLesson throws FORBIDDEN when lesson belongs to another user's course", async () => {
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+      await expect(
+        caller.course.getLesson({ lessonId: MOCK_LESSON_ID })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("submitQuiz throws FORBIDDEN when lesson belongs to another user's course", async () => {
+      // Mock quiz lookup
+      mockDb.select.mockImplementation(
+        vi.fn().mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([{ id: "quiz-1", lessonId: MOCK_LESSON_ID, questions: [], passingScore: 70 }]),
+        }) // quiz lookup
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([]),
+        }) // existing progress (none)
+      );
+      mockDb.insert.mockReturnValue({
+        values: vi.fn().mockResolvedValue(undefined),
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+      await expect(
+        caller.course.submitQuiz({ lessonId: MOCK_LESSON_ID, answers: {} })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("markLessonCompleted throws FORBIDDEN when lesson belongs to another user's course", async () => {
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+      await expect(
+        caller.course.markLessonCompleted({ lessonId: MOCK_LESSON_ID })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("markLessonStarted throws FORBIDDEN when lesson belongs to another user's course", async () => {
+      // Mock no existing progress
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([]),
+      });
+      mockDb.insert.mockReturnValue({
+        values: vi.fn().mockResolvedValue(undefined),
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+      await expect(
+        caller.course.markLessonStarted({ lessonId: MOCK_LESSON_ID })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("getNextLesson throws FORBIDDEN when lesson belongs to another user's course", async () => {
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+      await expect(
+        caller.course.getNextLesson({ lessonId: MOCK_LESSON_ID })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("getProgressForCourse throws FORBIDDEN when course belongs to another user", async () => {
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+      await expect(
+        caller.course.getProgressForCourse({ courseId: MOCK_CURRICULUM_ID })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("getLessonProgress throws FORBIDDEN when lesson belongs to another user's course", async () => {
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+      await expect(
+        caller.course.getLessonProgress({ lessonId: MOCK_LESSON_ID })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("getProfile throws FORBIDDEN when course belongs to another user", async () => {
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+      await expect(
+        caller.course.getProfile({ courseId: MOCK_CURRICULUM_ID })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("updateCategory throws FORBIDDEN when course belongs to another user", async () => {
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+      await expect(
+        caller.course.updateCategory({ courseId: MOCK_CURRICULUM_ID, category: "Test" })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+  });

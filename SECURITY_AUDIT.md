@@ -1,23 +1,121 @@
 # Security Audit Checklist
 
-## Authentication & Session Management
+## 1. Authentication & Session Management
 - [x] Verify Better Auth JWT/session handling
 - [x] Check password hashing implementation
-- [x] Test session timeout and fixation prevention
+- [ ] Test session timeout and fixation prevention
 - [x] Validate cookie security flags (HttpOnly, Secure, SameSite)
 - [x] Audit OAuth configuration (if any) — No OAuth flows, password-only auth
+- [x] Review `__playwright_test__` cookie bypass in non-production environments
+- [ ] Verify session invalidation on logout
+- [ ] Check for session fixation vulnerabilities
+- [x] Audit session token storage in database
+
+## 2. Authorization & Access Control
+- [x] Test protected procedure guards in tRPC
+- [x] Check user ownership validation on course/lesson access
+- [x] Test admin router access controls for course operations
+- [x] Review publicRouter endpoints for proper access levels
+- [x] Verify IDOR protection on all user-specific resources
+- [ ] Check for horizontal privilege escalation (users accessing other users' data)
+- [ ] Verify vertical privilege escalation (regular users accessing admin functions)
+- [x] Review `isPublished` flag enforcement across all endpoints
+- [x] Audit rate limiting on expensive operations
+
+## 3. API Security & Endpoint Exposure
+- [x] Map all API endpoints (tRPC procedures, Next.js API routes)
+- [x] Verify all sensitive endpoints require authentication
+- [x] Check for exposed admin-only endpoints
+- [x] Review CORS configuration for over-permissive origins
+- [x] Verify CSRF protection on state-changing operations
+- [ ] Check for SSRF vulnerabilities in web fetch calls
+- [x] Audit `/api/auth/*` endpoints for proper access control
+- [x] Review `/api/health` endpoint exposure
+- [x] Verify no debug or development endpoints in production
+
+## 4. LLM Model Access & Security
+- [x] Verify Ollama API is not exposed externally
+- [x] Check if LLM endpoints require authentication
+- [x] Audit model loading mechanisms for abuse potential
+- [x] Review prompt injection prevention
+- [ ] Check for unrestricted system prompt modification
+- [x] Verify web search tool access controls
+- [x] Audit Tavily/SearXNG API key usage
+- [ ] Check for prompt injection via user input
+- [x] Verify LLM Studio endpoints are internal only
+
+## 5. Input Validation & Data Sanitization
+- [x] Test XSS vectors in lesson content rendering
+- [x] Verify quiz input sanitization
+- [x] Check search/filter input validation
+- [x] Validate markdown rendering safety
+- [x] Audit Zod schema validation coverage
+- [x] Test for SQL injection in search queries
+- [ ] Verify file upload validation (if any)
+- [x] Check for command injection in child_process calls
+- [x] Audit Edge-TTS binary execution for injection
+
+## 6. Data Security & Privacy
+- [x] Check for sensitive data in logs/errors
+- [x] Verify database query parameterization
+- [x] Review environment variable handling
+- [x] Check secrets management in Docker/k8s configs
+- [x] Audit user data exposure in API responses
+- [x] Verify no PII in error messages
+- [ ] Check for data retention policies
+- [ ] Review data export/delete capabilities
+
+## 7. Web Application Security
+- [x] Test CSRF protection on forms
+- [x] Check for IDOR vulnerabilities in API
+- [x] Validate business logic for course operations
+- [x] Review XSS prevention in React components
+- [ ] Check for open redirect vulnerabilities
+- [x] Audit Content Security Policy effectiveness
+- [x] Verify security headers are applied correctly
+- [x] Test for clickjacking protection
+
+## 8. Infrastructure & Deployment Security
+- [x] Scan Docker images for CVEs
+- [x] Review Kubernetes configurations
+- [x] Check CORS middleware for over-permissive origins
+- [x] Audit GitHub Actions workflow security
+- [x] Verify secrets not in Docker layers
+- [ ] Check for exposed Kubernetes dashboard
+- [ ] Verify network policies
+- [ ] Audit container privilege levels
+- [x] Check for insecure default configurations
+
+## 9. Third-Party Dependencies
+- [x] Audit npm dependencies for vulnerabilities
+- [x] Check Better Auth for known issues
+- [x] Verify Ollama/Edge-TTS integration security
+- [x] Check Dependabot/automated scanning
+- [x] Review transitive dependencies
+- [x] Audit deprecated packages
+- [ ] Check for malicious packages
+
+## 10. Compliance & Documentation
+- [x] Review security policies
+- [x] Check error messages for information disclosure
+- [x] Document security findings
+- [x] Verify SECURITY.md accuracy
+- [x] Check for vulnerability disclosure policy
+- [ ] Verify GDPR/privacy compliance considerations
 
 ### Auth Findings
 **GRN:**
 - ✅ Better Auth configured with `secret` from env var `BETTER_AUTH_SECRET`
 - ✅ Session cookies use `HttpOnly`, `Secure`, `SameSite: none` (permissive for cross-origin mobile)
-- ✅ Password hashing handled by Better Auth internally (bcrypt-style)
+- ✅ Password hashing handled by Better Auth internally
 - ✅ Session token stored in database with `ip_address` and `user_agent` tracking
 - ✅ `protectedProcedure` middleware properly validates session before any guarded route
+- ✅ `__playwright_test__` cookie bypass only in non-production dev environments
 
 **YEL:**
 - ⚠️ `SameSite: none` is necessary for cross-origin mobile auth but increases CSRF surface area — rely on `httpOnly` + `secure` cookie flags
 - ⚠️ No explicit session inactivity timeout configured (relies on Better Auth defaults)
+- ⚠️ Session token ip_address/user_agent tracking not enforced at API level (only stored in DB)
 
 ## Authorization & Access Control
 - [x] Test protected procedure guards in tRPC

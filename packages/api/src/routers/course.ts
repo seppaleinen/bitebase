@@ -30,33 +30,34 @@ export const courseRouter = router({
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Check if course exists first (for existence verification)
       const [course] = await db
         .select()
         .from(courses)
-        .where(
-          and(
-            eq(courses.id, input.id),
-            eq(courses.userId, ctx.session.user.id)
-          )
-        );
+        .where(eq(courses.id, input.id));
 
       if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      // Verify ownership - throw FORBIDDEN to avoid leaking resource existence
+      if (course.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
       return course;
     }),
 
   getLessons: protectedProcedure
     .input(z.object({ courseId: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Check if course exists first
       const [course] = await db
         .select()
         .from(courses)
-        .where(
-          and(
-            eq(courses.id, input.courseId),
-            eq(courses.userId, ctx.session.user.id)
-          )
-        );
+        .where(eq(courses.id, input.courseId));
+
       if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      // Verify ownership - throw FORBIDDEN to avoid leaking resource existence
+      if (course.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
 
       const lessonList = await db
         .select()
@@ -88,13 +89,12 @@ export const courseRouter = router({
       const [course] = await db
         .select()
         .from(courses)
-        .where(
-          and(
-            eq(courses.id, lesson.courseId),
-            eq(courses.userId, ctx.session.user.id)
-          )
-        );
+        .where(eq(courses.id, lesson.courseId));
       if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      // Verify ownership - throw FORBIDDEN to avoid leaking resource existence
+      if (course.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
 
       const [quiz] = await db
         .select()
@@ -122,6 +122,22 @@ export const courseRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify lesson exists and belongs to a course owned by the user
+      const [lesson] = await db
+        .select()
+        .from(lessons)
+        .where(eq(lessons.id, input.lessonId));
+      if (!lesson) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const [course] = await db
+        .select()
+        .from(courses)
+        .where(eq(courses.id, lesson.courseId));
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      if (course.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
       const [quiz] = await db
         .select()
         .from(quizzes)
