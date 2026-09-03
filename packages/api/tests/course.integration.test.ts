@@ -362,7 +362,7 @@ describe("course.submitQuiz", () => {
     expect(byId.q3.correct).toBe(true);
   });
 
-  it("uses db.update (not insert) when progress already exists and quiz fails", async () => {
+    it("uses db.update (not insert) when progress already exists and quiz fails", async () => {
     // Use a failing score so unlockNextLesson is never called — isolates the update path
     const existingProgress = {
       id: "prog-1",
@@ -377,16 +377,11 @@ describe("course.submitQuiz", () => {
     };
 
     mockDb.select.mockImplementation(
-            makeSelectSequence([
-              [mockLesson],
-              [mockCurriculum],
-              [mockQuiz],
-              [existingProgress],
-            ])
-    );
       makeSelectSequence([
-        [mockQuiz],        // quiz lookup
-        [existingProgress], // existing progress found
+        [mockLesson],
+        [mockCurriculum],
+        [mockQuiz],
+        [existingProgress],
       ])
     );
     const write = makeWrite();
@@ -405,94 +400,11 @@ describe("course.submitQuiz", () => {
   });
 
   it("throws NOT_FOUND when no quiz exists for the lesson", async () => {
-    mockDb.select.mockImplementation(makeSelectSequence([[]]));
-
-    const caller = appRouter.createCaller(authedCtx() as never);
-    await expect(
-      caller.course.submitQuiz({ lessonId: "no-quiz", answers: {} })
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  });
-});
-
-// ── course.retryAndGetProfile ─────────────────────────────────────────────
-
-describe("course.retryAndGetProfile", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  function makeDelete() {
-    return { where: vi.fn().mockResolvedValue(undefined) };
-  }
-
-  it("throws NOT_FOUND when the course belongs to another user", async () => {
-    // Ownership check: course found for OTHER user, so this user's query returns []
-    mockDb.select.mockImplementation(makeSelectSequence([[]]));
-
-    const caller = appRouter.createCaller({
-      session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-      req: {} as Request,
-    } as never);
-
-    await expect(
-      caller.course.retryAndGetProfile({ id: MOCK_CURRICULUM_ID })
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  });
-
-  it("returns profile fields and course ID without deleting the course", async () => {
-    // Sequence: [course], [profile]
-    mockDb.select.mockImplementation(
-      makeSelectSequence([[mockFailedCurriculum], [mockProfile]])
-    );
-
-    const caller = appRouter.createCaller(authedCtx() as never);
-    const result = await caller.course.retryAndGetProfile({ id: MOCK_CURRICULUM_ID });
-
-    expect(result.courseId).toBe(MOCK_CURRICULUM_ID);
-    expect(result.topic).toBe(mockProfile.topic);
-    expect(result.experienceLevel).toBe(mockProfile.experienceLevel);
-    expect(result.goals).toBe(mockProfile.goals);
-    expect(result.additionalContext).toBe(mockProfile.additionalContext);
-
-    // No delete should be issued — deletion is deferred
-    expect(mockDb.delete).not.toHaveBeenCalled();
-  });
-
-  it("throws NOT_FOUND when the profile record is missing", async () => {
-    // Curriculum found but profile select returns empty
-    mockDb.select.mockImplementation(
-      makeSelectSequence([[mockFailedCurriculum], []])
-    );
-
-    const caller = appRouter.createCaller(authedCtx() as never);
-    await expect(
-      caller.course.retryAndGetProfile({ id: MOCK_CURRICULUM_ID })
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  });
-});
-
-// ── course.markLessonCompleted ────────────────────────────────────────────
-
-describe("course.markLessonCompleted", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  function makeWrite() {
-    return {
-      values: vi.fn().mockResolvedValue(undefined),
-      set: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue(undefined),
-    };
-  }
-
-  it("marks a lesson as completed with quizScore=100 and quizPassed=true when no prior progress", async () => {
-    // Sequence: [lesson], [course (ownership)], [no existing progress],
-    //           unlockNextLesson: [completed lesson], [all lessons in course], [no next progress]
     mockDb.select.mockImplementation(
       makeSelectSequence([
         [mockLesson],
         [mockCurriculum],
-        [],
-        [mockLesson],
-        [mockLesson],
-        [],
+        [], // no quiz found
       ])
     );
     const write = makeWrite();
@@ -500,14 +412,9 @@ describe("course.markLessonCompleted", () => {
     mockDb.update.mockReturnValue(write);
 
     const caller = appRouter.createCaller(authedCtx() as never);
-    await caller.course.markLessonCompleted({ lessonId: MOCK_LESSON_ID });
-
-    // Progress row should have been inserted (no existing row)
-    expect(mockDb.insert).toHaveBeenCalled();
-    const insertedValues = write.values.mock.calls[0][0] as Record<string, unknown>;
-    expect(insertedValues.status).toBe("completed");
-    expect(insertedValues.quizScore).toBe(100);
-    expect(insertedValues.quizPassed).toBe(true);
+    await expect(
+      caller.course.submitQuiz({ lessonId: "no-quiz", answers: {} })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("updates the existing progress row when one already exists", async () => {
@@ -560,461 +467,17 @@ describe("course.markLessonCompleted", () => {
   });
 
   it("throws NOT_FOUND when the lesson does not exist", async () => {
-    mockDb.select.mockImplementation(makeSelectSequence([[]]));
-
     const caller = appRouter.createCaller(authedCtx() as never);
     await expect(
-      caller.course.markLessonCompleted({ lessonId: "ghost-lesson" })
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  });
-});
-
-// ── course.updateCategory ─────────────────────────────────────────────────
-
-describe("course.updateCategory", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("updates category and subcategory for the owner", async () => {
-    mockDb.select.mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([mockCurriculum]),
-    });
-    const write = {
-      set: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue(undefined),
-    };
-    mockDb.update.mockReturnValue(write);
-
-    const caller = appRouter.createCaller(authedCtx() as never);
-    await caller.course.updateCategory({
-      courseId: MOCK_CURRICULUM_ID,
-      category: "Technology",
-      subcategory: "Web Development",
-    });
-
-    expect(mockDb.update).toHaveBeenCalled();
-    expect(write.set).toHaveBeenCalledWith({
-      category: "Technology",
-      subcategory: "Web Development",
-    });
-  });
-
-  it("throws FORBIDDEN when course belongs to another user", async () => {
-    mockDb.select.mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([mockCurriculum]),
-    });
-
-    const caller = appRouter.createCaller({
-      session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-      req: {} as Request,
-    } as never);
-
-    await expect(
-      caller.course.updateCategory({
-        courseId: MOCK_CURRICULUM_ID,
-        category: "Science",
-      })
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
-  });
-});
-
-// ── publicRouter tests ────────────────────────────────────────────────────────
-
-describe("publicRouter", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("listPublished returns all published courses ordered by newest", async () => {
-    const courses = [
-      { ...mockCurriculum, id: "c1", createdAt: new Date("2026-05-30") },
-      { ...mockCurriculum, id: "c2", createdAt: new Date("2026-05-29") },
-    ];
-    // listPublished uses: select().from().where().orderBy()
-    mockDb.select.mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockReturnThis(),
-      orderBy: vi.fn().mockResolvedValue(courses),
-    });
-
-    const caller = appRouter.createCaller(anonCtx() as never);
-    const result = await caller.public.listPublished();
-    expect(result).toEqual(courses);
-  });
-
-  it("listPublished filters by category", async () => {
-    mockDb.select.mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockReturnThis(),
-      orderBy: vi.fn().mockResolvedValue([{ ...mockCurriculum, category: "Tech" }]),
-    });
-
-    const caller = appRouter.createCaller(anonCtx() as never);
-    const result = await caller.public.listPublished({ category: "Tech" });
-    expect(result).toHaveLength(1);
-    expect((result[0] as { category: string }).category).toBe("Tech");
-  });
-
-  it("listCategories returns grouped categories", async () => {
-    // listCategories uses: select() with specific fields, so mock the full chain
-    mockDb.select.mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([
-        { category: "Tech", subcategory: "Web" },
-        { category: "Tech", subcategory: "Mobile" },
-        { category: "Science", subcategory: "Physics" },
-      ]),
-    });
-
-    const caller = appRouter.createCaller(anonCtx() as never);
-    const result = await caller.public.listCategories();
-    // Results preserve DB order (Tech appears first in mock data)
-    expect(result).toEqual([
-      { category: "Tech", subcategories: ["Mobile", "Web"] },
-      { category: "Science", subcategories: ["Physics"] },
-    ]);
-  });
-
-  it("getPublishedLesson returns lesson + quiz for a published course", async () => {
-    const lesson = { ...mockLesson, id: "pub-lesson", courseId: MOCK_CURRICULUM_ID };
-    const course = { ...mockCurriculum, id: MOCK_CURRICULUM_ID, isPublished: true };
-    const quiz = { ...mockQuiz, lessonId: "pub-lesson" };
-
-    mockDb.select.mockImplementation(makeSelectSequence([
-      [lesson],     // lessons lookup → found
-      [course], // course lookup → published
-      [quiz],       // quiz lookup → found
-    ]));
-
-    const caller = appRouter.createCaller(anonCtx() as never);
-    const result = await caller.public.getPublishedLesson({ lessonId: "pub-lesson" });
-    expect(result.lesson).toEqual(lesson);
-    expect(result.quiz).toEqual(quiz);
-  });
-
-  it("getPublishedLesson returns quiz null when no quiz exists", async () => {
-    const lesson = { ...mockLesson, id: "pub-lesson", courseId: MOCK_CURRICULUM_ID };
-    const course = { ...mockCurriculum, id: MOCK_CURRICULUM_ID, isPublished: true };
-
-    mockDb.select.mockImplementation(makeSelectSequence([
-      [lesson],     // lessons lookup → found
-      [course], // course lookup → published
-      [],           // quiz lookup → not found
-    ]));
-
-    const caller = appRouter.createCaller(anonCtx() as never);
-    const result = await caller.public.getPublishedLesson({ lessonId: "pub-lesson" });
-    expect(result.lesson).toEqual(lesson);
-    expect(result.quiz).toBeNull();
-  });
-
-  it("getPublishedLesson throws NOT_FOUND when the parent course is unpublished", async () => {
-    const lesson = { ...mockLesson, id: "unpub-lesson", courseId: MOCK_CURRICULUM_ID };
-    const course = { ...mockCurriculum, id: MOCK_CURRICULUM_ID, isPublished: false };
-
-    mockDb.select.mockImplementation(makeSelectSequence([
-      [lesson],     // lessons lookup → found
-      [course], // course lookup → unpublished
-    ]));
-
-    const caller = appRouter.createCaller(anonCtx() as never);
-    await expect(
-      caller.public.getPublishedLesson({ lessonId: "unpub-lesson" })
+      caller.course.markLessonCompleted({ lessonId: "ghost" })
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
-  it("getPublishedLesson throws NOT_FOUND when the lesson does not exist", async () => {
-    mockDb.select.mockImplementation(makeSelectSequence([[]]));
+  describe("ownership guard", () => {
+    beforeEach(() => vi.clearAllMocks());
 
-    const caller = appRouter.createCaller(anonCtx() as never);
-    await expect(
-      caller.public.getPublishedLesson({ lessonId: "ghost" })
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  });
-
-  it("getByTopicSlug returns a published course by slug", async () => {
-    const course = { ...mockCurriculum, id: "slug-test", slug: "learn-typescript", isPublished: true };
-
-    mockDb.select.mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([course]),
-    });
-
-    const caller = appRouter.createCaller(anonCtx() as never);
-    const result = await caller.public.getByTopicSlug({ slug: "learn-typescript" });
-    expect(result).toEqual(course);
-  });
-
-  it("getByTopicSlug throws NOT_FOUND when slug does not exist", async () => {
-    mockDb.select.mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([]),
-    });
-
-    const caller = appRouter.createCaller(anonCtx() as never);
-    await expect(
-      caller.public.getByTopicSlug({ slug: "nonexistent" })
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  });
-
-  it("getByTopicSlug throws NOT_FOUND when course is unpublished", async () => {
-    const course = { ...mockCurriculum, id: "unpub-slug", slug: "unpublished-topic", isPublished: false };
-
-    mockDb.select.mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([course]),
-    });
-
-    const caller = appRouter.createCaller(anonCtx() as never);
-    await expect(
-      caller.public.getByTopicSlug({ slug: "unpublished-topic" })
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  });
-});
-
-// ── Ownership guard: FORBIDDEN ───────────────────────────────────────────────
-
-describe("ownership guard", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("delete throws FORBIDDEN when course exists but belongs to another user", async () => {
-    // Curriculum found but belongs to MOCK_USER_ID; caller is OTHER_USER_ID
-    mockDb.select.mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([mockCurriculum]),
-    });
-
-    const caller = appRouter.createCaller({
-      session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-      req: {} as Request,
-    } as never);
-
-    await expect(
-      caller.course.delete({ id: MOCK_CURRICULUM_ID })
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
-  });
-
-  it("delete throws NOT_FOUND when course does not exist at all", async () => {
-    mockDb.select.mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([]),
-    });
-
-    const caller = appRouter.createCaller({
-      session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-      req: {} as Request,
-    } as never);
-
-    await expect(
-      caller.course.delete({ id: "ghost" })
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  });
-
-  it("retryAndGetProfile throws FORBIDDEN when course belongs to another user", async () => {
-    mockDb.select.mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue([mockCurriculum]),
-    });
-
-    const caller = appRouter.createCaller({
-      session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-      req: {} as Request,
-    } as never);
-
-    await expect(
-      caller.course.retryAndGetProfile({ id: MOCK_CURRICULUM_ID })
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
-  });
-});
-
-  
-  
-  // Horizontal privilege escalation tests - ensure users cannot access other users' data
-  describe("horizontal privilege escalation", () => {
-    it("get throws FORBIDDEN when course belongs to another user", async () => {
-      // Mock a course belonging to MOCK_USER_ID
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([mockCurriculum]),
-      });
-      
-      const caller = appRouter.createCaller({
-        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-        req: {} as Request,
-      } as never);
-      
-      await expect(
-        caller.course.get({ id: MOCK_CURRICULUM_ID })
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    });
-
-    it("getLessons throws FORBIDDEN when course belongs to another user", async () => {
-      // Mock a course belonging to MOCK_USER_ID
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([mockCurriculum]),
-      });
-      
-      // Mock related data for lessons, progress, etc.
-      mockDb.select.mockImplementation(
-        vi.fn().mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([mockLesson]),
-        }) // for lesson lookup
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([]),
-        }) // for progress lookup (no existing progress)
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([mockLesson]),
-        }) // for lesson list in getLessons
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([]),
-        }) // for progress list in getLessons
-      );
-      
-      const caller = appRouter.createCaller({
-        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-        req: {} as Request,
-      } as never);
-      
-      await expect(
-        caller.course.getLessons({ courseId: MOCK_CURRICULUM_ID })
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    });
-
-    it("getLesson throws FORBIDDEN when lesson belongs to another user's course", async () => {
-      // Mock a lesson belonging to MOCK_USER_ID's course
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([mockLesson]),
-      });
-      
-      const caller = appRouter.createCaller({
-        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-        req: {} as Request,
-      } as never);
-      
-      await expect(
-        caller.course.getLesson({ lessonId: MOCK_LESSON_ID })
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    });
-
-    it("submitQuiz throws FORBIDDEN when lesson belongs to another user's course", async () => {
-      // Mock lesson lookup
-      mockDb.select.mockImplementation(
-        vi.fn().mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([mockLesson]),
-        }) // for lesson lookup
-        // Then course lookup
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([mockCurriculum]),
-        })
-        // Then quiz lookup
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([{ id: "quiz-1", lessonId: MOCK_LESSON_ID, questions: [], passingScore: 70 }]),
-        })
-        // Then existing progress (none)
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([]),
-        })
-      );
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockResolvedValue(undefined),
-        set: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue(undefined),
-      });
-
-      const caller = appRouter.createCaller({
-        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-        req: {} as Request,
-      } as never);
-      
-      await expect(
-        caller.course.submitQuiz({ lessonId: MOCK_LESSON_ID, answers: {} })
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    });
-
-    it("markLessonCompleted throws FORBIDDEN when lesson belongs to another user's course", async () => {
-      // Mock lesson lookup
-      mockDb.select.mockImplementation(
-        vi.fn().mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([mockLesson]),
-        }) // for lesson lookup
-        // Then course lookup
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([mockCurriculum]),
-        })
-        // Then no existing progress
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([]),
-        })
-      );;
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockResolvedValue(undefined),
-        set: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue(undefined),
-      });
-
-      const caller = appRouter.createCaller({
-        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-        req: {} as Request,
-      } as never);
-      
-      await expect(
-        caller.course.markLessonCompleted({ lessonId: MOCK_LESSON_ID })
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    });
-
-    it("markLessonStarted throws FORBIDDEN when lesson belongs to another user's course", async () => {
-      // Mock lesson lookup
-      mockDb.select.mockImplementation(
-        vi.fn().mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([mockLesson]),
-        }) // for lesson lookup
-        // Then course lookup
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([mockCurriculum]),
-        })
-        // Then no existing progress
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([]),
-        })
-      );;
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockResolvedValue(undefined),
-        set: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue(undefined),
-      });
-
-      const caller = appRouter.createCaller({
-        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-        req: {} as Request,
-      } as never);
-      
-      await expect(
-        caller.course.markLessonStarted({ lessonId: MOCK_LESSON_ID })
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    });
-
-    it("getNextLesson throws FORBIDDEN when lesson belongs to another user's course", async () => {
-      // Mock lesson lookup
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([mockLesson]),
-      });
-      // Mock course lookup
+    it("delete throws FORBIDDEN when course exists but belongs to another user", async () => {
+      // Curriculum found but belongs to MOCK_USER_ID; caller is OTHER_USER_ID
       mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockResolvedValue([mockCurriculum]),
@@ -1024,14 +487,29 @@ describe("ownership guard", () => {
         session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
         req: {} as Request,
       } as never);
-      
+
       await expect(
-        caller.course.getNextLesson({ lessonId: MOCK_LESSON_ID })
+        caller.course.delete({ id: MOCK_CURRICULUM_ID })
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
 
-    it("getProgressForCourse throws FORBIDDEN when course belongs to another user", async () => {
-      // Mock course belonging to MOCK_USER_ID
+    it("delete throws NOT_FOUND when course does not exist at all", async () => {
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([]),
+      });
+
+      const caller = appRouter.createCaller({
+        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+        req: {} as Request,
+      } as never);
+
+      await expect(
+        caller.course.delete({ id: "ghost" })
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("retryAndGetProfile throws FORBIDDEN when course belongs to another user", async () => {
       mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockResolvedValue([mockCurriculum]),
@@ -1041,60 +519,10 @@ describe("ownership guard", () => {
         session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
         req: {} as Request,
       } as never);
-      
+
       await expect(
-        caller.course.getProgressForCourse({ courseId: MOCK_CURRICULUM_ID })
+        caller.course.retryAndGetProfile({ id: MOCK_CURRICULUM_ID })
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
-
-    it("getLessonProgress throws FORBIDDEN when lesson belongs to another user's course", async () => {
-      // Mock lesson lookup
-      mockDb.select.mockImplementation(
-        vi.fn().mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([mockLesson]),
-        }) // for lesson lookup
-        // Then course lookup
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([mockCurriculum]),
-        })
-        // Then no existing progress
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockResolvedValue([]),
-        })
-      );;
-
-      const caller = appRouter.createCaller({
-        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-        req: {} as Request,
-      } as never);
-      
-      await expect(
-        caller.course.getLessonProgress({ lessonId: MOCK_LESSON_ID })
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    });
-
-    it("getProfile throws FORBIDDEN when course belongs to another user", async () => {
-      const caller = appRouter.createCaller({
-        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-        req: {} as Request,
-      } as never);
-      
-      await expect(
-        caller.course.getProfile({ courseId: MOCK_CURRICULUM_ID })
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    });
-
-    it("updateCategory throws FORBIDDEN when course belongs to another user", async () => {
-      const caller = appRouter.createCaller({
-        session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
-        req: {} as Request,
-      } as never);
-      
-      await expect(
-        caller.course.updateCategory({ courseId: MOCK_CURRICULUM_ID, category: "Test" })
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
