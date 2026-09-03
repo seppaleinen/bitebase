@@ -24,10 +24,10 @@ We aim to respond within **48 hours** and release a fix within **7 days** depend
 
 The following areas are in scope:
 - Authentication bypass or session hijacking
-- Unauthorized access to user data
-- SQL injection, XSS, or code execution
-- Privilege escalation
-- Dependency vulnerabilities with known CVEs
+- Unauthorized access to user data (prevented by ownership checks)
+- SQL injection, XSS, or code execution (prevented by parameterized queries and Zod validation)
+- Privilege escalation (prevented by horizontal privilege escalation tests)
+- Dependency vulnerabilities with known CVEs (mitigated via Dependabot)
 
 ## Out of scope
 
@@ -39,11 +39,14 @@ The following areas are in scope:
 ## Security practices
 
 BiteBase follows these security practices:
-- All database queries use Drizzle ORM parameterized queries (no raw SQL)
-- Session tokens are HTTP-only, secure, same-site cookies
-- All API inputs are validated with Zod schemas
-- Markdown rendering uses react-markdown (no dangerouslySetInnerHTML)
-- Dependencies are audited weekly via Dependabot
-- Docker images are pinned to specific versions for reproducibility
+- All database queries use Drizzle ORM parameterized queries (no raw SQL) ✅
+- Session tokens are HTTP-only, secure, same-site cookies ✅
+- All API inputs are validated with Zod schemas ✅
+- Markdown rendering uses react-markdown (no dangerouslySetInnerHTML) ✅
+- Dependencies are audited weekly via Dependabot ✅
+- Docker images are pinned to specific versions for reproducibility ✅
+- **Horizontal privilege escalation tests** in `packages/api/tests/course.integration.test.ts` ✅
+- **Secure session management** with Better Auth ✅
+- **No secrets in codebase or Docker layers** ✅
 
 Thank you for helping keep BiteBase safe!

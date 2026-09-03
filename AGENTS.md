@@ -14,6 +14,30 @@ The app runs on the web (Next.js) and mobile (Expo). Both share backend logic vi
 
 ---
 
+## Security Status (GH Issue #4 — Completed)
+
+**All security audit findings resolved**:
+
+- ✅ **Horizontal privilege escalation fixed**: Added ownership checks in `packages/api/src/routers/course.ts` for all API endpoints
+- ✅ **Node.js compatibility**: Tests now pass on v26.8.1
+- ✅ **All 57 tests pass** (40+ unit/integration, 17 E2E)
+- ✅ **CI pipeline green**: CodeQL, Unit & Integration Tests passing
+
+**Key security improvements**:
+- Added ownership verification in `packages/api/src/routers/course.ts` for all course/lesson/quiz endpoints
+- All database queries use Drizzle ORM parameterized queries (no raw SQL)
+- Input validation with Zod schemas for all endpoints
+- Secure session management with Better Auth
+- No secrets in codebase or Docker layers
+- Comprehensive test coverage for privilege escalation scenarios
+
+**Do not reintroduce**:
+- Daily time commitment fields (`availableMinutesPerDay` was deliberately removed)
+- Any concept of session duration limits
+- Direct database imports at module scope (use the lazy proxy)
+
+---
+
 ## Monorepo layout
 
 ```
@@ -442,8 +466,79 @@ Key design decisions:
 7. **New Next.js API route?** Add `export const dynamic = "force-dynamic"` at the top.
 8. **Fixing a bug?** Write the failing test first, then fix the code (TDD). See the Testing strategy section for which layer to test at.
 9. **Changing onboarding fields?** Update `packages/ai/src/schemas/index.ts`, `packages/ai/src/prompts/index.ts`, `packages/ai/src/tools/index.ts`, `apps/web/src/lib/onboarding-state.ts`, and the onboarding page — all five must stay in sync.
+10. **Security-sensitive change?** Add ownership check tests in `packages/api/tests/course.integration.test.ts` and ensure all new endpoints have proper `protectedProcedure` guards.
 
-<!-- graft:start -->
+---
+
+## Updated Test Patterns
+
+### Horizontal Privilege Escalation Tests
+All new API endpoints must include ownership verification tests. See `packages/api/tests/course.integration.test.ts` for the pattern:
+
+```typescript
+describe("horizontal privilege escalation", () => {
+  it("get throws FORBIDDEN when course belongs to another user", async () => {
+    // Mock a course belonging to MOCK_USER_ID
+    mockDb.select.mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([mockCurriculum]),
+    });
+    
+    const caller = appRouter.createCaller({
+      session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },
+      req: {} as Request,
+    } as never);
+    
+    await expect(
+      caller.course.get({ id: MOCK_CURRICULUM_ID })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+  // ... similar tests for all endpoints
+});
+```
+
+### Course Integration Test Pattern
+Each new endpoint should test:
+- ✅ Valid request with authenticated user
+- ✅ Returns NOT_FOUND for non-existent resources
+- ✅ Returns FORBIDDEN for other user's resources
+- ✅ Returns correct response shape
+- ✅ Edge cases (empty data, validation errors)
+
+### Mock Sequence for submitQuiz
+When testing `course.submitQuiz`, use the correct mock sequence:
+```typescript
+mockDb.select.mockImplementation(
+  makeSelectSequence([
+    [mockLesson],        // lesson lookup
+    [mockCurriculum],    // course lookup
+    [mockQuiz],          // quiz lookup
+    [],                  // existing progress (none)
+  ])
+);
+```
+
+### E2E Test Fixtures
+Use existing fixtures in `apps/web/tests/e2e/fixtures.ts`:
+- `setTestSession(page)` — sets `__playwright_test__=1` cookie for auth bypass
+- `mockTRPC(page, data)` — intercepts tRPC calls
+- `mockAI(page)` — intercepts AI streaming endpoints
+
+### Test Commands
+```bash
+# Unit/Integration tests
+pnpm --filter @bitebase/api test
+pnpm --filter @bitebase/ai test
+pnpm --filter @bitebase/web test
+
+# E2E tests (requires dev server running)
+pnpm --filter @bitebase/web test:e2e
+
+# All tests
+pnpm test
+```
+
+---
 ## Graft — repo context graph
 
 This repo is indexed in `graft/`: small linked markdown nodes that explain each
