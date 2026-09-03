@@ -4,7 +4,8 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
-    "./router": "./src/router.ts"
+    "./router": "./src/router.ts",
+    "./lib/metrics": "./src/lib/metrics.ts"
   },
   "scripts": {
     "test": "vitest run",
@@ -16,6 +17,7 @@
     "better-auth": "^1.2.8",
     "drizzle-orm": "^0.44.2",
     "postgres": "^3.4.5",
+    "prom-client": "^15.1.3",
     "zod": "^3.25.3"
   },
   "devDependencies": {

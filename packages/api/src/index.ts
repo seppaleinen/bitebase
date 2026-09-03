@@ -6,3 +6,5 @@ export type { Context } from "./trpc";
 export { scoreQuiz } from "./lib/quiz-scoring";
 export type { QuizScoreResult, QuizFeedbackItem } from "./lib/quiz-scoring";
 export { getEffectiveModelConfig } from "./lib/model-config";
+export { register, recordHttpRequest, recordTrpcProcedure, recordDbQuery, updateSystemMetrics } from "./lib/metrics";
+export type { } from "./lib/metrics";

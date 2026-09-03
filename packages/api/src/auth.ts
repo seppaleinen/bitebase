@@ -11,6 +11,16 @@ function createAuth() {
     emailAndPassword: {
       enabled: true,
     },
+    session: {
+      // Session expires after 30 days of inactivity
+      expiresIn: 60 * 60 * 24 * 30,
+      // Update session activity every 5 minutes
+      updateAge: 60 * 5,
+      // Session is considered fresh for 10 minutes
+      freshAge: 60 * 10,
+      // Regenerate session ID on login to prevent session fixation
+      regenerateIdOnLogin: true,
+    },
     trustedOrigins: (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "").split(",").filter(Boolean),
     secret: process.env.BETTER_AUTH_SECRET!,
     baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
