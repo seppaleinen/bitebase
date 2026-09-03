@@ -301,10 +301,9 @@ describe("course.submitQuiz", () => {
     // Sequence: [quiz], [no existing progress], [completed lesson], [all lessons with one more], [no next progress]
     mockDb.select.mockImplementation(
       makeSelectSequence([
-        [mockQuiz],
-        [],
         [mockLesson],
-        [mockLesson, { ...mockLesson, id: "lesson-2", order: 1 }],
+        [mockCurriculum],
+        [mockQuiz],
         [],
       ])
     );
@@ -378,6 +377,13 @@ describe("course.submitQuiz", () => {
     };
 
     mockDb.select.mockImplementation(
+            makeSelectSequence([
+              [mockLesson],
+              [mockCurriculum],
+              [mockQuiz],
+              [existingProgress],
+            ])
+    );
       makeSelectSequence([
         [mockQuiz],        // quiz lookup
         [existingProgress], // existing progress found
@@ -936,20 +942,22 @@ describe("ownership guard", () => {
 
     it("markLessonCompleted throws FORBIDDEN when lesson belongs to another user's course", async () => {
       // Mock lesson lookup
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([mockLesson]),
-      });
-      // Mock course lookup
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([mockCurriculum]),
-      });
-      // Mock no existing progress
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([]),
-      });
+      mockDb.select.mockImplementation(
+        vi.fn().mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([mockLesson]),
+        }) // for lesson lookup
+        // Then course lookup
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([mockCurriculum]),
+        })
+        // Then no existing progress
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([]),
+        })
+      );;
       mockDb.insert.mockReturnValue({
         values: vi.fn().mockResolvedValue(undefined),
         set: vi.fn().mockReturnThis(),
@@ -968,20 +976,22 @@ describe("ownership guard", () => {
 
     it("markLessonStarted throws FORBIDDEN when lesson belongs to another user's course", async () => {
       // Mock lesson lookup
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([mockLesson]),
-      });
-      // Mock course lookup
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([mockCurriculum]),
-      });
-      // Mock no existing progress
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([]),
-      });
+      mockDb.select.mockImplementation(
+        vi.fn().mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([mockLesson]),
+        }) // for lesson lookup
+        // Then course lookup
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([mockCurriculum]),
+        })
+        // Then no existing progress
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([]),
+        })
+      );;
       mockDb.insert.mockReturnValue({
         values: vi.fn().mockResolvedValue(undefined),
         set: vi.fn().mockReturnThis(),
@@ -1039,20 +1049,22 @@ describe("ownership guard", () => {
 
     it("getLessonProgress throws FORBIDDEN when lesson belongs to another user's course", async () => {
       // Mock lesson lookup
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([mockLesson]),
-      });
-      // Mock course lookup
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([mockCurriculum]),
-      });
-      // Mock no existing progress
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([]),
-      });
+      mockDb.select.mockImplementation(
+        vi.fn().mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([mockLesson]),
+        }) // for lesson lookup
+        // Then course lookup
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([mockCurriculum]),
+        })
+        // Then no existing progress
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockResolvedValue([]),
+        })
+      );;
 
       const caller = appRouter.createCaller({
         session: { user: { id: OTHER_USER_ID, name: "Other", email: "o@o.com" } },

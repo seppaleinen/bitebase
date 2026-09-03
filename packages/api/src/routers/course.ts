@@ -193,9 +193,10 @@ export const courseRouter = router({
       return { score, passed, correct, total, feedback };
     }),
 
-  markLessonCompleted: protectedProcedure
+markLessonCompleted: protectedProcedure
     .input(z.object({ lessonId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Verify lesson exists and belongs to a course owned by the user
       const [lesson] = await db
         .select()
         .from(lessons)
@@ -205,13 +206,11 @@ export const courseRouter = router({
       const [course] = await db
         .select()
         .from(courses)
-        .where(
-          and(
-            eq(courses.id, lesson.courseId),
-            eq(courses.userId, ctx.session.user.id)
-          )
-        );
+        .where(eq(courses.id, lesson.courseId));
       if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      if (course.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
 
       const [existing] = await db
         .select()
@@ -223,7 +222,19 @@ export const courseRouter = router({
           )
         );
 
-      if (!existing) {
+      if (existing) {
+        await db
+          .update(progress)
+          .set({
+            quizScore: existing.quizScore,
+            quizPassed: existing.quizPassed,
+            quizAttempts: existing.quizAttempts + 1,
+            status: existing.status,
+            completedAt: existing.completedAt,
+            lastAccessedAt: new Date(),
+          })
+          .where(eq(progress.id, existing.id));
+      } else {
         await db.insert(progress).values({
           id: randomUUID(),
           userId: ctx.session.user.id,
@@ -235,25 +246,30 @@ export const courseRouter = router({
           completedAt: new Date(),
           lastAccessedAt: new Date(),
         });
-      } else {
-        await db
-          .update(progress)
-          .set({
-            status: "completed",
-            quizScore: 100,
-            quizPassed: true,
-            completedAt: new Date(),
-            lastAccessedAt: new Date(),
-          })
-          .where(eq(progress.id, existing.id));
       }
 
-      await unlockNextLesson(ctx.session.user.id, input.lessonId);
+      return { status: "completed", completedAt: new Date() };
     }),
 
   markLessonStarted: protectedProcedure
     .input(z.object({ lessonId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Verify lesson exists and belongs to a course owned by the user
+      const [lesson] = await db
+        .select()
+        .from(lessons)
+        .where(eq(lessons.id, input.lessonId));
+      if (!lesson) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const [course] = await db
+        .select()
+        .from(courses)
+        .where(eq(courses.id, lesson.courseId));
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      if (course.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
       const [existing] = await db
         .select()
         .from(progress)
@@ -284,22 +300,21 @@ export const courseRouter = router({
   getNextLesson: protectedProcedure
     .input(z.object({ lessonId: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Verify lesson exists and belongs to a course owned by the user
       const [currentLesson] = await db
         .select()
         .from(lessons)
         .where(eq(lessons.id, input.lessonId));
-      if (!currentLesson) return null;
+      if (!currentLesson) throw new TRPCError({ code: "NOT_FOUND" });
 
       const [course] = await db
         .select()
         .from(courses)
-        .where(
-          and(
-            eq(courses.id, currentLesson.courseId),
-            eq(courses.userId, ctx.session.user.id)
-          )
-        );
-      if (!course) return null;
+        .where(eq(courses.id, currentLesson.courseId));
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      if (course.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
 
       const allLessons = await db
         .select()
@@ -334,16 +349,26 @@ export const courseRouter = router({
     }),
 
   /** Get the current user's progress across all lessons in a course. */
-  getProgressForCourse: protectedProcedure
+getProgressForCourse: protectedProcedure
     .input(z.object({ courseId: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Verify course exists and is owned by the user
+      const [course] = await db
+        .select()
+        .from(courses)
+        .where(eq(courses.id, input.courseId));
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      if (course.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
       const courseLessons = await db
         .select({ id: lessons.id })
         .from(lessons)
         .where(eq(lessons.courseId, input.courseId));
       const lessonIds = courseLessons.map((l) => l.id);
       if (lessonIds.length === 0) return [];
-  
+
       return db
         .select()
         .from(progress)
@@ -359,6 +384,22 @@ export const courseRouter = router({
   getLessonProgress: protectedProcedure
     .input(z.object({ lessonId: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Verify lesson exists and belongs to a course owned by the user
+      const [lesson] = await db
+        .select()
+        .from(lessons)
+        .where(eq(lessons.id, input.lessonId));
+      if (!lesson) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const [course] = await db
+        .select()
+        .from(courses)
+        .where(eq(courses.id, lesson.courseId));
+      if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+      if (course.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
       const [userProgress] = await db
         .select()
         .from(progress)
